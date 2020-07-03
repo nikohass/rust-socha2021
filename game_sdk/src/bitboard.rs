@@ -3,6 +3,13 @@ use std::ops::{
     BitOr, BitOrAssign, Not, Shl, ShlAssign, Shr, ShrAssign
 };
 
+pub const VALID_FIELDS: Bitboard = Bitboard::from(
+    68718428159,
+    340281068846104859441676738753328054239,
+    340282042402230062457950140262158172151,
+    170141102330792131480331186923481595901
+);
+
 #[derive(Debug, Copy, Clone)]
 pub struct Bitboard {
     pub one: u128,
@@ -67,6 +74,14 @@ impl Bitboard {
     pub fn not_zero(&self) -> bool {
         self.one != 0 || self.two != 0 || self.three != 0 || self.four != 0
     }
+
+    pub fn neighbours(&self) -> Bitboard {
+        ((*self << 1) | (*self >> 1) | (*self >> 21) | (*self << 21)) & VALID_FIELDS
+    }
+
+    pub fn diagonal_neighbours(&self) -> Bitboard {
+        ((*self << 22) | (*self >> 22) | (*self >> 20) | (*self << 20)) & VALID_FIELDS
+    }
 }
 
 impl BitXor for Bitboard {
@@ -128,10 +143,10 @@ impl BitOr for Bitboard {
 
 impl BitOrAssign for Bitboard {
     fn bitor_assign(&mut self, other: Self) {
-        self.one != other.one;
-        self.two != other.two;
-        self.three != other.three;
-        self.four != other.four;
+        self.one |= other.one;
+        self.two |= other.two;
+        self.three |= other.three;
+        self.four |= other.four;
     }
 }
 
