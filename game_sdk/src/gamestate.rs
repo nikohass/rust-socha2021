@@ -75,41 +75,71 @@ impl GameState {
             other_fields & VALID_FIELDS == other_fields, "Other fields are not valid fields."
         );
 
-        // Monomino move generation
-        if self.pieces_left[0][self.current_player as usize] {
-            let mut to_bit = Bitboard::from(0, 0, 0, 1);
-            let mut fields = must_fields;
-            while fields.not_zero() {
-                if fields & to_bit == to_bit {
-                    fields ^= to_bit;
+        let mut to_bit = Bitboard::from(0, 0, 0, 1);
+        let mut fields = must_fields;
+        while fields.not_zero() {
+            if fields & to_bit == to_bit {
+                fields ^= to_bit;
+                if self.pieces_left[0][self.current_player as usize] {
+                    // Monomino move generation
                     actionlist.push(Action::Set(to_bit, PieceType::Monomino));
                 }
-                to_bit <<= 1;
-            }
-        }
-        // Domino move generation
-        if self.pieces_left[1][self.current_player as usize] {
-            let mut to_bit = Bitboard::from(0, 0, 0, 1);
-            let mut fields = must_fields;
-            while fields.not_zero() {
-                if fields & to_bit == to_bit {
-                    fields ^= to_bit;
-                    if (legal_fields & (to_bit << 1)).not_zero() {
+                // Left move generation
+                if (legal_fields & (to_bit << 1)).not_zero() {
+                    if self.pieces_left[1][self.current_player as usize] {
                         actionlist.push(Action::Set(to_bit | to_bit << 1, PieceType::Domino));
                     }
-                    if (legal_fields & (to_bit >> 1)).not_zero() {
-                        actionlist.push(Action::Set(to_bit | to_bit >> 1, PieceType::Domino));
-                    }
-                    if (legal_fields & (to_bit << 21)).not_zero() {
-                        actionlist.push(Action::Set(to_bit | to_bit << 21, PieceType::Domino));
-                    }
-                    if (legal_fields & (to_bit >> 21)).not_zero() {
-                        actionlist.push(Action::Set(to_bit | to_bit >> 21, PieceType::Domino));
+                    if self.pieces_left[2][self.current_player as usize]
+                        && (legal_fields & (to_bit << 2)).not_zero()
+                    {
+                        actionlist.push(
+                            Action::Set(to_bit | to_bit << 1 | to_bit << 2, PieceType::ITromino)
+                        );
                     }
                 }
-                to_bit <<= 1;
+                // Right move generation
+                if (legal_fields & (to_bit >> 1)).not_zero() {
+                    if self.pieces_left[1][self.current_player as usize] {
+                        actionlist.push(Action::Set(to_bit | to_bit >> 1, PieceType::Domino));
+                    }
+                    if self.pieces_left[2][self.current_player as usize]
+                        &&(legal_fields & (to_bit >> 2)).not_zero()
+                    {
+                        actionlist.push(
+                            Action::Set(to_bit | to_bit >> 1 | to_bit >> 2, PieceType::ITromino)
+                        );
+                    }
+                }
+                // Lower move generation
+                if (legal_fields & (to_bit << 21)).not_zero() {
+                    if self.pieces_left[1][self.current_player as usize] {
+                        actionlist.push(Action::Set(to_bit | to_bit << 21, PieceType::Domino));
+                    }
+                    if self.pieces_left[2][self.current_player as usize]
+                        &&(legal_fields & (to_bit << 42)).not_zero()
+                    {
+                        actionlist.push(
+                            Action::Set(to_bit | to_bit << 21 | to_bit << 42, PieceType::ITromino)
+                        );
+                    }
+                }
+                // Higher move generation
+                if (legal_fields & (to_bit >> 21)).not_zero() {
+                    if self.pieces_left[1][self.current_player as usize] {
+                        actionlist.push(Action::Set(to_bit | to_bit >> 21, PieceType::Domino));
+                    }
+                    if self.pieces_left[2][self.current_player as usize]
+                        &&(legal_fields & (to_bit >> 42)).not_zero()
+                    {
+                        actionlist.push(
+                            Action::Set(to_bit | to_bit >> 21 | to_bit >> 42, PieceType::ITromino)
+                        );
+                    }
+                }
             }
+            to_bit <<= 1;
         }
+
 
         if actionlist.size == 0 {
             actionlist.push(Action::Pass);
