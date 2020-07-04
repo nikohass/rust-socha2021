@@ -28,7 +28,7 @@ impl GameState {
             Action::Set(board, piece_type) => {
                 debug_assert!(
                     !((self.board[0] | self.board[1]) & board).not_zero(),
-                    "Piece can´t be placet on other pieces."
+                    "Piece can´t be placed on other pieces."
                 );
                 debug_assert!(
                     self.pieces_left[piece_type as usize][self.current_player as usize] == true,
@@ -61,9 +61,9 @@ impl GameState {
     pub fn get_possible_actions(&self, actionlist: &mut ActionList) {
         let own_fields = self.board[self.current_player as usize];
         let other_fields = self.board[self.current_player.swap() as usize];
-        let illegal_fields = own_fields | other_fields | own_fields.neighbours() | !VALID_FIELDS;
+        let legal_fields = !(own_fields | other_fields | own_fields.neighbours()) & VALID_FIELDS;
         let must_fields = if self.ply > 1 {
-            own_fields.diagonal_neighbours() & !illegal_fields
+            own_fields.diagonal_neighbours() & legal_fields
         } else if self.ply == 0 {
             RED_START_FIELD
         } else {
@@ -83,6 +83,29 @@ impl GameState {
                 if fields & to_bit == to_bit {
                     fields ^= to_bit;
                     actionlist.push(Action::Set(to_bit, PieceType::Monomino));
+                }
+                to_bit <<= 1;
+            }
+        }
+        // Domino move generation
+        if self.pieces_left[1][self.current_player as usize] {
+            let mut to_bit = Bitboard::from(0, 0, 0, 1);
+            let mut fields = must_fields;
+            while fields.not_zero() {
+                if fields & to_bit == to_bit {
+                    fields ^= to_bit;
+                    if (legal_fields & (to_bit << 1)).not_zero() {
+                        actionlist.push(Action::Set(to_bit | to_bit << 1, PieceType::Domino));
+                    }
+                    if (legal_fields & (to_bit >> 1)).not_zero() {
+                        actionlist.push(Action::Set(to_bit | to_bit >> 1, PieceType::Domino));
+                    }
+                    if (legal_fields & (to_bit << 21)).not_zero() {
+                        actionlist.push(Action::Set(to_bit | to_bit << 21, PieceType::Domino));
+                    }
+                    if (legal_fields & (to_bit >> 21)).not_zero() {
+                        actionlist.push(Action::Set(to_bit | to_bit >> 21, PieceType::Domino));
+                    }
                 }
                 to_bit <<= 1;
             }
