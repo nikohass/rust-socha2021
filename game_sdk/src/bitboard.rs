@@ -9,6 +9,8 @@ pub const VALID_FIELDS: Bitboard = Bitboard::from(
     329648537884054317714434393650000297983,
     297747050773401880467613752304696557567
 );
+pub const RED_START_FIELD: Bitboard = Bitboard::from(0, 0, 0, 1);
+pub const BLUE_START_FIELD: Bitboard = Bitboard::from(1 << 34, 0, 0, 0);
 
 #[derive(Debug, Copy, Clone)]
 pub struct Bitboard {

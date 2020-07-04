@@ -1,4 +1,4 @@
-use super::bitboard::{Bitboard, VALID_FIELDS};
+use super::bitboard::{Bitboard, VALID_FIELDS, RED_START_FIELD, BLUE_START_FIELD};
 use super::color::Color;
 use super::action::Action;
 use super::actionlist::ActionList;
@@ -22,15 +22,57 @@ impl GameState {
         }
     }
 
+    pub fn do_action(&mut self, action: Action) {
+        match action {
+            Action::Pass => {},
+            Action::Set(board, piece_type) => {
+                debug_assert!(
+                    !((self.board[0] | self.board[1]) & board).not_zero(),
+                    "Piece can´t be placet on other pieces."
+                );
+                debug_assert!(
+                    self.pieces_left[piece_type as usize][self.current_player as usize] == true,
+                    "Cannot place piece that has already been placed."
+                );
+                self.pieces_left[piece_type as usize][self.current_player as usize] = false;
+                self.board[self.current_player as usize] ^= board;
+            }
+        };
+        self.current_player = self.current_player.swap();
+        self.ply += 1;
+    }
+
+    pub fn undo_action(&mut self, action: Action) {
+        self.current_player = self.current_player.swap();
+        self.ply -= 1;
+        match action {
+            Action::Pass => {},
+            Action::Set(board, piece_type) => {
+                debug_assert!(
+                    self.pieces_left[piece_type as usize][self.current_player as usize] == false,
+                    "Cannot remove piece that has not been placed."
+                );
+                self.pieces_left[piece_type as usize][self.current_player as usize] = true;
+                self.board[self.current_player as usize] ^= board;
+            }
+        };
+    }
+
     pub fn get_possible_actions(&self, actionlist: &mut ActionList) {
         let own_fields = self.board[self.current_player as usize];
         let other_fields = self.board[self.current_player.swap() as usize];
         let illegal_fields = own_fields | other_fields | own_fields.neighbours() | !VALID_FIELDS;
-        let must_fields = own_fields.diagonal_neighbours() & !illegal_fields;
+        let must_fields = if self.ply > 1 {
+            own_fields.diagonal_neighbours() & !illegal_fields
+        } else if self.ply == 0 {
+            RED_START_FIELD
+        } else {
+            BLUE_START_FIELD
+        };
 
-        debug_assert!(own_fields & VALID_FIELDS == own_fields, "Own fields are not valid fields!");
+        debug_assert!(own_fields & VALID_FIELDS == own_fields, "Own fields are not valid fields.");
         debug_assert!(
-            other_fields & VALID_FIELDS == other_fields, "Other fields are not valid! fields"
+            other_fields & VALID_FIELDS == other_fields, "Other fields are not valid fields."
         );
 
         // Monomino move generation
@@ -44,6 +86,10 @@ impl GameState {
                 }
                 to_bit <<= 1;
             }
+        }
+
+        if actionlist.size == 0 {
+            actionlist.push(Action::Pass);
         }
     }
 }
