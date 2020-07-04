@@ -13,4 +13,11 @@ impl Color {
             Color::BLUE => Color::RED,
         }
     }
+
+    pub fn to_string(self) -> String {
+        match self {
+            Color::RED => "RED".to_string(),
+            Color::BLUE => "BLUE".to_string()
+        }
+    }
 }
