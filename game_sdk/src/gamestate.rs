@@ -3,7 +3,6 @@ use super::bitboard::{
     VALID_FIELDS,
     RED_START_FIELD,
     BLUE_START_FIELD,
-    Direction,
     DIRECTIONS
 };
 use super::color::Color;
@@ -68,7 +67,7 @@ impl GameState {
         };
     }
 
-    pub fn get_possible_actions(&mut self, actionlist: &mut ActionList) {
+    pub fn get_possible_actions(&self, actionlist: &mut ActionList) {
         let own_fields = self.board[self.current_player as usize];
         let other_fields = self.board[self.current_player.swap() as usize];
         let legal_fields = !(own_fields | other_fields | own_fields.neighbours()) & VALID_FIELDS;
@@ -99,11 +98,41 @@ impl GameState {
                     let to = o_tetromino.trailing_zeros();
                     let to_bit = Bitboard::bit(to as u16);
                     o_tetromino ^= to_bit;
-
+                    if to < 21 {
+                        continue;
+                    }
                     let mut shape = to_bit | to_bit.neighbours_in_direction(d.clockwise());
                     shape |= shape.neighbours_in_direction(d.mirror());
                     if shape & legal_fields == shape {
                         actionlist.push(Action::Set(to | (*d as u16) << 9, PieceType::OTetromino));
+                    }
+                }
+            }
+
+            if self.pieces_left[PieceType::LTromino as usize][self.current_player as usize] {
+                let mut l_tromino = two_in_a_row;
+
+                while l_tromino.not_zero() {
+                    let to = l_tromino.trailing_zeros();
+                    let to_bit = Bitboard::bit(to);
+                    l_tromino ^= to_bit;
+                    let c = to_bit.neighbours_in_direction(d.mirror());
+
+                    let n = c.neighbours_in_direction(d.clockwise());
+                    if n.not_zero() {
+                        let shape = to_bit | c | n;
+                        if shape & legal_fields == shape {
+                            actionlist.push(Action::Set(to | (*d as u16) << 9, PieceType::LTromino));
+                        }
+                    }
+                    let n = to_bit.neighbours_in_direction(d.clockwise());
+                    if n.not_zero() {
+                        let shape = to_bit | c | n;
+                        if shape & legal_fields == shape {
+                            actionlist.push(
+                                Action::Set(to | 32768 | ((*d as u16) << 9), PieceType::LTromino)
+                            );
+                        }
                     }
                 }
             }
@@ -208,7 +237,7 @@ impl Display for GameState {
                 } else if self.board[1] & bit == bit {
                     string.push_str("🟦");
                 } else {
-                    string.push_str("◼️");
+                    string.push_str("▪️");
                 }
             }
             string.push_str("║");

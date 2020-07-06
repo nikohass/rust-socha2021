@@ -61,7 +61,7 @@ impl PieceType {
 
     pub fn get_shape(&self, destination: u16) -> Bitboard {
         let to = destination & 511;
-        let d = Direction::from_u16(destination >> 9);
+        let d = Direction::from_u16((destination >> 9) & 15);
         let mut bit = Bitboard::bit(to);
 
         match self {
@@ -82,7 +82,13 @@ impl PieceType {
                     Direction::UP => bit | bit >> 21 | bit >> 42,
                 }
             }
-            //PieceType::LTromino =>
+            PieceType::LTromino => {
+                let c = bit.neighbours_in_direction(d.mirror());
+                if destination & 32768 == 0 {
+                    return bit | c | c.neighbours_in_direction(d.clockwise())
+                }
+                bit | c | bit.neighbours_in_direction(d.clockwise())
+            }
             PieceType::ITetromino => {
                 bit |= match d {
                     Direction::RIGHT => bit << 1,
@@ -97,9 +103,8 @@ impl PieceType {
                     Direction::UP => bit | bit >> 42,
                 }
             }
-
             PieceType::OTetromino => {
-                let mut shape = bit | bit.neighbours_in_direction(d.clockwise());
+                let shape = bit | bit.neighbours_in_direction(d.clockwise());
                 shape | shape.neighbours_in_direction(d.mirror())
             }
             /*
