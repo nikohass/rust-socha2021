@@ -1,3 +1,4 @@
+use super::bitboard::{Bitboard, Direction};
 
 #[repr(u8)]
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -51,10 +52,94 @@ impl PieceType {
             PieceType::TPentomino => "T-Pentomino".to_string(),
             PieceType::UPentomino => "U-Pentomino".to_string(),
             PieceType::VPentomino => "V-Pentomino".to_string(),
-            PieceType::WPentomino => "W-Pentomino".to_string(), 
+            PieceType::WPentomino => "W-Pentomino".to_string(),
             PieceType::XPentomino => "X-Pentomino".to_string(),
             PieceType::YPentomino => "Y-Pentomino".to_string(),
             PieceType::ZPentomino => "Z-Pentomino".to_string()
+        }
+    }
+
+    pub fn get_shape(&self, destination: u16) -> Bitboard {
+        let to = destination & 511;
+        let d = Direction::from_u16(destination >> 9);
+        let mut bit = Bitboard::bit(to);
+
+        match self {
+            PieceType::Monomino => bit,
+            PieceType::Domino => {
+                match d {
+                    Direction::RIGHT => bit | bit << 1,
+                    Direction::LEFT => bit | bit >> 1,
+                    Direction::DOWN => bit | bit << 21,
+                    Direction::UP => bit | bit >> 21,
+                }
+            }
+            PieceType::ITromino => {
+                match d {
+                    Direction::RIGHT => bit | bit << 1 | bit << 2,
+                    Direction::LEFT => bit | bit >> 1 | bit >> 2,
+                    Direction::DOWN => bit | bit << 21 | bit << 42,
+                    Direction::UP => bit | bit >> 21 | bit >> 42,
+                }
+            }
+            //PieceType::LTromino =>
+            PieceType::ITetromino => {
+                bit |= match d {
+                    Direction::RIGHT => bit << 1,
+                    Direction::LEFT => bit >> 1,
+                    Direction::DOWN => bit << 21,
+                    Direction::UP => bit >> 21,
+                };
+                match d {
+                    Direction::RIGHT => bit | bit << 2,
+                    Direction::LEFT => bit | bit >> 2,
+                    Direction::DOWN => bit | bit << 42,
+                    Direction::UP => bit | bit >> 42,
+                }
+            }
+            /*
+            PieceType::OTetromino => {
+            }
+
+            PieceType::LTetromino =>
+            PieceType::TTetromino =>
+            PieceType::ZTetromino =>
+            */
+            PieceType::IPentomino => {
+                bit |= match d {
+                    Direction::RIGHT => bit << 1,
+                    Direction::LEFT => bit >> 1,
+                    Direction::DOWN => bit << 21,
+                    Direction::UP => bit >> 21,
+                };
+                bit |= match d {
+                    Direction::RIGHT => bit << 2,
+                    Direction::LEFT => bit >> 2,
+                    Direction::DOWN => bit << 42,
+                    Direction::UP => bit >> 42,
+                };
+                match d {
+                    Direction::RIGHT => bit | bit << 1,
+                    Direction::LEFT => bit | bit >> 1,
+                    Direction::DOWN => bit | bit << 21,
+                    Direction::UP => bit | bit >> 21,
+                }
+            }
+
+            _ => bit,
+            /*
+
+            PieceType::FPentomino =>
+            PieceType::LPentomino =>
+            PieceType::NPentomino =>
+            PieceType::PPentomino =>
+            PieceType::TPentomino =>
+            PieceType::UPentomino =>
+            PieceType::VPentomino =>
+            PieceType::WPentomino =>
+            PieceType::XPentomino =>
+            PieceType::YPentomino =>
+            PieceType::ZPentomino =>*/
         }
     }
 }

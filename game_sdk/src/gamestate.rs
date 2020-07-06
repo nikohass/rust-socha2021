@@ -1,4 +1,11 @@
-use super::bitboard::{Bitboard, VALID_FIELDS, RED_START_FIELD, BLUE_START_FIELD};
+use super::bitboard::{
+    Bitboard,
+    VALID_FIELDS,
+    RED_START_FIELD,
+    BLUE_START_FIELD,
+    Direction,
+    DIRECTIONS
+};
 use super::color::Color;
 use super::action::Action;
 use super::actionlist::ActionList;
@@ -25,9 +32,11 @@ impl GameState {
     pub fn do_action(&mut self, action: Action) {
         match action {
             Action::Pass => {},
-            Action::Set(board, piece_type) => {
+            Action::Set(position, piece_type) => {
+                let piece = piece_type.get_shape(position);
+
                 debug_assert!(
-                    !((self.board[0] | self.board[1]) & board).not_zero(),
+                    !((self.board[0] | self.board[1]) & piece).not_zero(),
                     "Piece can´t be placed on other pieces."
                 );
                 debug_assert!(
@@ -35,7 +44,7 @@ impl GameState {
                     "Cannot place piece that has already been placed."
                 );
                 self.pieces_left[piece_type as usize][self.current_player as usize] = false;
-                self.board[self.current_player as usize] ^= board;
+                self.board[self.current_player as usize] ^= piece;
             }
         };
         self.current_player = self.current_player.swap();
@@ -47,13 +56,14 @@ impl GameState {
         self.ply -= 1;
         match action {
             Action::Pass => {},
-            Action::Set(board, piece_type) => {
+            Action::Set(position, piece_type) => {
+                let piece = piece_type.get_shape(position);
                 debug_assert!(
                     self.pieces_left[piece_type as usize][self.current_player as usize] == false,
                     "Cannot remove piece that has not been placed."
                 );
                 self.pieces_left[piece_type as usize][self.current_player as usize] = true;
-                self.board[self.current_player as usize] ^= board;
+                self.board[self.current_player as usize] ^= piece;
             }
         };
     }
@@ -62,7 +72,7 @@ impl GameState {
         let own_fields = self.board[self.current_player as usize];
         let other_fields = self.board[self.current_player.swap() as usize];
         let legal_fields = !(own_fields | other_fields | own_fields.neighbours()) & VALID_FIELDS;
-        let must_fields = if self.ply > 1 {
+        let mut must_fields = if self.ply > 1 {
             own_fields.diagonal_neighbours() & legal_fields
         } else if self.ply == 0 {
             RED_START_FIELD
@@ -75,75 +85,91 @@ impl GameState {
             other_fields & VALID_FIELDS == other_fields, "Other fields are not valid fields."
         );
 
-        let mut to_bit = Bitboard::from(0, 0, 0, 1);
-        let mut fields = must_fields;
-        while fields.not_zero() {
-            if fields & to_bit == to_bit {
-                fields ^= to_bit;
-                if self.pieces_left[0][self.current_player as usize] {
-                    // Monomino move generation
-                    actionlist.push(Action::Set(to_bit, PieceType::Monomino));
-                }
-                // Left move generation
-                if (legal_fields & (to_bit << 1)).not_zero() {
-                    if self.pieces_left[1][self.current_player as usize] {
-                        actionlist.push(Action::Set(to_bit | to_bit << 1, PieceType::Domino));
-                    }
-                    if self.pieces_left[2][self.current_player as usize]
-                        && (legal_fields & (to_bit << 2)).not_zero()
-                    {
-                        actionlist.push(
-                            Action::Set(to_bit | to_bit << 1 | to_bit << 2, PieceType::ITromino)
-                        );
-                    }
-                }
-                // Right move generation
-                if (legal_fields & (to_bit >> 1)).not_zero() {
-                    if self.pieces_left[1][self.current_player as usize] {
-                        actionlist.push(Action::Set(to_bit | to_bit >> 1, PieceType::Domino));
-                    }
-                    if self.pieces_left[2][self.current_player as usize]
-                        &&(legal_fields & (to_bit >> 2)).not_zero()
-                    {
-                        actionlist.push(
-                            Action::Set(to_bit | to_bit >> 1 | to_bit >> 2, PieceType::ITromino)
-                        );
-                    }
-                }
-                // Lower move generation
-                if (legal_fields & (to_bit << 21)).not_zero() {
-                    if self.pieces_left[1][self.current_player as usize] {
-                        actionlist.push(Action::Set(to_bit | to_bit << 21, PieceType::Domino));
-                    }
-                    if self.pieces_left[2][self.current_player as usize]
-                        &&(legal_fields & (to_bit << 42)).not_zero()
-                    {
-                        actionlist.push(
-                            Action::Set(to_bit | to_bit << 21 | to_bit << 42, PieceType::ITromino)
-                        );
-                    }
-                }
-                // Higher move generation
-                if (legal_fields & (to_bit >> 21)).not_zero() {
-                    if self.pieces_left[1][self.current_player as usize] {
-                        actionlist.push(Action::Set(to_bit | to_bit >> 21, PieceType::Domino));
-                    }
-                    if self.pieces_left[2][self.current_player as usize]
-                        &&(legal_fields & (to_bit >> 42)).not_zero()
-                    {
-                        actionlist.push(
-                            Action::Set(to_bit | to_bit >> 21 | to_bit >> 42, PieceType::ITromino)
-                        );
-                    }
+        for d in DIRECTIONS.iter() {
+            let mut two_in_a_row = match *d {
+                Direction::LEFT => legal_fields & must_fields << 1,
+                Direction::RIGHT => legal_fields & must_fields >> 1,
+                Direction::UP => legal_fields & must_fields << 21,
+                Direction::DOWN => legal_fields & must_fields >> 21,
+            };
+            let mut three_in_a_row = match *d {
+                Direction::LEFT => legal_fields & two_in_a_row << 1,
+                Direction::RIGHT => legal_fields & two_in_a_row >> 1,
+                Direction::UP => legal_fields & two_in_a_row << 21,
+                Direction::DOWN => legal_fields & two_in_a_row >> 21,
+            };
+            let mut four_in_a_row = match *d {
+                Direction::LEFT => legal_fields & three_in_a_row << 1,
+                Direction::RIGHT => legal_fields & three_in_a_row >> 1,
+                Direction::UP => legal_fields & three_in_a_row << 21,
+                Direction::DOWN => legal_fields & three_in_a_row >> 21,
+            };
+            let mut five_in_a_row = match *d {
+                Direction::LEFT => legal_fields & four_in_a_row << 1,
+                Direction::RIGHT => legal_fields & four_in_a_row >> 1,
+                Direction::UP => legal_fields & four_in_a_row << 21,
+                Direction::DOWN => legal_fields & four_in_a_row >> 21,
+            };
+
+            if self.pieces_left[PieceType::Domino as usize][self.current_player as usize] {
+                while two_in_a_row.not_zero() {
+                    let to = two_in_a_row.trailing_zeros();
+                    let to_bit = Bitboard::bit(to as u16);
+                    two_in_a_row ^= to_bit;
+                    actionlist.push(Action::Set(to | (*d as u16) << 9, PieceType::Domino));
                 }
             }
-            to_bit <<= 1;
+            if self.pieces_left[PieceType::ITromino as usize][self.current_player as usize] {
+                while three_in_a_row.not_zero() {
+                    let to = three_in_a_row.trailing_zeros();
+                    let to_bit = Bitboard::bit(to as u16);
+                    three_in_a_row ^= to_bit;
+                    actionlist.push(Action::Set(to | (*d as u16) << 9, PieceType::ITromino));
+                }
+            }
+            if self.pieces_left[PieceType::ITetromino as usize][self.current_player as usize] {
+                while four_in_a_row.not_zero() {
+                    let to = four_in_a_row.trailing_zeros();
+                    let to_bit = Bitboard::bit(to);
+                    four_in_a_row ^= to_bit;
+                    actionlist.push(Action::Set(to | (*d as u16) << 9, PieceType::ITetromino));
+                }
+            }
+            if self.pieces_left[PieceType::IPentomino as usize][self.current_player as usize] {
+                while five_in_a_row.not_zero() {
+                    let to = five_in_a_row.trailing_zeros();
+                    let to_bit = Bitboard::bit(to as u16);
+                    five_in_a_row ^= to_bit;
+                    actionlist.push(Action::Set(to | (*d as u16) << 9, PieceType::IPentomino));
+                }
+            }
         }
 
+        if self.pieces_left[PieceType::Monomino as usize][self.current_player as usize] {
+            while must_fields.not_zero() {
+                let to = must_fields.trailing_zeros();
+                let to_bit = Bitboard::bit(to as u16);
+                must_fields ^= to_bit;
+                actionlist.push(Action::Set(to, PieceType::Monomino));
+            }
+        }
 
         if actionlist.size == 0 {
             actionlist.push(Action::Pass);
         }
+    }
+
+    pub fn game_result(&self) -> i16 {
+        let red = self.board[0].count_ones();
+        let blue = self.board[1].count_ones();
+
+        if red > blue {
+            return 1;
+        }
+        if blue > red {
+            return -1
+        }
+        0
     }
 }
 

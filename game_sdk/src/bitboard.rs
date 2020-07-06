@@ -12,6 +12,42 @@ pub const VALID_FIELDS: Bitboard = Bitboard::from(
 pub const RED_START_FIELD: Bitboard = Bitboard::from(0, 0, 0, 1);
 pub const BLUE_START_FIELD: Bitboard = Bitboard::from(1 << 34, 0, 0, 0);
 
+#[repr(u8)]
+#[derive(Copy, Clone, PartialEq, Debug)]
+pub enum Direction {
+    LEFT = 0,
+    UP = 1,
+    RIGHT = 2,
+    DOWN = 3
+}
+
+impl Direction {
+    pub fn to_string(&self) -> String {
+        match self {
+            Direction::LEFT => "LEFT".to_string(),
+            Direction::UP => "UP".to_string(),
+            Direction::RIGHT => "RIGHT".to_string(),
+            Direction::DOWN => "DOWN".to_string()
+        }
+    }
+    pub fn from_u16(n: u16) -> Direction {
+        match n {
+            0 => Direction::LEFT,
+            1 => Direction::UP,
+            2 => Direction::RIGHT,
+            3 => Direction::DOWN,
+            _ => panic!("Invalid direction")
+        }
+    }
+}
+
+pub const DIRECTIONS: [Direction; 4] = [
+    Direction::LEFT,
+    Direction::UP,
+    Direction::RIGHT,
+    Direction::DOWN,
+];
+
 #[derive(Debug, Copy, Clone)]
 pub struct Bitboard {
     pub one: u128,
@@ -57,18 +93,18 @@ impl Bitboard {
             + self.three.count_ones() + self.four.count_ones();
     }
 
-    pub fn trailing_zeros(&self) -> u32 {
+    pub fn trailing_zeros(&self) -> u16 {
         if self.one != 0 {
-            return self.one.trailing_zeros() + 384;
+            return self.one.trailing_zeros() as u16 + 384;
         }
         if self.two != 0 {
-            return self.two.trailing_zeros() + 256;
+            return self.two.trailing_zeros() as u16 + 256;
         }
         if self.three != 0 {
-            return self.three.trailing_zeros() + 128;
+            return self.three.trailing_zeros() as u16 + 128;
         }
         if self.four != 0 {
-            return self.four.trailing_zeros();
+            return self.four.trailing_zeros() as u16;
         }
         512
     }
