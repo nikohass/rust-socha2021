@@ -68,7 +68,7 @@ impl GameState {
         };
     }
 
-    pub fn get_possible_actions(&self, actionlist: &mut ActionList) {
+    pub fn get_possible_actions(&mut self, actionlist: &mut ActionList) {
         let own_fields = self.board[self.current_player as usize];
         let other_fields = self.board[self.current_player.swap() as usize];
         let legal_fields = !(own_fields | other_fields | own_fields.neighbours()) & VALID_FIELDS;
@@ -86,30 +86,27 @@ impl GameState {
         );
 
         for d in DIRECTIONS.iter() {
-            let mut two_in_a_row = match *d {
-                Direction::LEFT => legal_fields & must_fields << 1,
-                Direction::RIGHT => legal_fields & must_fields >> 1,
-                Direction::UP => legal_fields & must_fields << 21,
-                Direction::DOWN => legal_fields & must_fields >> 21,
-            };
-            let mut three_in_a_row = match *d {
-                Direction::LEFT => legal_fields & two_in_a_row << 1,
-                Direction::RIGHT => legal_fields & two_in_a_row >> 1,
-                Direction::UP => legal_fields & two_in_a_row << 21,
-                Direction::DOWN => legal_fields & two_in_a_row >> 21,
-            };
-            let mut four_in_a_row = match *d {
-                Direction::LEFT => legal_fields & three_in_a_row << 1,
-                Direction::RIGHT => legal_fields & three_in_a_row >> 1,
-                Direction::UP => legal_fields & three_in_a_row << 21,
-                Direction::DOWN => legal_fields & three_in_a_row >> 21,
-            };
-            let mut five_in_a_row = match *d {
-                Direction::LEFT => legal_fields & four_in_a_row << 1,
-                Direction::RIGHT => legal_fields & four_in_a_row >> 1,
-                Direction::UP => legal_fields & four_in_a_row << 21,
-                Direction::DOWN => legal_fields & four_in_a_row >> 21,
-            };
+            let mut two_in_a_row = legal_fields & must_fields.neighbours_in_direction(*d);
+            let mut three_in_a_row = legal_fields & two_in_a_row.neighbours_in_direction(*d);
+            let mut four_in_a_row = legal_fields & three_in_a_row.neighbours_in_direction(*d);
+            let mut five_in_a_row = legal_fields & four_in_a_row.neighbours_in_direction(*d);
+
+            if self.pieces_left[PieceType::OTetromino as usize][self.current_player as usize] {
+                let mut o_tetromino =
+                    two_in_a_row | two_in_a_row.neighbours_in_direction(d.anticlockwise());
+
+                while o_tetromino.not_zero() {
+                    let to = o_tetromino.trailing_zeros();
+                    let to_bit = Bitboard::bit(to as u16);
+                    o_tetromino ^= to_bit;
+
+                    let mut shape = to_bit | to_bit.neighbours_in_direction(d.clockwise());
+                    shape |= shape.neighbours_in_direction(d.mirror());
+                    if shape & legal_fields == shape {
+                        actionlist.push(Action::Set(to | (*d as u16) << 9, PieceType::OTetromino));
+                    }
+                }
+            }
 
             if self.pieces_left[PieceType::Domino as usize][self.current_player as usize] {
                 while two_in_a_row.not_zero() {
@@ -153,7 +150,6 @@ impl GameState {
                 actionlist.push(Action::Set(to, PieceType::Monomino));
             }
         }
-
         if actionlist.size == 0 {
             actionlist.push(Action::Pass);
         }
@@ -208,11 +204,11 @@ impl Display for GameState {
                 let field = x + y * 21;
                 let bit = Bitboard::bit(field);
                 if self.board[0] & bit == bit {
-                    string.push_str("R ");
+                    string.push_str("🟥");
                 } else if self.board[1] & bit == bit {
-                    string.push_str("B ");
+                    string.push_str("🟦");
                 } else {
-                    string.push_str(". ");
+                    string.push_str("◼️");
                 }
             }
             string.push_str("║");

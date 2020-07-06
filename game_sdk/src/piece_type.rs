@@ -97,9 +97,12 @@ impl PieceType {
                     Direction::UP => bit | bit >> 42,
                 }
             }
-            /*
+
             PieceType::OTetromino => {
+                let mut shape = bit | bit.neighbours_in_direction(d.clockwise());
+                shape | shape.neighbours_in_direction(d.mirror())
             }
+            /*
 
             PieceType::LTetromino =>
             PieceType::TTetromino =>

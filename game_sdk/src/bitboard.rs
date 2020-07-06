@@ -39,6 +39,30 @@ impl Direction {
             _ => panic!("Invalid direction")
         }
     }
+    pub fn clockwise(&self) -> Direction {
+        match self {
+            Direction::LEFT => Direction::UP,
+            Direction::UP => Direction::RIGHT,
+            Direction::RIGHT => Direction::DOWN,
+            Direction::DOWN => Direction::LEFT
+        }
+    }
+    pub fn anticlockwise(&self) -> Direction {
+        match self {
+            Direction::LEFT => Direction::DOWN,
+            Direction::UP => Direction::LEFT,
+            Direction::RIGHT => Direction::UP,
+            Direction::DOWN => Direction::RIGHT
+        }
+    }
+    pub fn mirror(&self) -> Direction {
+        match self {
+            Direction::LEFT => Direction::RIGHT,
+            Direction::RIGHT => Direction::LEFT,
+            Direction::UP => Direction::DOWN,
+            Direction::DOWN => Direction::UP,
+        }
+    }
 }
 
 pub const DIRECTIONS: [Direction; 4] = [
@@ -119,6 +143,15 @@ impl Bitboard {
 
     pub fn diagonal_neighbours(&self) -> Bitboard {
         ((*self << 22) | (*self >> 22) | (*self >> 20) | (*self << 20)) & VALID_FIELDS
+    }
+
+    pub fn neighbours_in_direction(&self, d: Direction) -> Bitboard {
+        match d {
+            Direction::LEFT => *self << 1,
+            Direction::RIGHT => *self >> 1,
+            Direction::UP => *self << 21,
+            Direction::DOWN => *self >> 21,
+        }
     }
 }
 
