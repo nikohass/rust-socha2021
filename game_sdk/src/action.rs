@@ -10,10 +10,8 @@ impl Action {
     pub fn to_string(&self) -> String {
         match self {
             Action::Pass => "Pass".to_string(),
-            Action::Set(to, piece_type) =>
-                format!("Set {} to {}",
-                    piece_type.to_string(), to & 511
-                ),
+            Action::Set(action, piece) =>
+                format!("Set {} to {}", piece.to_string(), action & 511),
         }
     }
 }

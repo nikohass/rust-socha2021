@@ -1,4 +1,3 @@
-use super::bitboard::{Bitboard, Direction};
 
 #[repr(u8)]
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -59,95 +58,53 @@ impl PieceType {
         }
     }
 
-    pub fn get_shape(&self, destination: u16) -> Bitboard {
-        let to = destination & 511;
-        let d = Direction::from_u16((destination >> 9) & 15);
-        let mut bit = Bitboard::bit(to);
-
+    pub fn piece_size(&self) -> u8 {
         match self {
-            PieceType::Monomino => bit,
-            PieceType::Domino => {
-                match d {
-                    Direction::RIGHT => bit | bit << 1,
-                    Direction::LEFT => bit | bit >> 1,
-                    Direction::DOWN => bit | bit << 21,
-                    Direction::UP => bit | bit >> 21,
-                }
-            }
-            PieceType::ITromino => {
-                match d {
-                    Direction::RIGHT => bit | bit << 1 | bit << 2,
-                    Direction::LEFT => bit | bit >> 1 | bit >> 2,
-                    Direction::DOWN => bit | bit << 21 | bit << 42,
-                    Direction::UP => bit | bit >> 21 | bit >> 42,
-                }
-            }
-            PieceType::LTromino => {
-                let c = bit.neighbours_in_direction(d.mirror());
-                if destination & 32768 == 0 {
-                    return bit | c | c.neighbours_in_direction(d.clockwise())
-                }
-                bit | c | bit.neighbours_in_direction(d.clockwise())
-            }
-            PieceType::ITetromino => {
-                bit |= match d {
-                    Direction::RIGHT => bit << 1,
-                    Direction::LEFT => bit >> 1,
-                    Direction::DOWN => bit << 21,
-                    Direction::UP => bit >> 21,
-                };
-                match d {
-                    Direction::RIGHT => bit | bit << 2,
-                    Direction::LEFT => bit | bit >> 2,
-                    Direction::DOWN => bit | bit << 42,
-                    Direction::UP => bit | bit >> 42,
-                }
-            }
-            PieceType::OTetromino => {
-                let shape = bit | bit.neighbours_in_direction(d.clockwise());
-                shape | shape.neighbours_in_direction(d.mirror())
-            }
-            /*
-
-            PieceType::LTetromino =>
-            PieceType::TTetromino =>
-            PieceType::ZTetromino =>
-            */
-            PieceType::IPentomino => {
-                bit |= match d {
-                    Direction::RIGHT => bit << 1,
-                    Direction::LEFT => bit >> 1,
-                    Direction::DOWN => bit << 21,
-                    Direction::UP => bit >> 21,
-                };
-                bit |= match d {
-                    Direction::RIGHT => bit << 2,
-                    Direction::LEFT => bit >> 2,
-                    Direction::DOWN => bit << 42,
-                    Direction::UP => bit >> 42,
-                };
-                match d {
-                    Direction::RIGHT => bit | bit << 1,
-                    Direction::LEFT => bit | bit >> 1,
-                    Direction::DOWN => bit | bit << 21,
-                    Direction::UP => bit | bit >> 21,
-                }
-            }
-
-            _ => bit,
-            /*
-
-            PieceType::FPentomino =>
-            PieceType::LPentomino =>
-            PieceType::NPentomino =>
-            PieceType::PPentomino =>
-            PieceType::TPentomino =>
-            PieceType::UPentomino =>
-            PieceType::VPentomino =>
-            PieceType::WPentomino =>
-            PieceType::XPentomino =>
-            PieceType::YPentomino =>
-            PieceType::ZPentomino =>*/
+            PieceType::Monomino => 1,
+            PieceType::Domino => 2,
+            PieceType::ITromino => 3,
+            PieceType::LTromino => 3,
+            PieceType::ITetromino => 4,
+            PieceType::LTetromino => 4,
+            PieceType::TTetromino => 4,
+            PieceType::OTetromino => 4,
+            PieceType::ZTetromino => 4,
+            PieceType::FPentomino => 5,
+            PieceType::IPentomino => 5,
+            PieceType::LPentomino => 5,
+            PieceType::NPentomino => 5,
+            PieceType::PPentomino => 5,
+            PieceType::TPentomino => 5,
+            PieceType::UPentomino => 5,
+            PieceType::VPentomino => 5,
+            PieceType::WPentomino => 5,
+            PieceType::XPentomino => 5,
+            PieceType::YPentomino => 5,
+            PieceType::ZPentomino => 5,
         }
     }
 }
+
+pub const PIECE_TYPES: [PieceType; 21] = [
+    PieceType::Monomino,
+    PieceType::Domino,
+    PieceType::ITromino,
+    PieceType::LTromino,
+    PieceType::ITetromino,
+    PieceType::LTetromino,
+    PieceType::TTetromino,
+    PieceType::OTetromino,
+    PieceType::ZTetromino,
+    PieceType::FPentomino,
+    PieceType::IPentomino,
+    PieceType::LPentomino,
+    PieceType::NPentomino,
+    PieceType::PPentomino,
+    PieceType::TPentomino,
+    PieceType::UPentomino,
+    PieceType::VPentomino,
+    PieceType::WPentomino,
+    PieceType::XPentomino,
+    PieceType::YPentomino,
+    PieceType::ZPentomino,
+];

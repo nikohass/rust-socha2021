@@ -72,6 +72,20 @@ pub const DIRECTIONS: [Direction; 4] = [
     Direction::DOWN,
 ];
 
+pub const PIECE_SHAPES: [u128; 11] = [
+    1, // Monomino
+    3, // Domino horizontal
+    2097153, // Domion vertical
+    7, // I-Tromino horizontal
+    4398048608257, // I-Tromino vertical
+    15, // I-Tetromino horizontal
+    9223376434903384065, // I-Tetromino vertical
+    31, // I-Pentomino horizontal
+    19342822337210501698682881, // I-Pentomino vertical
+    6291459, // O-Tetromino
+    4398053851137, // X-Pentomino
+];
+
 #[derive(Debug, Copy, Clone)]
 pub struct Bitboard {
     pub one: u128,
@@ -97,6 +111,39 @@ impl Bitboard {
             three: three,
             four: four
         }
+    }
+
+    pub fn with_piece(action: u16) -> Bitboard {
+        let piece_shape = PIECE_SHAPES[(action >> 9) as usize];
+        let to = action & 511;
+        if to == 0 {
+            return Bitboard::from(0, 0, 0, piece_shape);
+        }
+        if to == 128 {
+            return Bitboard::from(0, 0, piece_shape, 0);
+        }
+        if to == 256 {
+            return Bitboard::from(0, piece_shape, 0, 0);
+        }
+        if to < 128 {
+            let mut board = Bitboard::from(0, 0, piece_shape, 0);
+            board >>= (128 - to) as u8;
+            return board;
+        }
+        if to < 256 {
+            let mut board = Bitboard::from(0, piece_shape, 0, 0);
+            board >>= (256 - to) as u8;
+            return board;
+        }
+        if to < 384 {
+            let mut board = Bitboard::from(piece_shape, 0, 0, 0);
+            board >>= (384 - to) as u8;
+            return board;
+        }
+        if to == 384 {
+            return Bitboard::from(piece_shape, 0, 0, 0);
+        }
+        Bitboard::from(piece_shape, 0, 0, 0) << (to - 384) as u8
     }
 
     pub fn bit(n: u16) -> Bitboard {
