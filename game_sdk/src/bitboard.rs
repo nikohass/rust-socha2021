@@ -72,7 +72,7 @@ pub const DIRECTIONS: [Direction; 4] = [
     Direction::DOWN,
 ];
 
-pub const PIECE_SHAPES: [u128; 11] = [
+pub const PIECE_SHAPES: [u128; 31] = [
     1, // Monomino
     3, // Domino horizontal
     2097153, // Domion vertical
@@ -84,6 +84,26 @@ pub const PIECE_SHAPES: [u128; 11] = [
     19342822337210501698682881, // I-Pentomino vertical
     6291459, // O-Tetromino
     4398053851137, // X-Pentomino
+    6291457, // L-Tromino
+    2097155,
+    4194307,
+    6291458,
+    4398048608259, // L-Tetromino
+    8796097216515,
+    13194143727618,
+    13194141630465,
+    14680065,
+    2097159,
+    8388615,
+    14680068,
+    16777231, // L-Pentomino
+    2097167,
+    31457281,
+    31457288,
+    9223376434903384067,
+    27670120508612935681,
+    18446752869806768131,
+    27670124906661543938,
 ];
 
 #[derive(Debug, Copy, Clone)]

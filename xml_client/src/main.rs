@@ -6,7 +6,7 @@ fn main() {
     let mut rng = SmallRng::from_entropy();
     let mut gs = GameState::new();
 
-    for _ in 0..16 {
+    for _ in 0..22 {
         let mut al = ActionList::default();
         gs.get_possible_actions(&mut al);
         let rand = rng.next_u64() as usize % al.size;

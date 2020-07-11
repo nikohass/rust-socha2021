@@ -158,7 +158,49 @@ impl GameState {
                     }
                 }
             }
-        
+            if self.pieces_left[PieceType::LTromino as usize][self.current_player as usize] {
+                let mut destinations = two_in_a_row &
+                    legal_fields.neighbours_in_direction(d.clockwise());
+
+                while destinations.not_zero() {
+                    let to = destinations.trailing_zeros();
+                    destinations ^= Bitboard::bit(to);
+
+                    let action = match *d {
+                        Direction::UP => if to > 20 {to - 21 | 11 << 9} else {0},
+                        Direction::DOWN => to | 12 << 9,
+                        Direction::LEFT => if to != 0 {to - 1 | 13 << 9} else {0},
+                        Direction::RIGHT => to | 14 << 9,
+                    };
+                    if action != 0 {
+                        let piece = Bitboard::with_piece(action);
+                        if piece & legal_fields == piece {
+                            actionlist.push(Action::Set(action, PieceType::LTromino));
+                        }
+                    }
+                }
+                destinations = (two_in_a_row.neighbours_in_direction(d.mirror())
+                    & legal_fields.neighbours_in_direction(d.anticlockwise()))
+                    .neighbours_in_direction(*d);
+                while destinations.not_zero() {
+                    let to = destinations.trailing_zeros();
+                    destinations ^= Bitboard::bit(to);
+
+                    let action = match *d {
+                        Direction::DOWN => to | 11 << 9,
+                        Direction::LEFT => if to != 0 {to - 1 | 12 << 9} else {0},
+                        Direction::UP => if to > 21 {to - 22 | 13 << 9} else {0},
+                        Direction::RIGHT => if to > 20 {to - 21 | 14 << 9} else {0},
+                    };
+                    if action != 0 {
+                        let piece = Bitboard::with_piece(action);
+                        if piece & legal_fields == piece {
+                            actionlist.push(Action::Set(action, PieceType::LTromino));
+                        }
+                    }
+                }
+            }
+
             if self.pieces_left[PieceType::Domino as usize][self.current_player as usize] {
                 while two_in_a_row.not_zero() {
                     let to = two_in_a_row.trailing_zeros();
@@ -217,6 +259,58 @@ impl GameState {
                             Direction::DOWN => Action::Set(to | 8 << 9, PieceType::IPentomino),
                         }
                     );
+                }
+            }
+        }
+
+        if self.pieces_left[PieceType::LTetromino as usize][self.current_player as usize] {
+            let mut candidates = must_fields;
+            let offsets: [[u16; 3]; 8] = [
+                [0, 1, 42], [0, 1, 43], [1, 43, 42], [0, 42, 43],
+                [0, 21, 23], [0, 2, 21], [0, 2, 23], [2, 21, 23]
+            ];
+            while candidates.not_zero() {
+                let to = candidates.trailing_zeros();
+                candidates ^= Bitboard::bit(to);
+
+                let mut shape_index = 15;
+                for i in 0..8 {
+                    for p in 0..3 {
+                        if to >= offsets[i][p] {
+                            let action = to - offsets[i][p] | shape_index << 9;
+                            let piece = Bitboard::with_piece(action);
+                            if piece & legal_fields == piece {
+                                actionlist.push(Action::Set(action, PieceType::LTetromino));
+                            }
+                        }
+                    }
+                    shape_index += 1;
+                }
+            }
+        }
+
+        if self.pieces_left[PieceType::LPentomino as usize][self.current_player as usize] {
+            let mut candidates = must_fields;
+            let offsets: [[u16; 3]; 8] = [
+                [0, 3, 24], [0, 3, 21], [0, 21, 24], [3, 21, 24],
+                [0, 1, 63], [0, 63, 64], [0, 1, 64], [1, 63, 64]
+            ];
+            while candidates.not_zero() {
+                let to = candidates.trailing_zeros();
+                candidates ^= Bitboard::bit(to);
+
+                let mut shape_index = 23;
+                for i in 0..8 {
+                    for p in 0..3 {
+                        if to >= offsets[i][p] {
+                            let action = to - offsets[i][p] | shape_index << 9;
+                            let piece = Bitboard::with_piece(action);
+                            if piece & legal_fields == piece {
+                                actionlist.push(Action::Set(action, PieceType::LPentomino));
+                            }
+                        }
+                    }
+                    shape_index += 1;
                 }
             }
         }
