@@ -315,6 +315,157 @@ impl GameState {
             }
         }
 
+        if self.pieces_left[PieceType::TPentomino as usize][self.current_player as usize] {
+            let mut candidates = must_fields;
+            let offsets: [[u16; 3]; 4] = [
+                [0, 2, 43], [1, 42, 44], [0, 23, 42], [2, 21, 44],
+            ];
+            while candidates.not_zero() {
+                let to = candidates.trailing_zeros();
+                candidates ^= Bitboard::bit(to);
+
+                let mut shape_index = 31;
+                for i in 0..4 {
+                    for p in 0..3 {
+                        if to >= offsets[i][p] {
+                            let action = to - offsets[i][p] | shape_index << 9;
+                            let piece = Bitboard::with_piece(action);
+                            if piece & legal_fields == piece {
+                                actionlist.push(Action::Set(action, PieceType::TPentomino));
+                            }
+                        }
+                    }
+                    shape_index += 1;
+                }
+            }
+        }
+
+        if self.pieces_left[PieceType::TTetromino as usize][self.current_player as usize] {
+            let mut candidates = must_fields;
+            let offsets: [[u16; 3]; 4] = [
+                [0, 2, 22], [1, 21, 23], [0, 22, 42], [1, 21, 43],
+            ];
+            while candidates.not_zero() {
+                let to = candidates.trailing_zeros();
+                candidates ^= Bitboard::bit(to);
+
+                let mut shape_index = 35;
+                for i in 0..4 {
+                    for p in 0..3 {
+                        if to >= offsets[i][p] {
+                            let action = to - offsets[i][p] | shape_index << 9;
+                            let piece = Bitboard::with_piece(action);
+                            if piece & legal_fields == piece {
+                                actionlist.push(Action::Set(action, PieceType::TTetromino));
+                            }
+                        }
+                    }
+                    shape_index += 1;
+                }
+            }
+        }
+
+        if self.pieces_left[PieceType::ZTetromino as usize][self.current_player as usize] {
+            let mut candidates = must_fields;
+            let offsets: [[u16; 4]; 4] = [
+                [1, 2, 21, 22], [0, 1, 22, 23], [1, 21, 22, 42], [0, 21, 22, 43]
+            ];
+            while candidates.not_zero() {
+                let to = candidates.trailing_zeros();
+                candidates ^= Bitboard::bit(to);
+
+                let mut shape_index = 39;
+                for i in 0..4 {
+                    for p in 0..4 {
+                        if to >= offsets[i][p] {
+                            let action = to - offsets[i][p] | shape_index << 9;
+                            let piece = Bitboard::with_piece(action);
+                            if piece & legal_fields == piece {
+                                actionlist.push(Action::Set(action, PieceType::ZTetromino));
+                            }
+                        }
+                    }
+                    shape_index += 1;
+                }
+            }
+        }
+
+        if self.pieces_left[PieceType::ZPentomino as usize][self.current_player as usize] {
+            let mut candidates = must_fields;
+            let offsets: [[u16; 4]; 4] = [
+                [0, 21, 23, 44], [2, 21, 23, 42], [1, 2, 42, 43], [0, 1, 43, 44]
+            ];
+            while candidates.not_zero() {
+                let to = candidates.trailing_zeros();
+                candidates ^= Bitboard::bit(to);
+
+                let mut shape_index = 43;
+                for i in 0..4 {
+                    for p in 0..4 {
+                        if to >= offsets[i][p] {
+                            let action = to - offsets[i][p] | shape_index << 9;
+                            let piece = Bitboard::with_piece(action);
+                            if piece & legal_fields == piece {
+                                actionlist.push(Action::Set(action, PieceType::ZPentomino));
+                            }
+                        }
+                    }
+                    shape_index += 1;
+                }
+            }
+        }
+
+        if self.pieces_left[PieceType::UPentomino as usize][self.current_player as usize] {
+            let mut candidates = must_fields;
+            let offsets: [[u16; 4]; 4] = [
+                [0, 2, 21, 23], [0, 2, 21, 23], [0, 1, 42, 43], [0, 1, 42, 43]
+            ];
+            while candidates.not_zero() {
+                let to = candidates.trailing_zeros();
+                candidates ^= Bitboard::bit(to);
+
+                let mut shape_index = 47;
+                for i in 0..4 {
+                    for p in 0..4 {
+                        if to >= offsets[i][p] {
+                            let action = to - offsets[i][p] | shape_index << 9;
+                            let piece = Bitboard::with_piece(action);
+                            if piece & legal_fields == piece {
+                                actionlist.push(Action::Set(action, PieceType::UPentomino));
+                            }
+                        }
+                    }
+                    shape_index += 1;
+                }
+            }
+        }
+
+        if self.pieces_left[PieceType::FPentomino as usize][self.current_player as usize] {
+            let mut candidates = must_fields;
+            let offsets: [[u16; 4]; 8] = [
+                [1, 23, 42, 43], [1, 21, 43, 44], [1, 2, 21, 43], [0, 1, 23, 43],
+                [2, 21, 23, 43], [0, 21, 23, 43], [1, 21, 23, 44], [1, 21, 23, 42]
+            ];
+            while candidates.not_zero() {
+                let to = candidates.trailing_zeros();
+                candidates ^= Bitboard::bit(to);
+
+                let mut shape_index = 51;
+                for i in 0..8 {
+                    for p in 0..4 {
+                        if to >= offsets[i][p] {
+                            let action = to - offsets[i][p] | shape_index << 9;
+                            let piece = Bitboard::with_piece(action);
+                            if piece & legal_fields == piece {
+                                actionlist.push(Action::Set(action, PieceType::FPentomino));
+                            }
+                        }
+                    }
+                    shape_index += 1;
+                }
+            }
+        }
+
         if self.pieces_left[PieceType::Monomino as usize][self.current_player as usize] {
             while must_fields.not_zero() {
                 let to = must_fields.trailing_zeros();
