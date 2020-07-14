@@ -1,8 +1,7 @@
 use super::bitboard::{
     Bitboard,
     VALID_FIELDS,
-    RED_START_FIELD,
-    BLUE_START_FIELD,
+    START_FIELDS,
     DIRECTIONS,
     Direction
 };
@@ -14,27 +13,26 @@ use std::fmt::{Display, Formatter, Result};
 
 pub struct GameState {
     pub ply: u8,
-    pub board: [Bitboard; 2],
+    pub board: [Bitboard; 4],
     pub current_player: Color,
-    pub pieces_left: [[bool; 2]; 21],
+    pub pieces_left: [[bool; 4]; 21],
 }
 
 impl GameState {
     pub fn new() -> GameState {
         GameState {
             ply: 0,
-            board: [Bitboard::new(), Bitboard::new()],
+            board: [Bitboard::new(); 4],
             current_player: Color::RED,
-            pieces_left: [[true; 2]; 21]
+            pieces_left: [[true; 4]; 21]
         }
     }
 
     pub fn check_integrity(&self) -> bool {
-        if self.ply % 2 == 0 && self.current_player == Color::BLUE {
-            return false
-        }
-        if self.ply % 2 == 1 && self.current_player == Color::RED {
-            return false
+        for color in 0..4 {
+            if self.ply % 4 == color && self.current_player as u8 != color {
+                return false
+            }
         }
 
         for player in 0..2 {
@@ -69,13 +67,13 @@ impl GameState {
                 self.board[self.current_player as usize] ^= piece;
             }
         };
-        self.current_player = self.current_player.swap();
+        self.current_player = self.current_player.next();
         self.ply += 1;
         debug_assert!(self.check_integrity());
     }
 
     pub fn undo_action(&mut self, action: Action) {
-        self.current_player = self.current_player.swap();
+        self.current_player = self.current_player.previous();
         self.ply -= 1;
         match action {
             Action::Pass => {},
@@ -94,14 +92,14 @@ impl GameState {
 
     pub fn get_possible_actions(&self, actionlist: &mut ActionList) {
         let own_fields = self.board[self.current_player as usize];
-        let other_fields = self.board[self.current_player.swap() as usize];
+        let other_fields = (self.board[0] | self.board[1] | self.board[2] | self.board[3])
+            & !own_fields;
+
         let legal_fields = !(own_fields | other_fields | own_fields.neighbours()) & VALID_FIELDS;
-        let mut must_fields = if self.ply > 1 {
+        let mut must_fields = if self.ply > 3 {
             own_fields.diagonal_neighbours() & legal_fields
-        } else if self.ply == 0 {
-            RED_START_FIELD
         } else {
-            BLUE_START_FIELD
+            START_FIELDS & !other_fields
         };
 
         debug_assert!(own_fields & VALID_FIELDS == own_fields, "Own fields are not valid fields.");
@@ -262,7 +260,7 @@ impl GameState {
                 }
             }
         }
-
+        
         if self.pieces_left[PieceType::LTetromino as usize][self.current_player as usize] {
             let mut candidates = must_fields;
             let offsets: [[u16; 3]; 8] = [
@@ -466,6 +464,134 @@ impl GameState {
             }
         }
 
+        if self.pieces_left[PieceType::WPentomino as usize][self.current_player as usize] {
+            let mut candidates = must_fields;
+            let offsets: [[u16; 5]; 4] = [
+                [0, 21, 22, 43, 44], [2, 22, 23, 42, 43], [0, 1, 22, 23, 44], [1, 2, 21, 22, 42],
+            ];
+            while candidates.not_zero() {
+                let to = candidates.trailing_zeros();
+                candidates ^= Bitboard::bit(to);
+
+                let mut shape_index = 59;
+                for i in 0..4 {
+                    for p in 0..5 {
+                        if to >= offsets[i][p] {
+                            let action = to - offsets[i][p] | shape_index << 9;
+                            let piece = Bitboard::with_piece(action);
+                            if piece & legal_fields == piece {
+                                actionlist.push(Action::Set(action, PieceType::WPentomino));
+                            }
+                        }
+                    }
+                    shape_index += 1;
+                }
+            }
+        }
+
+        if self.pieces_left[PieceType::NPentomino as usize][self.current_player as usize] {
+            let mut candidates = must_fields;
+            let offsets: [[u16; 4]; 8] = [
+                [1, 42, 43, 63], [0, 42, 43, 64], [1, 21, 22, 63], [0, 21, 22, 64],
+                [2, 3, 21, 23], [0, 2, 23, 24], [0, 1, 22, 24], [1, 3, 21, 22]
+            ];
+            while candidates.not_zero() {
+                let to = candidates.trailing_zeros();
+                candidates ^= Bitboard::bit(to);
+
+                let mut shape_index = 63;
+                for i in 0..8 {
+                    for p in 0..4 {
+                        if to >= offsets[i][p] {
+                            let action = to - offsets[i][p] | shape_index << 9;
+                            let piece = Bitboard::with_piece(action);
+                            if piece & legal_fields == piece {
+                                actionlist.push(Action::Set(action, PieceType::NPentomino));
+                            }
+                        }
+                    }
+                    shape_index += 1;
+                }
+            }
+        }
+
+        if self.pieces_left[PieceType::VPentomino as usize][self.current_player as usize] {
+            let mut candidates = must_fields;
+            let offsets: [[u16; 3]; 4] = [
+                [0, 2, 42], [2, 42, 44], [0, 2, 44], [0, 42, 44]
+            ];
+            while candidates.not_zero() {
+                let to = candidates.trailing_zeros();
+                candidates ^= Bitboard::bit(to);
+
+                let mut shape_index = 71;
+                for i in 0..4 {
+                    for p in 0..3 {
+                        if to >= offsets[i][p] {
+                            let action = to - offsets[i][p] | shape_index << 9;
+                            let piece = Bitboard::with_piece(action);
+                            if piece & legal_fields == piece {
+                                actionlist.push(Action::Set(action, PieceType::VPentomino));
+                            }
+                        }
+                    }
+                    shape_index += 1;
+                }
+            }
+        }
+
+        if self.pieces_left[PieceType::PPentomino as usize][self.current_player as usize] {
+            let mut candidates = must_fields;
+            let offsets: [[u16; 4]; 8] = [
+                [0, 1, 22, 42], [0, 1, 21, 43], [0, 1, 21, 23], [0, 2, 21, 22],
+                [0, 2, 22, 23], [1, 2, 21, 23], [1, 21, 42, 43], [0, 22, 42, 43]
+            ];
+            while candidates.not_zero() {
+                let to = candidates.trailing_zeros();
+                candidates ^= Bitboard::bit(to);
+
+                let mut shape_index = 75;
+                for i in 0..8 {
+                    for p in 0..4 {
+                        if to >= offsets[i][p] {
+                            let action = to - offsets[i][p] | shape_index << 9;
+                            let piece = Bitboard::with_piece(action);
+                            if piece & legal_fields == piece {
+                                actionlist.push(Action::Set(action, PieceType::PPentomino));
+                            }
+                        }
+                    }
+                    shape_index += 1;
+                }
+            }
+        }
+
+        if self.pieces_left[PieceType::YPentomino as usize][self.current_player as usize] {
+            let mut candidates = must_fields;
+            let offsets: [[u16; 4]; 8] = [
+                [0, 22, 42, 63], [0, 21, 43, 63], [1, 22, 42, 64], [1, 21, 43, 64],
+                [0, 1, 3, 23], [0, 2, 3, 22], [2, 21, 22, 24], [1, 21, 23, 24]
+            ];
+            while candidates.not_zero() {
+                let to = candidates.trailing_zeros();
+                candidates ^= Bitboard::bit(to);
+
+                let mut shape_index = 83;
+                for i in 0..8 {
+                    for p in 0..4 {
+                        if to >= offsets[i][p] {
+                            let action = to - offsets[i][p] | shape_index << 9;
+                            let piece = Bitboard::with_piece(action);
+                            if piece & legal_fields == piece {
+                                actionlist.push(Action::Set(action, PieceType::YPentomino));
+                            }
+                        }
+                    }
+                    shape_index += 1;
+                }
+            }
+        }
+
         if self.pieces_left[PieceType::Monomino as usize][self.current_player as usize] {
             while must_fields.not_zero() {
                 let to = must_fields.trailing_zeros();
@@ -480,13 +606,13 @@ impl GameState {
     }
 
     pub fn game_result(&self) -> i16 {
-        let red = self.board[0].count_ones();
-        let blue = self.board[1].count_ones();
+        let player_1 = (self.board[0] | self.board[1]).count_ones();
+        let player_2 = (self.board[2] | self.board[3]).count_ones();
 
-        if red > blue {
+        if player_1 > player_2 {
             return 1;
         }
-        if blue > red {
+        if player_2 > player_1 {
             return -1
         }
         0
@@ -531,6 +657,10 @@ impl Display for GameState {
                     string.push_str("🟥");
                 } else if self.board[1] & bit == bit {
                     string.push_str("🟦");
+                } else if self.board[2] & bit == bit {
+                    string.push_str("🟨");
+                } else if self.board[3] & bit == bit {
+                    string.push_str("🟩");
                 } else {
                     string.push_str("▪️");
                 }

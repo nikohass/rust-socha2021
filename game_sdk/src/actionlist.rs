@@ -2,7 +2,7 @@
 use super::action::Action;
 use std::ops::Index;
 
-pub const MAX_ACTIONS: usize = 800;
+pub const MAX_ACTIONS: usize = 1300;
 
 pub struct ActionList {
     actions: [Action; MAX_ACTIONS],

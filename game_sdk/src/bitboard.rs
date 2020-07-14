@@ -9,8 +9,7 @@ pub const VALID_FIELDS: Bitboard = Bitboard::from(
     329648537884054317714434393650000297983,
     297747050773401880467613752304696557567
 );
-pub const RED_START_FIELD: Bitboard = Bitboard::from(0, 0, 0, 1);
-pub const BLUE_START_FIELD: Bitboard = Bitboard::from(1 << 34, 0, 0, 0);
+pub const START_FIELDS: Bitboard = Bitboard::from(1 << 34 | 1 << 15, 0, 0, 1 | 1 << 19);
 
 #[repr(u8)]
 #[derive(Copy, Clone, PartialEq, Debug)]
@@ -72,7 +71,7 @@ pub const DIRECTIONS: [Direction; 4] = [
     Direction::DOWN,
 ];
 
-pub const PIECE_SHAPES: [u128; 59] = [
+pub const PIECE_SHAPES: [u128; 91] = [
     1, // Monomino
     3, // Domino horizontal
     2097153, // Domion vertical
@@ -131,7 +130,39 @@ pub const PIECE_SHAPES: [u128; 59] = [
     8796107702276,
     8796107702273,
     17592200724482,
-    4398061191170
+    4398061191170,
+    26388285358081, // W-Pentomino
+    13194152116228,
+    17592198627331,
+    4398052802566,
+    9223385230998503426, // N-Pentomino
+    18446757267851182081,
+    9223376434907578370,
+    18446752869808865281,
+    14680076,
+    25165831,
+    29360131,
+    6291470,
+    4398048608263, // V-Pentomino
+    30786333966340,
+    17592194433031,
+    30786327674881,
+    4398052802563, // P-Pentomino
+    8796099313667,
+    14680067,
+    6291463,
+    12582919,
+    14680070,
+    13194145824770,
+    13194145824769,
+    9223376434907578369, // Y-Pentomino
+    9223385230996406273,
+    18446757267853279234,
+    18446752869808865282,
+    8388623,
+    4194319,
+    31457284,
+    31457282
 ];
 
 #[derive(Debug, Copy, Clone)]
