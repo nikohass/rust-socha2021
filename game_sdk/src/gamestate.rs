@@ -23,7 +23,7 @@ impl GameState {
         GameState {
             ply: 0,
             board: [Bitboard::new(); 4],
-            current_player: Color::RED,
+            current_player: Color::BLUE,
             pieces_left: [[true; 4]; 21]
         }
     }
@@ -31,7 +31,7 @@ impl GameState {
     pub fn check_integrity(&self) -> bool {
         for color in 0..4 {
             if self.ply % 4 == color && self.current_player as u8 != color {
-                return false
+                return false;
             }
         }
 
@@ -60,7 +60,7 @@ impl GameState {
                     "Piece can´t be placed on other pieces."
                 );
                 debug_assert!(
-                    self.pieces_left[piece_type as usize][self.current_player as usize] == true,
+                    self.pieces_left[piece_type as usize][self.current_player as usize],
                     "Cannot place piece that has already been placed."
                 );
                 self.pieces_left[piece_type as usize][self.current_player as usize] = false;
@@ -117,7 +117,7 @@ impl GameState {
                 let mut candidates = must_fields;
                 while candidates.not_zero() {
                     let to = candidates.trailing_zeros();
-                    candidates ^= Bitboard::bit(to);
+                    candidates.flip_bit(to);
 
                     let action = match *d {
                         Direction::UP => to | 10 << 9,
@@ -139,8 +139,7 @@ impl GameState {
 
                 while candidates.not_zero() {
                     let to = candidates.trailing_zeros();
-                    let to_bit = Bitboard::bit(to as u16);
-                    candidates ^= to_bit;
+                    candidates.flip_bit(to);
 
                     let action = match *d {
                         Direction::RIGHT => to | 9 << 9,
@@ -156,13 +155,14 @@ impl GameState {
                     }
                 }
             }
+
             if self.pieces_left[PieceType::LTromino as usize][self.current_player as usize] {
-                let mut destinations = two_in_a_row &
+                let mut candidates = two_in_a_row &
                     legal_fields.neighbours_in_direction(d.clockwise());
 
-                while destinations.not_zero() {
-                    let to = destinations.trailing_zeros();
-                    destinations ^= Bitboard::bit(to);
+                while candidates.not_zero() {
+                    let to = candidates.trailing_zeros();
+                    candidates.flip_bit(to);
 
                     let action = match *d {
                         Direction::UP => if to > 20 {to - 21 | 11 << 9} else {0},
@@ -177,12 +177,12 @@ impl GameState {
                         }
                     }
                 }
-                destinations = (two_in_a_row.neighbours_in_direction(d.mirror())
+                candidates = (two_in_a_row.neighbours_in_direction(d.mirror())
                     & legal_fields.neighbours_in_direction(d.anticlockwise()))
                     .neighbours_in_direction(*d);
-                while destinations.not_zero() {
-                    let to = destinations.trailing_zeros();
-                    destinations ^= Bitboard::bit(to);
+                while candidates.not_zero() {
+                    let to = candidates.trailing_zeros();
+                    candidates.flip_bit(to);
 
                     let action = match *d {
                         Direction::DOWN => to | 11 << 9,
@@ -202,8 +202,7 @@ impl GameState {
             if self.pieces_left[PieceType::Domino as usize][self.current_player as usize] {
                 while two_in_a_row.not_zero() {
                     let to = two_in_a_row.trailing_zeros();
-                    let to_bit = Bitboard::bit(to as u16);
-                    two_in_a_row ^= to_bit;
+                    two_in_a_row.flip_bit(to);
                     actionlist.push(
                         match *d {
                             Direction::RIGHT => Action::Set(to | 1 << 9, PieceType::Domino),
@@ -214,11 +213,11 @@ impl GameState {
                     );
                 }
             }
+
             if self.pieces_left[PieceType::ITromino as usize][self.current_player as usize] {
                 while three_in_a_row.not_zero() {
                     let to = three_in_a_row.trailing_zeros();
-                    let to_bit = Bitboard::bit(to as u16);
-                    three_in_a_row ^= to_bit;
+                    three_in_a_row.flip_bit(to);
                     actionlist.push(
                         match *d {
                             Direction::RIGHT => Action::Set(to | 3 << 9, PieceType::ITromino),
@@ -229,11 +228,11 @@ impl GameState {
                     );
                 }
             }
+
             if self.pieces_left[PieceType::ITetromino as usize][self.current_player as usize] {
                 while four_in_a_row.not_zero() {
                     let to = four_in_a_row.trailing_zeros();
-                    let to_bit = Bitboard::bit(to);
-                    four_in_a_row ^= to_bit;
+                    four_in_a_row.flip_bit(to);
                     actionlist.push(
                         match *d {
                             Direction::RIGHT => Action::Set(to | 5 << 9, PieceType::ITetromino),
@@ -244,11 +243,11 @@ impl GameState {
                     );
                 }
             }
+
             if self.pieces_left[PieceType::IPentomino as usize][self.current_player as usize] {
                 while five_in_a_row.not_zero() {
                     let to = five_in_a_row.trailing_zeros();
-                    let to_bit = Bitboard::bit(to as u16);
-                    five_in_a_row ^= to_bit;
+                    five_in_a_row.flip_bit(to);
                     actionlist.push(
                         match *d {
                             Direction::RIGHT => Action::Set(to | 7 << 9, PieceType::IPentomino),
@@ -260,7 +259,7 @@ impl GameState {
                 }
             }
         }
-        
+
         if self.pieces_left[PieceType::LTetromino as usize][self.current_player as usize] {
             let mut candidates = must_fields;
             let offsets: [[u16; 3]; 8] = [
@@ -269,7 +268,7 @@ impl GameState {
             ];
             while candidates.not_zero() {
                 let to = candidates.trailing_zeros();
-                candidates ^= Bitboard::bit(to);
+                candidates.flip_bit(to);
 
                 let mut shape_index = 15;
                 for i in 0..8 {
@@ -295,7 +294,7 @@ impl GameState {
             ];
             while candidates.not_zero() {
                 let to = candidates.trailing_zeros();
-                candidates ^= Bitboard::bit(to);
+                candidates.flip_bit(to);
 
                 let mut shape_index = 23;
                 for i in 0..8 {
@@ -320,7 +319,7 @@ impl GameState {
             ];
             while candidates.not_zero() {
                 let to = candidates.trailing_zeros();
-                candidates ^= Bitboard::bit(to);
+                candidates.flip_bit(to);
 
                 let mut shape_index = 31;
                 for i in 0..4 {
@@ -345,7 +344,7 @@ impl GameState {
             ];
             while candidates.not_zero() {
                 let to = candidates.trailing_zeros();
-                candidates ^= Bitboard::bit(to);
+                candidates.flip_bit(to);
 
                 let mut shape_index = 35;
                 for i in 0..4 {
@@ -370,7 +369,7 @@ impl GameState {
             ];
             while candidates.not_zero() {
                 let to = candidates.trailing_zeros();
-                candidates ^= Bitboard::bit(to);
+                candidates.flip_bit(to);
 
                 let mut shape_index = 39;
                 for i in 0..4 {
@@ -395,7 +394,7 @@ impl GameState {
             ];
             while candidates.not_zero() {
                 let to = candidates.trailing_zeros();
-                candidates ^= Bitboard::bit(to);
+                candidates.flip_bit(to);
 
                 let mut shape_index = 43;
                 for i in 0..4 {
@@ -420,7 +419,7 @@ impl GameState {
             ];
             while candidates.not_zero() {
                 let to = candidates.trailing_zeros();
-                candidates ^= Bitboard::bit(to);
+                candidates.flip_bit(to);
 
                 let mut shape_index = 47;
                 for i in 0..4 {
@@ -446,7 +445,7 @@ impl GameState {
             ];
             while candidates.not_zero() {
                 let to = candidates.trailing_zeros();
-                candidates ^= Bitboard::bit(to);
+                candidates.flip_bit(to);
 
                 let mut shape_index = 51;
                 for i in 0..8 {
@@ -471,7 +470,7 @@ impl GameState {
             ];
             while candidates.not_zero() {
                 let to = candidates.trailing_zeros();
-                candidates ^= Bitboard::bit(to);
+                candidates.flip_bit(to);
 
                 let mut shape_index = 59;
                 for i in 0..4 {
@@ -497,7 +496,7 @@ impl GameState {
             ];
             while candidates.not_zero() {
                 let to = candidates.trailing_zeros();
-                candidates ^= Bitboard::bit(to);
+                candidates.flip_bit(to);
 
                 let mut shape_index = 63;
                 for i in 0..8 {
@@ -522,7 +521,7 @@ impl GameState {
             ];
             while candidates.not_zero() {
                 let to = candidates.trailing_zeros();
-                candidates ^= Bitboard::bit(to);
+                candidates.flip_bit(to);
 
                 let mut shape_index = 71;
                 for i in 0..4 {
@@ -548,7 +547,7 @@ impl GameState {
             ];
             while candidates.not_zero() {
                 let to = candidates.trailing_zeros();
-                candidates ^= Bitboard::bit(to);
+                candidates.flip_bit(to);
 
                 let mut shape_index = 75;
                 for i in 0..8 {
@@ -574,7 +573,7 @@ impl GameState {
             ];
             while candidates.not_zero() {
                 let to = candidates.trailing_zeros();
-                candidates ^= Bitboard::bit(to);
+                candidates.flip_bit(to);
 
                 let mut shape_index = 83;
                 for i in 0..8 {
@@ -595,8 +594,7 @@ impl GameState {
         if self.pieces_left[PieceType::Monomino as usize][self.current_player as usize] {
             while must_fields.not_zero() {
                 let to = must_fields.trailing_zeros();
-                let to_bit = Bitboard::bit(to as u16);
-                must_fields ^= to_bit;
+                must_fields.flip_bit(to);
                 actionlist.push(Action::Set(to, PieceType::Monomino));
             }
         }
@@ -654,11 +652,11 @@ impl Display for GameState {
                 let field = x + y * 21;
                 let bit = Bitboard::bit(field);
                 if self.board[0] & bit == bit {
-                    string.push_str("🟥");
-                } else if self.board[1] & bit == bit {
                     string.push_str("🟦");
-                } else if self.board[2] & bit == bit {
+                } else if self.board[1] & bit == bit {
                     string.push_str("🟨");
+                } else if self.board[2] & bit == bit {
+                    string.push_str("🟥");
                 } else if self.board[3] & bit == bit {
                     string.push_str("🟩");
                 } else {

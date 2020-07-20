@@ -2,28 +2,28 @@
 #[repr(u8)]
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum Color {
-    RED = 0,
-    BLUE = 1,
-    YELLOW = 2,
+    BLUE = 0,
+    YELLOW = 1,
+    RED = 2,
     GREEN = 3,
 }
 
 impl Color {
     pub fn next(self) -> Color {
         match self {
-            Color::RED => Color::BLUE,
+            Color::RED => Color::GREEN,
             Color::BLUE => Color::YELLOW,
-            Color::YELLOW => Color::GREEN,
-            Color::GREEN => Color::RED
+            Color::YELLOW => Color::RED,
+            Color::GREEN => Color::BLUE
         }
     }
 
     pub fn previous(self) -> Color {
         match self {
-            Color::BLUE => Color::RED,
+            Color::BLUE => Color::GREEN,
             Color::YELLOW => Color::BLUE,
-            Color::GREEN => Color::YELLOW,
-            Color::RED => Color::GREEN
+            Color::GREEN => Color::RED,
+            Color::RED => Color::YELLOW
         }
     }
 

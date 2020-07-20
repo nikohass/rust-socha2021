@@ -225,17 +225,33 @@ impl Bitboard {
         Bitboard::from(piece_shape, 0, 0, 0) << (to - 384) as u8
     }
 
-    pub fn bit(n: u16) -> Bitboard {
-        if n < 128 {
-            return Bitboard::from(0, 0, 0, 1 << n);
+    pub fn bit(bit_idx: u16) -> Bitboard {
+        if bit_idx < 128 {
+            return Bitboard::from(0, 0, 0, 1 << bit_idx);
         }
-        if n < 256 {
-            return Bitboard::from(0, 0, 1 << (n - 128), 0);
+        if bit_idx < 256 {
+            return Bitboard::from(0, 0, 1 << (bit_idx - 128), 0);
         }
-        if n < 384 {
-            return Bitboard::from(0, 1 << (n - 256), 0, 0);
+        if bit_idx < 384 {
+            return Bitboard::from(0, 1 << (bit_idx - 256), 0, 0);
         }
-        return Bitboard::from(1 << (n - 384), 0, 0, 0);
+        return Bitboard::from(1 << (bit_idx - 384), 0, 0, 0);
+    }
+
+    pub fn flip_bit(&mut self, bit_idx: u16) {
+        if bit_idx < 128 {
+            self.four ^= 1 << bit_idx;
+            return
+        }
+        if bit_idx < 256 {
+            self.three ^= 1 << (bit_idx - 128);
+            return
+        }
+        if bit_idx < 384 {
+            self.two ^= 1 << (bit_idx - 256);
+            return
+        }
+        self.one ^= 1 << (bit_idx - 384);
     }
 
     pub fn count_ones(&self) -> u32 {
