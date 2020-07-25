@@ -1,5 +1,7 @@
+#[allow(unused_imports)]
 use game_sdk::actionlist::{ActionList, ActionListStack};
 use game_sdk::gamestate::GameState;
+#[allow(unused_imports)]
 use rand::{rngs::SmallRng, RngCore, SeedableRng};
 use std::time::Instant;
 
@@ -21,10 +23,8 @@ fn perft(state: &mut GameState, depth: usize, als: &mut ActionListStack) -> u64 
     nodes
 }
 
-fn main() {
-    //let mut rng = SmallRng::from_entropy();
-    //let mut al = ActionList::default();
-    let current_best: f64 = 3329.740739113355;
+fn test() {
+    let current_best: f64 = 3491.7866096726702;
     let tests = 100;
 
     let mut state = GameState::new();
@@ -41,4 +41,22 @@ fn main() {
 
     println!("Nodes: {}\nTime: {}ms\nnps: {}", nodes, time_elapsed as f64 / 1000., nps);
     println!("{}%", nps / current_best * 100.);
+}
+
+fn main() {
+    test();
+    /*
+    let mut rng = SmallRng::from_entropy();
+    let mut al = ActionList::default();
+    let mut state = GameState::new();
+    println!("{}", state);
+    for _ in 0..120 {
+        al.size = 0;
+        state.get_possible_actions(&mut al);
+        let rand = rng.next_u64() as usize % al.size;
+        state.do_action(al[rand]);
+        println!("{}", state);
+    }
+    let res = state.game_result();
+    println!("{}", res);*/
 }

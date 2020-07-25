@@ -29,10 +29,10 @@ impl Color {
 
     pub fn to_string(self) -> String {
         match self {
-            Color::RED => "RED".to_string(),
-            Color::BLUE => "BLUE".to_string(),
-            Color::YELLOW => "YELLOW".to_string(),
-            Color::GREEN => "GREEN".to_string()
+            Color::RED => "RED (Team TWO)".to_string(),
+            Color::BLUE => "BLUE (Team ONE)".to_string(),
+            Color::YELLOW => "YELLOW (Team ONE)".to_string(),
+            Color::GREEN => "GREEN (Team TWO)".to_string()
         }
     }
 }

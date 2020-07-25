@@ -1,14 +1,10 @@
-use super::bitboard::{
-    Bitboard,
-    VALID_FIELDS,
-    START_FIELDS,
-    DIRECTIONS,
-    Direction
-};
+use super::bitboard::Bitboard;
+use super::direction::{Direction, DIRECTIONS};
 use super::color::Color;
 use super::action::Action;
 use super::actionlist::ActionList;
 use super::piece_type::{PieceType, PIECE_TYPES};
+use super::constants::{START_FIELDS, VALID_FIELDS};
 use std::fmt::{Display, Formatter, Result};
 
 pub struct GameState {
@@ -16,6 +12,7 @@ pub struct GameState {
     pub board: [Bitboard; 4],
     pub current_player: Color,
     pub pieces_left: [[bool; 4]; 21],
+    pub monomino_placed_last: [bool; 4],
 }
 
 impl GameState {
@@ -24,7 +21,8 @@ impl GameState {
             ply: 0,
             board: [Bitboard::new(); 4],
             current_player: Color::BLUE,
-            pieces_left: [[true; 4]; 21]
+            pieces_left: [[true; 4]; 21],
+            monomino_placed_last: [false; 4],
         }
     }
 
@@ -35,7 +33,7 @@ impl GameState {
             }
         }
 
-        for player in 0..2 {
+        for player in 0..4 {
             let mut should_have: u32 = 0;
             for piece_type in PIECE_TYPES.iter() {
                 if !self.pieces_left[*piece_type as usize][player as usize] {
@@ -56,7 +54,8 @@ impl GameState {
                 let piece = Bitboard::with_piece(action);
 
                 debug_assert!(
-                    !((self.board[0] | self.board[1]) & piece).not_zero(),
+                    !((self.board[0] | self.board[1] | self.board[2] | self.board[3]) & piece)
+                    .not_zero(),
                     "Piece can´t be placed on other pieces."
                 );
                 debug_assert!(
@@ -65,6 +64,8 @@ impl GameState {
                 );
                 self.pieces_left[piece_type as usize][self.current_player as usize] = false;
                 self.board[self.current_player as usize] ^= piece;
+                self.monomino_placed_last[self.current_player as usize] =
+                    piece_type == PieceType::Monomino;
             }
         };
         self.current_player = self.current_player.next();
@@ -85,6 +86,7 @@ impl GameState {
                 );
                 self.pieces_left[piece_type as usize][self.current_player as usize] = true;
                 self.board[self.current_player as usize] ^= piece;
+                //self.monomino_placed_last[self.current_player as usize] = false;
             }
         };
         debug_assert!(self.check_integrity());
@@ -604,16 +606,21 @@ impl GameState {
     }
 
     pub fn game_result(&self) -> i16 {
-        let player_1 = (self.board[0] | self.board[1]).count_ones();
-        let player_2 = (self.board[2] | self.board[3]).count_ones();
+        let mut blue_score = self.board[Color::BLUE as usize].count_ones() as i16;
+        let mut yellow_score = self.board[Color::YELLOW as usize].count_ones() as i16;
+        let mut red_score = self.board[Color::RED as usize].count_ones() as i16;
+        let mut green_score = self.board[Color::GREEN as usize].count_ones() as i16;
 
-        if player_1 > player_2 {
-            return 1;
-        }
-        if player_2 > player_1 {
-            return -1
-        }
-        0
+        blue_score += (blue_score == 89) as i16 * 15
+            + self.monomino_placed_last[Color::BLUE as usize] as i16 * 5;
+        yellow_score += (yellow_score == 89) as i16 * 15
+            + self.monomino_placed_last[Color::YELLOW as usize] as i16 * 5;
+        red_score += (red_score == 89) as i16 * 15
+            + self.monomino_placed_last[Color::RED as usize] as i16 * 5;
+        green_score += (green_score == 89) as i16 * 15
+            + self.monomino_placed_last[Color::GREEN as usize] as i16 * 5;
+
+        blue_score + yellow_score - red_score - green_score
     }
 }
 
