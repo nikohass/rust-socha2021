@@ -105,6 +105,11 @@ impl GameState {
             START_FIELDS & !other_fields
         };
 
+        let with_two_in_a_row = must_fields
+            & (legal_fields << 1 | legal_fields >> 1 | legal_fields << 21 | legal_fields >> 21);
+        let with_three_in_a_row = with_two_in_a_row
+            & (legal_fields << 2 | legal_fields >> 2 | legal_fields << 42 | legal_fields >> 42);
+
         debug_assert!(
             own_fields & VALID_FIELDS == own_fields,
             "Own fields are not valid fields."
@@ -121,7 +126,7 @@ impl GameState {
             let mut five_in_a_row = legal_fields & four_in_a_row.neighbours_in_direction(*d);
 
             if self.pieces_left[PieceType::XPentomino as usize][self.current_player as usize] {
-                let mut candidates = must_fields;
+                let mut candidates = with_three_in_a_row;
                 while candidates.not_zero() {
                     let to = candidates.trailing_zeros();
                     candidates.flip_bit(to);
@@ -160,7 +165,7 @@ impl GameState {
             }
 
             if self.pieces_left[PieceType::OTetromino as usize][self.current_player as usize] {
-                let mut candidates = must_fields;
+                let mut candidates = with_two_in_a_row;
 
                 while candidates.not_zero() {
                     let to = candidates.trailing_zeros();
@@ -326,7 +331,7 @@ impl GameState {
         }
 
         if self.pieces_left[PieceType::LTetromino as usize][self.current_player as usize] {
-            let mut candidates = must_fields;
+            let mut candidates = with_two_in_a_row;
             let offsets: [[u16; 3]; 8] = [
                 [0, 1, 42],
                 [0, 1, 43],
@@ -358,7 +363,7 @@ impl GameState {
         }
 
         if self.pieces_left[PieceType::LPentomino as usize][self.current_player as usize] {
-            let mut candidates = must_fields;
+            let mut candidates = with_two_in_a_row;
             let offsets: [[u16; 3]; 8] = [
                 [0, 3, 24],
                 [0, 3, 21],
@@ -390,7 +395,7 @@ impl GameState {
         }
 
         if self.pieces_left[PieceType::TPentomino as usize][self.current_player as usize] {
-            let mut candidates = must_fields;
+            let mut candidates = with_three_in_a_row;
             let offsets: [[u16; 3]; 4] = [[0, 2, 43], [1, 42, 44], [0, 23, 42], [2, 21, 44]];
             while candidates.not_zero() {
                 let to = candidates.trailing_zeros();
@@ -413,7 +418,7 @@ impl GameState {
         }
 
         if self.pieces_left[PieceType::TTetromino as usize][self.current_player as usize] {
-            let mut candidates = must_fields;
+            let mut candidates = with_two_in_a_row;
             let offsets: [[u16; 3]; 4] = [[0, 2, 22], [1, 21, 23], [0, 22, 42], [1, 21, 43]];
             while candidates.not_zero() {
                 let to = candidates.trailing_zeros();
@@ -436,7 +441,7 @@ impl GameState {
         }
 
         if self.pieces_left[PieceType::ZTetromino as usize][self.current_player as usize] {
-            let mut candidates = must_fields;
+            let mut candidates = with_two_in_a_row;
             let offsets: [[u16; 4]; 4] = [
                 [1, 2, 21, 22],
                 [0, 1, 22, 23],
@@ -464,7 +469,7 @@ impl GameState {
         }
 
         if self.pieces_left[PieceType::ZPentomino as usize][self.current_player as usize] {
-            let mut candidates = must_fields;
+            let mut candidates = with_two_in_a_row;
             let offsets: [[u16; 4]; 4] = [
                 [0, 21, 23, 44],
                 [2, 21, 23, 42],
@@ -492,7 +497,7 @@ impl GameState {
         }
 
         if self.pieces_left[PieceType::UPentomino as usize][self.current_player as usize] {
-            let mut candidates = must_fields;
+            let mut candidates = with_two_in_a_row;
             let offsets: [[u16; 4]; 4] = [
                 [0, 2, 21, 23],
                 [0, 2, 21, 23],
@@ -520,7 +525,7 @@ impl GameState {
         }
 
         if self.pieces_left[PieceType::FPentomino as usize][self.current_player as usize] {
-            let mut candidates = must_fields;
+            let mut candidates = with_two_in_a_row;
             let offsets: [[u16; 4]; 8] = [
                 [1, 23, 42, 43],
                 [1, 21, 43, 44],
@@ -552,7 +557,7 @@ impl GameState {
         }
 
         if self.pieces_left[PieceType::WPentomino as usize][self.current_player as usize] {
-            let mut candidates = must_fields;
+            let mut candidates = with_two_in_a_row;
             let offsets: [[u16; 5]; 4] = [
                 [0, 21, 22, 43, 44],
                 [2, 22, 23, 42, 43],
@@ -580,7 +585,7 @@ impl GameState {
         }
 
         if self.pieces_left[PieceType::NPentomino as usize][self.current_player as usize] {
-            let mut candidates = must_fields;
+            let mut candidates = with_two_in_a_row;
             let offsets: [[u16; 4]; 8] = [
                 [1, 42, 43, 63],
                 [0, 42, 43, 64],
@@ -612,7 +617,7 @@ impl GameState {
         }
 
         if self.pieces_left[PieceType::VPentomino as usize][self.current_player as usize] {
-            let mut candidates = must_fields;
+            let mut candidates = with_three_in_a_row;
             let offsets: [[u16; 3]; 4] = [[0, 2, 42], [2, 42, 44], [0, 2, 44], [0, 42, 44]];
             while candidates.not_zero() {
                 let to = candidates.trailing_zeros();
@@ -635,7 +640,7 @@ impl GameState {
         }
 
         if self.pieces_left[PieceType::PPentomino as usize][self.current_player as usize] {
-            let mut candidates = must_fields;
+            let mut candidates = with_two_in_a_row;
             let offsets: [[u16; 4]; 8] = [
                 [0, 1, 22, 42],
                 [0, 1, 21, 43],
@@ -667,7 +672,7 @@ impl GameState {
         }
 
         if self.pieces_left[PieceType::YPentomino as usize][self.current_player as usize] {
-            let mut candidates = must_fields;
+            let mut candidates = with_two_in_a_row;
             let offsets: [[u16; 4]; 8] = [
                 [0, 22, 42, 63],
                 [0, 21, 43, 63],

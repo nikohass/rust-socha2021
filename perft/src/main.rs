@@ -13,6 +13,7 @@ fn perft(state: &mut GameState, depth: usize, als: &mut ActionListStack) -> u64 
         state.do_action(als[depth][i]);
         nodes += perft(state, depth - 1, als);
         state.undo_action(als[depth][i]);
+        //nodes += als[depth].size as u64;
     }
     nodes
 }

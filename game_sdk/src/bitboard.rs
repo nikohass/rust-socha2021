@@ -38,29 +38,26 @@ impl Bitboard {
         if to == 0 {
             return Bitboard::from(0, 0, 0, piece_shape);
         }
-        if to == 128 {
-            return Bitboard::from(0, 0, piece_shape, 0);
-        }
-        if to == 256 {
-            return Bitboard::from(0, piece_shape, 0, 0);
-        }
-        if to < 128 {
+        if to <= 128 {
             let mut board = Bitboard::from(0, 0, piece_shape, 0);
-            board >>= (128 - to) as u8;
+            if to != 128 {
+                board >>= (128 - to) as u8;
+            }
             return board;
         }
-        if to < 256 {
+        if to <= 256 {
             let mut board = Bitboard::from(0, piece_shape, 0, 0);
-            board >>= (256 - to) as u8;
+            if to != 256 {
+                board >>= (256 - to) as u8;
+            }
             return board;
         }
-        if to < 384 {
+        if to <= 384 {
             let mut board = Bitboard::from(piece_shape, 0, 0, 0);
-            board >>= (384 - to) as u8;
+            if to != 384 {
+                board >>= (384 - to) as u8;
+            }
             return board;
-        }
-        if to == 384 {
-            return Bitboard::from(piece_shape, 0, 0, 0);
         }
         Bitboard::from(piece_shape, 0, 0, 0) << (to - 384) as u8
     }
@@ -75,7 +72,7 @@ impl Bitboard {
         if bit_idx < 384 {
             return Bitboard::from(0, 1 << (bit_idx - 256), 0, 0);
         }
-        return Bitboard::from(1 << (bit_idx - 384), 0, 0, 0);
+        Bitboard::from(1 << (bit_idx - 384), 0, 0, 0)
     }
 
     pub fn flip_bit(&mut self, bit_idx: u16) {
@@ -95,7 +92,7 @@ impl Bitboard {
     }
 
     pub fn count_ones(&self) -> u32 {
-        return self.one.count_ones()
+        self.one.count_ones()
             + self.two.count_ones()
             + self.three.count_ones()
             + self.four.count_ones();
@@ -264,7 +261,7 @@ impl ShrAssign<u8> for Bitboard {
 
 impl PartialEq for Bitboard {
     fn eq(&self, other: &Self) -> bool {
-        return self.one == other.one
+        self.one == other.one
             && self.two == other.two
             && self.three == other.three
             && self.four == other.four;
