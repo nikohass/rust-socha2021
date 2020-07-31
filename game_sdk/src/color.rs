@@ -1,4 +1,3 @@
-
 #[repr(u8)]
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum Color {
@@ -14,7 +13,7 @@ impl Color {
             Color::RED => Color::GREEN,
             Color::BLUE => Color::YELLOW,
             Color::YELLOW => Color::RED,
-            Color::GREEN => Color::BLUE
+            Color::GREEN => Color::BLUE,
         }
     }
 
@@ -23,7 +22,7 @@ impl Color {
             Color::BLUE => Color::GREEN,
             Color::YELLOW => Color::BLUE,
             Color::GREEN => Color::RED,
-            Color::RED => Color::YELLOW
+            Color::RED => Color::YELLOW,
         }
     }
 
@@ -32,7 +31,7 @@ impl Color {
             Color::RED => "RED (Team TWO)".to_string(),
             Color::BLUE => "BLUE (Team ONE)".to_string(),
             Color::YELLOW => "YELLOW (Team ONE)".to_string(),
-            Color::GREEN => "GREEN (Team TWO)".to_string()
+            Color::GREEN => "GREEN (Team TWO)".to_string(),
         }
     }
 }

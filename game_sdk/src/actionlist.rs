@@ -1,4 +1,3 @@
-
 use super::action::Action;
 use std::ops::{Index, IndexMut};
 
@@ -7,7 +6,7 @@ pub const MAX_ACTIONS: usize = 1300;
 #[derive(Clone)]
 pub struct ActionList {
     actions: [Action; MAX_ACTIONS],
-    pub size: usize
+    pub size: usize,
 }
 
 impl ActionList {
@@ -43,7 +42,7 @@ impl Index<usize> for ActionList {
 }
 
 pub struct ActionListStack {
-    pub action_lists: Vec<ActionList>
+    pub action_lists: Vec<ActionList>,
 }
 
 impl ActionListStack {

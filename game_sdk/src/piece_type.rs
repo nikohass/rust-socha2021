@@ -1,4 +1,3 @@
-
 #[repr(u8)]
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum PieceType {
@@ -25,7 +24,7 @@ pub enum PieceType {
     WPentomino = 17,
     XPentomino = 18,
     YPentomino = 19,
-    ZPentomino = 20
+    ZPentomino = 20,
 }
 
 impl PieceType {
@@ -54,7 +53,7 @@ impl PieceType {
             PieceType::WPentomino => "W-Pentomino".to_string(),
             PieceType::XPentomino => "X-Pentomino".to_string(),
             PieceType::YPentomino => "Y-Pentomino".to_string(),
-            PieceType::ZPentomino => "Z-Pentomino".to_string()
+            PieceType::ZPentomino => "Z-Pentomino".to_string(),
         }
     }
 

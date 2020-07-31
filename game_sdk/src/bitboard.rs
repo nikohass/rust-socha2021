@@ -1,16 +1,16 @@
-use std::ops::{
-    BitXor, BitXorAssign, BitAnd, BitAndAssign,
-    BitOr, BitOrAssign, Not, Shl, ShlAssign, Shr, ShrAssign
-};
 use super::constants::{PIECE_SHAPES, VALID_FIELDS};
 use super::direction::Direction;
+use std::ops::{
+    BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Not, Shl, ShlAssign, Shr,
+    ShrAssign,
+};
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq)]
 pub struct Bitboard {
     pub one: u128,
     pub two: u128,
     pub three: u128,
-    pub four: u128
+    pub four: u128,
 }
 
 impl Bitboard {
@@ -19,7 +19,7 @@ impl Bitboard {
             one: 0,
             two: 0,
             three: 0,
-            four: 0
+            four: 0,
         }
     }
 
@@ -28,7 +28,7 @@ impl Bitboard {
             one: one,
             two: two,
             three: three,
-            four: four
+            four: four,
         }
     }
 
@@ -81,22 +81,24 @@ impl Bitboard {
     pub fn flip_bit(&mut self, bit_idx: u16) {
         if bit_idx < 128 {
             self.four ^= 1 << bit_idx;
-            return
+            return;
         }
         if bit_idx < 256 {
             self.three ^= 1 << (bit_idx - 128);
-            return
+            return;
         }
         if bit_idx < 384 {
             self.two ^= 1 << (bit_idx - 256);
-            return
+            return;
         }
         self.one ^= 1 << (bit_idx - 384);
     }
 
     pub fn count_ones(&self) -> u32 {
-        return self.one.count_ones() + self.two.count_ones()
-            + self.three.count_ones() + self.four.count_ones();
+        return self.one.count_ones()
+            + self.two.count_ones()
+            + self.three.count_ones()
+            + self.four.count_ones();
     }
 
     pub fn trailing_zeros(&self) -> u16 {
@@ -145,7 +147,7 @@ impl BitXor for Bitboard {
             one: self.one ^ other.one,
             two: self.two ^ other.two,
             three: self.three ^ other.three,
-            four: self.four ^ other.four
+            four: self.four ^ other.four,
         }
     }
 }
@@ -167,7 +169,7 @@ impl BitAnd for Bitboard {
             one: self.one & other.one,
             two: self.two & other.two,
             three: self.three & other.three,
-            four: self.four & other.four
+            four: self.four & other.four,
         }
     }
 }
@@ -189,7 +191,7 @@ impl BitOr for Bitboard {
             one: self.one | other.one,
             two: self.two | other.two,
             three: self.three | other.three,
-            four: self.four | other.four
+            four: self.four | other.four,
         }
     }
 }
@@ -211,7 +213,7 @@ impl Not for Bitboard {
             one: !self.one,
             two: !self.two,
             three: !self.three,
-            four: !self.four
+            four: !self.four,
         }
     }
 }
@@ -224,7 +226,7 @@ impl Shl<u8> for Bitboard {
             one: (self.one << n) | (self.two >> (128 - n)),
             two: (self.two << n) | (self.three >> (128 - n)),
             three: (self.three << n) | (self.four >> (128 - n)),
-            four: self.four << n
+            four: self.four << n,
         }
     }
 }
@@ -246,7 +248,7 @@ impl Shr<u8> for Bitboard {
             one: self.one >> n,
             two: (self.two >> n) | (self.one << (128 - n)),
             three: (self.three >> n) | (self.two << (128 - n)),
-            four: (self.four >> n) | self.three << (128 - n)
+            four: (self.four >> n) | self.three << (128 - n),
         }
     }
 }
@@ -262,7 +264,9 @@ impl ShrAssign<u8> for Bitboard {
 
 impl PartialEq for Bitboard {
     fn eq(&self, other: &Self) -> bool {
-        return self.one == other.one && self.two == other.two
-            && self.three == other.three && self.four == other.four
+        return self.one == other.one
+            && self.two == other.two
+            && self.three == other.three
+            && self.four == other.four;
     }
 }

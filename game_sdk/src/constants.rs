@@ -4,24 +4,24 @@ pub const VALID_FIELDS: Bitboard = Bitboard::from(
     34359721983,
     337623909661717427026139553986326233087,
     329648537884054317714434393650000297983,
-    297747050773401880467613752304696557567
+    297747050773401880467613752304696557567,
 );
 
 pub const START_FIELDS: Bitboard = Bitboard::from(1 << 34 | 1 << 15, 0, 0, 1 | 1 << 19);
 
 pub const PIECE_SHAPES: [u128; 91] = [
-    1, // Monomino
-    3, // Domino horizontal
-    2097153, // Domion vertical
-    7, // I-Tromino horizontal
-    4398048608257, // I-Tromino vertical
-    15, // I-Tetromino horizontal
-    9223376434903384065, // I-Tetromino vertical
-    31, // I-Pentomino horizontal
+    1,                          // Monomino
+    3,                          // Domino horizontal
+    2097153,                    // Domion vertical
+    7,                          // I-Tromino horizontal
+    4398048608257,              // I-Tromino vertical
+    15,                         // I-Tetromino horizontal
+    9223376434903384065,        // I-Tetromino vertical
+    31,                         // I-Pentomino horizontal
     19342822337210501698682881, // I-Pentomino vertical
-    6291459, // O-Tetromino
-    4398053851137, // X-Pentomino
-    6291457, // L-Tromino
+    6291459,                    // O-Tetromino
+    4398053851137,              // X-Pentomino
+    6291457,                    // L-Tromino
     2097155,
     4194307,
     6291458,
@@ -100,5 +100,5 @@ pub const PIECE_SHAPES: [u128; 91] = [
     8388623,
     4194319,
     31457284,
-    31457282
+    31457282,
 ];
