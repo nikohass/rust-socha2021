@@ -14,6 +14,7 @@ pub struct GameState {
     pub current_player: Color,
     pub pieces_left: [[bool; 4]; 21],
     pub monomino_placed_last: [bool; 4],
+    pub skipped: u8,
 }
 
 impl GameState {
@@ -24,6 +25,7 @@ impl GameState {
             current_player: Color::BLUE,
             pieces_left: [[true; 4]; 21],
             monomino_placed_last: [false; 4],
+            skipped: 0,
         }
     }
 
@@ -50,14 +52,17 @@ impl GameState {
 
     pub fn do_action(&mut self, action: Action) {
         match action {
-            Action::Pass => {}
+            Action::Skip => {
+                self.skipped |= 1 << self.current_player as usize;
+            }
             Action::Set(action, piece_type) => {
                 let piece = Bitboard::with_piece(action);
+                self.skipped &= !1 << self.current_player as usize;
 
                 debug_assert!(
                     !((self.board[0] | self.board[1] | self.board[2] | self.board[3]) & piece)
                         .not_zero(),
-                    "Piece can´t be placed on other pieces."
+                    "Piece can't be placed on other pieces."
                 );
                 debug_assert!(
                     self.pieces_left[piece_type as usize][self.current_player as usize],
@@ -78,8 +83,11 @@ impl GameState {
         self.current_player = self.current_player.previous();
         self.ply -= 1;
         match action {
-            Action::Pass => {}
+            Action::Skip => {
+                self.skipped &= !1 << self.current_player as usize;
+            }
             Action::Set(action, piece_type) => {
+                self.skipped |= 1 << self.current_player as usize;
                 let piece = Bitboard::with_piece(action);
                 debug_assert!(
                     self.pieces_left[piece_type as usize][self.current_player as usize] == false,
@@ -87,7 +95,6 @@ impl GameState {
                 );
                 self.pieces_left[piece_type as usize][self.current_player as usize] = true;
                 self.board[self.current_player as usize] ^= piece;
-                //self.monomino_placed_last[self.current_player as usize] = false;
             }
         };
         debug_assert!(self.check_integrity());
@@ -711,8 +718,12 @@ impl GameState {
             }
         }
         if actionlist.size == 0 {
-            actionlist.push(Action::Pass);
+            actionlist.push(Action::Skip);
         }
+    }
+
+    pub fn is_game_over(&self) -> bool {
+        self.skipped == 15
     }
 
     pub fn game_result(&self) -> i16 {
@@ -721,14 +732,34 @@ impl GameState {
         let mut red_score = self.board[Color::RED as usize].count_ones() as i16;
         let mut green_score = self.board[Color::GREEN as usize].count_ones() as i16;
 
-        blue_score += (blue_score == 89) as i16 * 15
-            + self.monomino_placed_last[Color::BLUE as usize] as i16 * 5;
-        yellow_score += (yellow_score == 89) as i16 * 15
-            + self.monomino_placed_last[Color::YELLOW as usize] as i16 * 5;
-        red_score += (red_score == 89) as i16 * 15
-            + self.monomino_placed_last[Color::RED as usize] as i16 * 5;
-        green_score += (green_score == 89) as i16 * 15
-            + self.monomino_placed_last[Color::GREEN as usize] as i16 * 5;
+        if blue_score == 89 {
+            if self.monomino_placed_last[Color::BLUE as usize] {
+                blue_score += 20;
+            } else {
+                blue_score += 15;
+            }
+        }
+        if yellow_score == 89 {
+            if self.monomino_placed_last[Color::BLUE as usize] {
+                yellow_score += 20;
+            } else {
+                yellow_score += 15;
+            }
+        }
+        if red_score == 89 {
+            if self.monomino_placed_last[Color::BLUE as usize] {
+                red_score += 20;
+            } else {
+                red_score += 15;
+            }
+        }
+        if green_score == 89 {
+            if self.monomino_placed_last[Color::BLUE as usize] {
+                green_score += 20;
+            } else {
+                green_score += 15;
+            }
+        }
 
         blue_score + yellow_score - red_score - green_score
     }
@@ -745,10 +776,11 @@ impl GameState {
                 }
             }
         }
-        info
+        info | (self.skipped as u128) << 120
     }
 
     pub fn int_to_piece_info(&mut self, info: u128) {
+        self.skipped = (info >> 120) as u8;
         for player_index in 0..4 {
             self.monomino_placed_last[player_index as usize] = (1 << player_index) & info != 0;
             for i in 0..21 {

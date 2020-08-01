@@ -95,7 +95,7 @@ impl Bitboard {
         self.one.count_ones()
             + self.two.count_ones()
             + self.three.count_ones()
-            + self.four.count_ones();
+            + self.four.count_ones()
     }
 
     pub fn trailing_zeros(&self) -> u16 {
@@ -264,6 +264,6 @@ impl PartialEq for Bitboard {
         self.one == other.one
             && self.two == other.two
             && self.three == other.three
-            && self.four == other.four;
+            && self.four == other.four
     }
 }

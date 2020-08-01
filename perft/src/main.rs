@@ -3,7 +3,7 @@ use game_sdk::gamestate::GameState;
 use std::time::Instant;
 
 fn perft(state: &mut GameState, depth: usize, als: &mut ActionListStack) -> u64 {
-    if depth == 0 {
+    if depth == 0 || state.is_game_over() {
         return 1;
     }
     als[depth].size = 0;
@@ -13,13 +13,12 @@ fn perft(state: &mut GameState, depth: usize, als: &mut ActionListStack) -> u64 
         state.do_action(als[depth][i]);
         nodes += perft(state, depth - 1, als);
         state.undo_action(als[depth][i]);
-        //nodes += als[depth].size as u64;
     }
     nodes
 }
 
 fn test() {
-    let current_best: f64 = 17968.;
+    let current_best: f64 = 20049.;
     let depth = 3;
     let start_time = Instant::now();
     let mut als = ActionListStack::with_size(depth + 1);
