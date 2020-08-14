@@ -2,7 +2,8 @@
 members = [
 	"game_sdk",
 	"xml_client",
-	"perft"
+	"perft",
+	"player"
 ]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

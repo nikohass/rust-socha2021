@@ -15,6 +15,7 @@ pub struct GameState {
     pub pieces_left: [[bool; 4]; 21],
     pub monomino_placed_last: [bool; 4],
     pub skipped: u8,
+    pub start_piece_type: PieceType,
 }
 
 impl GameState {
@@ -26,6 +27,7 @@ impl GameState {
             pieces_left: [[true; 4]; 21],
             monomino_placed_last: [false; 4],
             skipped: 0,
+            start_piece_type: PieceType::random_pentomino(),
         }
     }
 
@@ -717,6 +719,23 @@ impl GameState {
                 actionlist.push(Action::Set(to, PieceType::Monomino));
             }
         }
+
+        if self.ply / 4 == 0 {
+            let mut idx = 0;
+            for i in 0..actionlist.size {
+                match actionlist[i] {
+                    Action::Set(_, piece_type) => {
+                        if piece_type == self.start_piece_type {
+                            actionlist.swap(idx, i);
+                            idx += 1;
+                        }
+                    }
+                    _ => {}
+                };
+            }
+            actionlist.size = idx;
+        }
+
         if actionlist.size == 0 {
             actionlist.push(Action::Skip);
         }
@@ -764,7 +783,7 @@ impl GameState {
         blue_score + yellow_score - red_score - green_score
     }
 
-    pub fn pieces_info_to_int(&self) -> u128 {
+    pub fn piece_info_to_int(&self) -> u128 {
         let mut info: u128 = 0;
         for player_index in 0..4 {
             if self.monomino_placed_last[player_index as usize] {
@@ -774,6 +793,12 @@ impl GameState {
                 if self.pieces_left[i as usize][player_index as usize] {
                     info |= 1 << (i + 21 * player_index + 4);
                 }
+            }
+        }
+        for start_piece_index in 0..21 {
+            if PIECE_TYPES[start_piece_index] == self.start_piece_type {
+                info |= (start_piece_index as u128) << 110;
+                break;
             }
         }
         info | (self.skipped as u128) << 120
@@ -788,6 +813,8 @@ impl GameState {
                     info & 1 << (i + 21 * player_index + 4) != 0;
             }
         }
+        let start_piece_index = info >> 110 & 31;
+        self.start_piece_type = PIECE_TYPES[start_piece_index as usize];
     }
 
     pub fn to_fen(&self) -> String {
@@ -811,7 +838,7 @@ impl GameState {
             self.board[3].two,
             self.board[3].three,
             self.board[3].four,
-            self.pieces_info_to_int()
+            self.piece_info_to_int()
         ));
         string
     }

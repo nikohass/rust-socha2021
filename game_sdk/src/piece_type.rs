@@ -1,3 +1,5 @@
+use rand::{rngs::SmallRng, RngCore, SeedableRng};
+
 #[repr(u8)]
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum PieceType {
@@ -28,6 +30,17 @@ pub enum PieceType {
 }
 
 impl PieceType {
+    pub fn random_pentomino() -> PieceType {
+        let mut rng = SmallRng::from_entropy();
+        loop {
+            let idx = rng.next_u64() as usize % 12 + 9;
+            if idx != 18 {
+                // X-Pentomino can't be placed in a corner
+                return PIECE_TYPES[idx];
+            }
+        }
+    }
+
     pub fn to_string(&self) -> String {
         match self {
             PieceType::Monomino => "Monomino".to_string(),

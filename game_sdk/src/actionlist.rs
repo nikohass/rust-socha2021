@@ -14,6 +14,11 @@ impl ActionList {
         self.actions[self.size] = action;
         self.size += 1;
     }
+    pub fn swap(&mut self, x: usize, y: usize) {
+        let tmp = self[x];
+        self.actions[x] = self[y];
+        self.actions[y] = tmp;
+    }
 }
 
 impl Default for ActionList {

@@ -9,6 +9,9 @@ checksum = "4785bdd1c96b2a846b2bd7cc02e86b6b3dbf14e7e53446c4f54c92a361040822"
 [[package]]
 name = "game_sdk"
 version = "0.1.0"
+dependencies = [
+ "rand",
+]
 
 [[package]]
 name = "getrandom"
@@ -29,6 +32,13 @@ checksum = "9457b06509d27052635f90d6466700c65095fdf75409b3fbdd903e988b886f49"
 
 [[package]]
 name = "perft"
+version = "0.1.0"
+dependencies = [
+ "game_sdk",
+]
+
+[[package]]
+name = "player"
 version = "0.1.0"
 dependencies = [
  "game_sdk",
@@ -102,5 +112,6 @@ name = "xml_client"
 version = "0.1.0"
 dependencies = [
  "game_sdk",
+ "player",
  "rand",
 ]

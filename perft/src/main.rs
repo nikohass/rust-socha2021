@@ -18,7 +18,7 @@ fn perft(state: &mut GameState, depth: usize, als: &mut ActionListStack) -> u64 
 }
 
 fn test() {
-    let current_best: f64 = 20049.;
+    let current_best: f64 = 19184.;
     let depth = 3;
     let start_time = Instant::now();
     let mut als = ActionListStack::with_size(depth + 1);
@@ -59,8 +59,29 @@ fn test() {
     );
 }
 
+fn count_actions(state: &mut GameState, depth: usize, als: &mut ActionListStack) -> u64 {
+    als[depth].size = 0;
+    state.get_possible_actions(&mut als[depth]);
+    if depth == 0 || state.is_game_over() {
+        return als[depth].size as u64;
+    }
+    let mut nodes: u64 = 0;
+    for i in 0..als[depth].size {
+        state.do_action(als[depth][i]);
+        nodes += count_actions(state, depth - 1, als);
+        state.undo_action(als[depth][i]);
+    }
+    nodes
+}
+
 fn main() {
     for _ in 0..5 {
         test();
     }
+    let mut state = GameState::from_fen("10 229376 21270254224581560681009129656623824896 0 0 17179881472 1993842152134227742961992379458912256 0 0 0 0 0 162259412228914383610878529372163 0 0 0 2658457893046336551349755980500697088 230904757757165799616708592".to_string());
+    let mut als = ActionListStack::with_size(4);
+
+    let actions = count_actions(&mut state, 2, &mut als); // ensures that the move generation is not accidentally changed
+    println!("{}", actions);
+    assert!(actions == 48026480);
 }
