@@ -1,5 +1,5 @@
 [package]
-name = "xml_client"
+name = "test_client"
 version = "0.1.0"
 authors = ["Niko Haß <48032410+nikohass@users.noreply.github.com>"]
 edition = "2018"
@@ -8,6 +8,5 @@ edition = "2018"
 
 [dependencies]
 game_sdk = { path = "../game_sdk"}
-rand = { version = "0.7.3", features = ["small_rng"] }
 player = { path = "../player" }
 argparse = "0.2.2"
