@@ -32,9 +32,9 @@ impl Bitboard {
         }
     }
 
-    pub fn with_piece(action: u16) -> Bitboard {
-        let piece_shape = PIECE_SHAPES[(action >> 9) as usize];
-        let to = action & 511;
+    pub fn with_piece(to: u16, shape_index: usize) -> Bitboard {
+        let piece_shape = PIECE_SHAPES[shape_index];
+
         if to == 0 {
             return Bitboard::from(0, 0, 0, piece_shape);
         }
