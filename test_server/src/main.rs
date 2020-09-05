@@ -13,9 +13,8 @@ fn wait_for_action(client: &mut Client) -> Action {
         bufreader.read_line(&mut new_line).expect("Can't read line");
 
         if new_line.len() != 0 {
-            if new_line.contains("info: ") {
-                println!("{}", new_line);
-            } else {
+            if new_line.contains("action: ") {
+                new_line = (&new_line[8..]).to_string();
                 break;
             }
         }
@@ -38,7 +37,7 @@ fn run_game(state: &mut GameState, client1: &mut Client, client2: &mut Client) {
     let mut action_list = ActionList::default();
 
     while !state.is_game_over() {
-        let team_one = state.ply % 2 == 0 || state.ply % 2 == 1;
+        let team_one = state.ply % 4 == 0 || state.ply % 4 == 1;
 
         action_list.size = 0;
         state.get_possible_actions(&mut action_list);
@@ -99,10 +98,10 @@ fn main() {
     println!("client2_path: {}", client2_path);
     println!("games: {}", games);
 
-    print!("Game  ║Client              ║Wins  ║Draws ║Losses       ");
-    println!("Game  ║Client              ║Wins  ║Draws ║Losses");
-    print!("══════╬════════════════════╬══════╬══════╬═══════      ");
-    println!("══════╬════════════════════╬══════╬══════╬═══════");
+    print!("Game  ║Client                     ║Wins  ║Draws ║Losses       ");
+    println!("Game  ║Client                     ║Wins  ║Draws ║Losses");
+    print!("══════╬═══════════════════════════╬══════╬══════╬═══════      ");
+    println!("══════╬═══════════════════════════╬══════╬══════╬═══════");
 
     let mut client1 = Client::from_path(client1_path);
     let mut client2 = Client::from_path(client2_path);

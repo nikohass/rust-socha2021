@@ -44,7 +44,7 @@ impl Client {
 
         let mut line = String::new();
         line.push_str(&format!("{:6}", games_played));
-        line.push_str(&format!("║{:20}║", self.path));
+        line.push_str(&format!("║{:27}║", self.path));
         line.push_str(&format!("{:6}║", wins));
         line.push_str(&format!("{:6}║", draws));
         line.push_str(&format!("{:6}", losses));
