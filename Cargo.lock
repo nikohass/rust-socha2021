@@ -48,6 +48,7 @@ name = "player"
 version = "0.1.0"
 dependencies = [
  "game_sdk",
+ "rand",
 ]
 
 [[package]]
@@ -122,6 +123,7 @@ version = "0.1.0"
 dependencies = [
  "argparse",
  "game_sdk",
+ "rand",
 ]
 
 [[package]]
@@ -137,5 +139,4 @@ dependencies = [
  "argparse",
  "game_sdk",
  "player",
- "rand",
 ]

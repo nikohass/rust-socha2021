@@ -16,6 +16,7 @@ pub struct GameState {
     pub monomino_placed_last: [bool; 4],
     pub skipped: u8,
     pub start_piece_type: PieceType,
+    pub hash: u64,
 }
 
 impl GameState {
@@ -28,6 +29,7 @@ impl GameState {
             monomino_placed_last: [false; 4],
             skipped: 0,
             start_piece_type: PieceType::random_pentomino(),
+            hash: 0,
         }
     }
 
@@ -72,6 +74,7 @@ impl GameState {
                 );
                 self.pieces_left[piece_type as usize][self.current_player as usize] = false;
                 self.board[self.current_player as usize] ^= piece;
+                self.hash += ((to as u64) + 1) * ((piece_shape as u64) * 419 + 1);
                 self.monomino_placed_last[self.current_player as usize] =
                     piece_type == PieceType::Monomino;
             }
@@ -97,6 +100,7 @@ impl GameState {
                 );
                 self.pieces_left[piece_type as usize][self.current_player as usize] = true;
                 self.board[self.current_player as usize] ^= piece;
+                self.hash -= ((to as u64) + 1) * ((piece_shape as u64) * 419 + 1);
             }
         };
         debug_assert!(self.check_integrity());
@@ -131,151 +135,11 @@ impl GameState {
             "Other fields are not valid fields."
         );
 
-        if self.pieces_left[PieceType::XPentomino as usize][self.current_player as usize] {
-            let mut candidates = with_three_in_a_row;
-
-            while candidates.not_zero() {
-                let to = candidates.trailing_zeros();
-                candidates.flip_bit(to);
-
-                for offset in [0, 20, 22, 42].iter() {
-                    if to >= *offset {
-                        let to = to - *offset;
-                        let piece = Bitboard::with_piece(to, 10);
-                        if piece & legal_fields == piece {
-                            action_list.push(Action::Set(to, PieceType::XPentomino, 10));
-                        }
-                    }
-                }
-            }
-        }
-
         for d in DIRECTIONS.iter() {
             let mut two_in_a_row = legal_fields & placement_fields.neighbours_in_direction(*d);
             let mut three_in_a_row = legal_fields & two_in_a_row.neighbours_in_direction(*d);
             let mut four_in_a_row = legal_fields & three_in_a_row.neighbours_in_direction(*d);
             let mut five_in_a_row = legal_fields & four_in_a_row.neighbours_in_direction(*d);
-
-            if self.pieces_left[PieceType::OTetromino as usize][self.current_player as usize] {
-                let mut candidates = with_two_in_a_row;
-
-                while candidates.not_zero() {
-                    let to = candidates.trailing_zeros();
-                    candidates.flip_bit(to);
-
-                    let action = match *d {
-                        Direction::RIGHT => to,
-                        Direction::UP => {
-                            if to != 0 {
-                                to - 1
-                            } else {
-                                0
-                            }
-                        }
-                        Direction::LEFT => {
-                            if to > 21 {
-                                to - 22
-                            } else {
-                                0
-                            }
-                        }
-                        Direction::DOWN => {
-                            if to > 20 {
-                                to - 21
-                            } else {
-                                0
-                            }
-                        }
-                    };
-                    if action != 0 {
-                        let piece = Bitboard::with_piece(action, 9);
-                        if piece & legal_fields == piece {
-                            action_list.push(Action::Set(action, PieceType::OTetromino, 9));
-                        }
-                    }
-                }
-            }
-
-            if self.pieces_left[PieceType::LTromino as usize][self.current_player as usize] {
-                let mut candidates =
-                    two_in_a_row & legal_fields.neighbours_in_direction(d.clockwise());
-
-                while candidates.not_zero() {
-                    let to = candidates.trailing_zeros();
-                    candidates.flip_bit(to);
-
-                    let action = match *d {
-                        Direction::UP => {
-                            if to > 20 {
-                                to - 21 | 11 << 9
-                            } else {
-                                0
-                            }
-                        }
-                        Direction::DOWN => to | 12 << 9,
-                        Direction::LEFT => {
-                            if to != 0 {
-                                to - 1 | 13 << 9
-                            } else {
-                                0
-                            }
-                        }
-                        Direction::RIGHT => to | 14 << 9,
-                    };
-                    if action != 0 {
-                        let piece = Bitboard::with_piece(action & 511, action as usize >> 9);
-                        if piece & legal_fields == piece {
-                            action_list.push(Action::Set(
-                                action & 511,
-                                PieceType::LTromino,
-                                action as usize >> 9,
-                            ));
-                        }
-                    }
-                }
-                candidates = (two_in_a_row.neighbours_in_direction(d.mirror())
-                    & legal_fields.neighbours_in_direction(d.anticlockwise()))
-                .neighbours_in_direction(*d);
-                while candidates.not_zero() {
-                    let to = candidates.trailing_zeros();
-                    candidates.flip_bit(to);
-
-                    let action = match *d {
-                        Direction::DOWN => to | 11 << 9,
-                        Direction::LEFT => {
-                            if to != 0 {
-                                to - 1 | 12 << 9
-                            } else {
-                                0
-                            }
-                        }
-                        Direction::UP => {
-                            if to > 21 {
-                                to - 22 | 13 << 9
-                            } else {
-                                0
-                            }
-                        }
-                        Direction::RIGHT => {
-                            if to > 20 {
-                                to - 21 | 14 << 9
-                            } else {
-                                0
-                            }
-                        }
-                    };
-                    if action != 0 {
-                        let piece = Bitboard::with_piece(action & 511, action as usize >> 9);
-                        if piece & legal_fields == piece {
-                            action_list.push(Action::Set(
-                                action & 511,
-                                PieceType::LTromino,
-                                action as usize >> 9,
-                            ));
-                        }
-                    }
-                }
-            }
 
             if self.pieces_left[PieceType::Domino as usize][self.current_player as usize] {
                 while two_in_a_row.not_zero() {
@@ -330,38 +194,21 @@ impl GameState {
             }
         }
 
-        if self.pieces_left[PieceType::LTetromino as usize][self.current_player as usize] {
-            let mut candidates = with_two_in_a_row;
-            let offsets: [[u16; 3]; 8] = [
-                [0, 1, 42],
-                [0, 1, 43],
-                [1, 43, 42],
-                [0, 42, 43],
-                [0, 21, 23],
-                [0, 2, 21],
-                [0, 2, 23],
-                [2, 21, 23],
-            ];
+        if self.pieces_left[PieceType::XPentomino as usize][self.current_player as usize] {
+            let mut candidates = with_three_in_a_row;
+
             while candidates.not_zero() {
                 let to = candidates.trailing_zeros();
                 candidates.flip_bit(to);
 
-                let mut shape_index: usize = 15;
-                for i in 0..8 {
-                    for p in 0..3 {
-                        if to >= offsets[i][p] {
-                            let action = to - offsets[i][p];
-                            let piece = Bitboard::with_piece(action, shape_index);
-                            if piece & legal_fields == piece {
-                                action_list.push(Action::Set(
-                                    action,
-                                    PieceType::LTetromino,
-                                    shape_index,
-                                ));
-                            }
+                for offset in [0, 20, 22, 42].iter() {
+                    if to >= *offset {
+                        let destination = to - *offset;
+                        let piece = Bitboard::with_piece(destination, 10);
+                        if piece & legal_fields == piece {
+                            action_list.push(Action::Set(destination, PieceType::XPentomino, 10));
                         }
                     }
-                    shape_index += 1;
                 }
             }
         }
@@ -419,65 +266,6 @@ impl GameState {
                                 action_list.push(Action::Set(
                                     action,
                                     PieceType::TPentomino,
-                                    shape_index,
-                                ));
-                            }
-                        }
-                    }
-                    shape_index += 1;
-                }
-            }
-        }
-
-        if self.pieces_left[PieceType::TTetromino as usize][self.current_player as usize] {
-            let mut candidates = with_two_in_a_row;
-            let offsets: [[u16; 3]; 4] = [[0, 2, 22], [1, 21, 23], [0, 22, 42], [1, 21, 43]];
-            while candidates.not_zero() {
-                let to = candidates.trailing_zeros();
-                candidates.flip_bit(to);
-
-                let mut shape_index: usize = 35;
-                for i in 0..4 {
-                    for p in 0..3 {
-                        if to >= offsets[i][p] {
-                            let action = to - offsets[i][p];
-                            let piece = Bitboard::with_piece(action, shape_index);
-                            if piece & legal_fields == piece {
-                                action_list.push(Action::Set(
-                                    action,
-                                    PieceType::TTetromino,
-                                    shape_index,
-                                ));
-                            }
-                        }
-                    }
-                    shape_index += 1;
-                }
-            }
-        }
-
-        if self.pieces_left[PieceType::ZTetromino as usize][self.current_player as usize] {
-            let mut candidates = with_two_in_a_row;
-            let offsets: [[u16; 4]; 4] = [
-                [1, 2, 21, 22],
-                [0, 1, 22, 23],
-                [1, 21, 22, 42],
-                [0, 21, 22, 43],
-            ];
-            while candidates.not_zero() {
-                let to = candidates.trailing_zeros();
-                candidates.flip_bit(to);
-
-                let mut shape_index: usize = 39;
-                for i in 0..4 {
-                    for p in 0..4 {
-                        if to >= offsets[i][p] {
-                            let action = to - offsets[i][p];
-                            let piece = Bitboard::with_piece(action, shape_index);
-                            if piece & legal_fields == piece {
-                                action_list.push(Action::Set(
-                                    action,
-                                    PieceType::ZTetromino,
                                     shape_index,
                                 ));
                             }
@@ -755,6 +543,147 @@ impl GameState {
             }
         }
 
+        if self.pieces_left[PieceType::TTetromino as usize][self.current_player as usize] {
+            let mut candidates = with_two_in_a_row;
+            let offsets: [[u16; 3]; 4] = [[0, 2, 22], [1, 21, 23], [0, 22, 42], [1, 21, 43]];
+            while candidates.not_zero() {
+                let to = candidates.trailing_zeros();
+                candidates.flip_bit(to);
+
+                let mut shape_index: usize = 35;
+                for i in 0..4 {
+                    for p in 0..3 {
+                        if to >= offsets[i][p] {
+                            let action = to - offsets[i][p];
+                            let piece = Bitboard::with_piece(action, shape_index);
+                            if piece & legal_fields == piece {
+                                action_list.push(Action::Set(
+                                    action,
+                                    PieceType::TTetromino,
+                                    shape_index,
+                                ));
+                            }
+                        }
+                    }
+                    shape_index += 1;
+                }
+            }
+        }
+
+        if self.pieces_left[PieceType::OTetromino as usize][self.current_player as usize] {
+            let mut candidates = with_two_in_a_row;
+            let offsets: [u16; 4] = [0, 1, 21, 22];
+            while candidates.not_zero() {
+                let to = candidates.trailing_zeros();
+                candidates.flip_bit(to);
+
+                for i in 0..4 {
+                    if to >= offsets[i] {
+                        let action = to - offsets[i];
+                        let piece = Bitboard::with_piece(action, 9);
+                        if piece & legal_fields == piece {
+                            action_list.push(Action::Set(action, PieceType::OTetromino, 9));
+                        }
+                    }
+                }
+            }
+        }
+
+        if self.pieces_left[PieceType::ZTetromino as usize][self.current_player as usize] {
+            let mut candidates = with_two_in_a_row;
+            let offsets: [[u16; 4]; 4] = [
+                [1, 2, 21, 22],
+                [0, 1, 22, 23],
+                [1, 21, 22, 42],
+                [0, 21, 22, 43],
+            ];
+            while candidates.not_zero() {
+                let to = candidates.trailing_zeros();
+                candidates.flip_bit(to);
+
+                let mut shape_index: usize = 39;
+                for i in 0..4 {
+                    for p in 0..4 {
+                        if to >= offsets[i][p] {
+                            let action = to - offsets[i][p];
+                            let piece = Bitboard::with_piece(action, shape_index);
+                            if piece & legal_fields == piece {
+                                action_list.push(Action::Set(
+                                    action,
+                                    PieceType::ZTetromino,
+                                    shape_index,
+                                ));
+                            }
+                        }
+                    }
+                    shape_index += 1;
+                }
+            }
+        }
+
+        if self.pieces_left[PieceType::LTetromino as usize][self.current_player as usize] {
+            let mut candidates = with_two_in_a_row;
+            let offsets: [[u16; 3]; 8] = [
+                [0, 1, 42],
+                [0, 1, 43],
+                [1, 43, 42],
+                [0, 42, 43],
+                [0, 21, 23],
+                [0, 2, 21],
+                [0, 2, 23],
+                [2, 21, 23],
+            ];
+            while candidates.not_zero() {
+                let to = candidates.trailing_zeros();
+                candidates.flip_bit(to);
+
+                let mut shape_index: usize = 15;
+                for i in 0..8 {
+                    for p in 0..3 {
+                        if to >= offsets[i][p] {
+                            let action = to - offsets[i][p];
+                            let piece = Bitboard::with_piece(action, shape_index);
+                            if piece & legal_fields == piece {
+                                action_list.push(Action::Set(
+                                    action,
+                                    PieceType::LTetromino,
+                                    shape_index,
+                                ));
+                            }
+                        }
+                    }
+                    shape_index += 1;
+                }
+            }
+        }
+
+        if self.pieces_left[PieceType::LTromino as usize][self.current_player as usize] {
+            let mut candidates = with_two_in_a_row;
+            let offsets: [[u16; 3]; 4] = [[0, 21, 22], [0, 1, 21], [0, 1, 22], [1, 21, 22]];
+            while candidates.not_zero() {
+                let to = candidates.trailing_zeros();
+                candidates.flip_bit(to);
+
+                let mut shape_index: usize = 11;
+                for i in 0..4 {
+                    for p in 0..3 {
+                        if to >= offsets[i][p] {
+                            let action = to - offsets[i][p];
+                            let piece = Bitboard::with_piece(action, shape_index);
+                            if piece & legal_fields == piece {
+                                action_list.push(Action::Set(
+                                    action,
+                                    PieceType::LTromino,
+                                    shape_index,
+                                ));
+                            }
+                        }
+                    }
+                    shape_index += 1;
+                }
+            }
+        }
+
         if self.pieces_left[PieceType::Monomino as usize][self.current_player as usize] {
             while placement_fields.not_zero() {
                 let to = placement_fields.trailing_zeros();
@@ -904,6 +833,7 @@ impl GameState {
             state.board[board_index].four = entries.remove(0).parse::<u128>().unwrap();
         }
         state.int_to_piece_info(entries.remove(0).parse::<u128>().unwrap());
+        //state.hash = calculate_hash(&state);
         state
     }
 }
