@@ -8,3 +8,4 @@ edition = "2018"
 
 [dependencies]
 game_sdk = { path = "../game_sdk"}
+rand = { version = "0.7.3", features = ["small_rng"] }

@@ -4,7 +4,10 @@ use game_sdk::actionlist::ActionList;
 use game_sdk::gamestate::GameState;
 use std::io::{BufRead, BufReader, Write};
 mod client;
-use client::Client;
+use client::{print_stats, Client};
+mod openings;
+use openings::random_opening;
+use rand::{rngs::SmallRng, SeedableRng};
 
 fn wait_for_action(client: &mut Client) -> Action {
     let mut bufreader = BufReader::new(&mut client.output);
@@ -33,7 +36,7 @@ fn request_action(state: &GameState, client: &mut Client) {
         .expect("Can't write to stdin");
 }
 
-fn run_game(state: &mut GameState, client1: &mut Client, client2: &mut Client) {
+fn run_game(state: &mut GameState, client1: &mut Client, client2: &mut Client) -> i16 {
     let mut action_list = ActionList::default();
 
     while !state.is_game_over() {
@@ -58,6 +61,12 @@ fn run_game(state: &mut GameState, client1: &mut Client, client2: &mut Client) {
             }
         }
         if !valid {
+            println!("Invalid action {} {}", state, action.to_string());
+            for i in 0..action_list.size {
+                println!("{}", action_list[i].to_string());
+            }
+            state.do_action(action);
+            println!("{}", state);
             panic!("Invalid action");
         }
         state.do_action(action);
@@ -73,12 +82,14 @@ fn run_game(state: &mut GameState, client1: &mut Client, client2: &mut Client) {
         client1.losses_when_team1 += 1;
         client2.wins_when_team2 += 1;
     }
+    result
 }
 
 fn main() {
     let mut client1_path = String::new();
     let mut client2_path = String::new();
-    let mut games: u32 = 100;
+    let mut games: u32 = 1_000_000;
+    let mut automated_test = false;
 
     {
         let mut parser = ArgumentParser::new();
@@ -91,33 +102,37 @@ fn main() {
         parser
             .refer(&mut games)
             .add_option(&["-g", "--games"], Store, "number of games");
+        parser
+            .refer(&mut automated_test)
+            .add_option(&["-a", "--automated_test"], Store, "automated test");
         parser.parse_args_or_exit();
     }
-
-    println!("client1_path: {}", client1_path);
-    println!("client2_path: {}", client2_path);
-    println!("games: {}", games);
-
-    print!("Game  ║Client                     ║Wins  ║Draws ║Losses       ");
-    println!("Game  ║Client                     ║Wins  ║Draws ║Losses");
-    print!("══════╬═══════════════════════════╬══════╬══════╬═══════      ");
-    println!("══════╬═══════════════════════════╬══════╬══════╬═══════");
+    if !automated_test {
+        println!("client1_path: {}", client1_path);
+        println!("client2_path: {}", client2_path);
+        println!("games: {}", games);
+    }
 
     let mut client1 = Client::from_path(client1_path);
     let mut client2 = Client::from_path(client2_path);
 
+    let mut rng = SmallRng::from_entropy();
+    let mut state = GameState::new();
+    let mut result: i16 = 0;
     for i in 0..games {
-        let mut state = GameState::new();
-
         if i % 2 == 0 {
-            run_game(&mut state, &mut client1, &mut client2);
+            let state = random_opening(&mut rng);
+            result = run_game(&mut state.clone(), &mut client1, &mut client2);
         } else {
-            run_game(&mut state, &mut client2, &mut client1);
+            result = -run_game(&mut state.clone(), &mut client2, &mut client1);
         }
-
-        client1.print_stats();
-        print!("       ");
-        client2.print_stats();
-        print!("\n");
+        if !automated_test {
+            print_stats(&client1, &client2);
+        } else {
+            println!("{}", result);
+        }
+    }
+    if automated_test {
+        println!("bye");
     }
 }

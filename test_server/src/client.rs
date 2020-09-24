@@ -35,19 +35,18 @@ impl Client {
             losses_when_team2: 0,
         }
     }
-
-    pub fn print_stats(&self) {
-        let wins = self.wins_when_team1 + self.wins_when_team2;
-        let draws = self.draws_when_team1 + self.draws_when_team2;
-        let losses = self.losses_when_team1 + self.losses_when_team2;
-        let games_played = wins + draws + losses;
-
+    pub fn print_stats(client1: &Client, client2: &Client) {
         let mut line = String::new();
-        line.push_str(&format!("{:6}", games_played));
-        line.push_str(&format!("║{:27}║", self.path));
-        line.push_str(&format!("{:6}║", wins));
-        line.push_str(&format!("{:6}║", draws));
-        line.push_str(&format!("{:6}", losses));
-        print!("{}", line);
+        let wins = client1.wins_when_team1 + client1.wins_when_team2;
+        let draws = client1.draws_when_team1 + client1.draws_when_team2;
+        let losses = client1.losses_when_team1 + client1.losses_when_team2;
+        let games_played = wins + draws + losses;
+        line.push_str(&format!("{:6} ", games_played));
+        line.push_str(&format!("{:27}", client1.path));
+        line.push_str(&format!("{:6}", wins));
+        line.push_str(&format!("{:6}", draws));
+        line.push_str(&format!("{:6} ", losses));
+        line.push_str(&format!("{:27}", client2.path));
+        println!("{}", line);
     }
 }

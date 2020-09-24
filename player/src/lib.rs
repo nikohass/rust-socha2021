@@ -1,2 +1,4 @@
+pub mod cache;
 pub mod evaluation;
+pub mod principal_variation_search;
 pub mod search;

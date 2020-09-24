@@ -731,28 +731,28 @@ impl GameState {
             }
         }
         if yellow_score == 89 {
-            if self.monomino_placed_last[Color::BLUE as usize] {
+            if self.monomino_placed_last[Color::YELLOW as usize] {
                 yellow_score += 20;
             } else {
                 yellow_score += 15;
             }
         }
         if red_score == 89 {
-            if self.monomino_placed_last[Color::BLUE as usize] {
+            if self.monomino_placed_last[Color::RED as usize] {
                 red_score += 20;
             } else {
                 red_score += 15;
             }
         }
         if green_score == 89 {
-            if self.monomino_placed_last[Color::BLUE as usize] {
+            if self.monomino_placed_last[Color::GREEN as usize] {
                 green_score += 20;
             } else {
                 green_score += 15;
             }
         }
 
-        blue_score + yellow_score - red_score - green_score
+        blue_score + red_score - yellow_score - green_score
     }
 
     pub fn piece_info_to_int(&self) -> u128 {
