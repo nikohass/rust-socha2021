@@ -1,3 +1,5 @@
+use std::fmt::{Display, Formatter, Result};
+
 #[repr(u8)]
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum Color {
@@ -25,13 +27,19 @@ impl Color {
             Color::RED => Color::YELLOW,
         }
     }
+}
 
-    pub fn to_string(self) -> String {
-        match self {
-            Color::RED => "RED (Team ONE)".to_string(),
-            Color::BLUE => "BLUE (Team ONE)".to_string(),
-            Color::YELLOW => "YELLOW (Team TWO)".to_string(),
-            Color::GREEN => "GREEN (Team TWO)".to_string(),
-        }
+impl Display for Color {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                Color::RED => "RED (Team ONE)".to_string(),
+                Color::BLUE => "BLUE (Team ONE)".to_string(),
+                Color::YELLOW => "YELLOW (Team TWO)".to_string(),
+                Color::GREEN => "GREEN (Team TWO)".to_string(),
+            }
+        )
     }
 }

@@ -95,7 +95,7 @@ impl GameState {
                 self.skipped |= 1 << self.current_player as usize;
                 let piece = Bitboard::with_piece(to, piece_shape);
                 debug_assert!(
-                    self.pieces_left[piece_type as usize][self.current_player as usize] == false,
+                    !self.pieces_left[piece_type as usize][self.current_player as usize],
                     "Cannot remove piece that has not been placed."
                 );
                 self.pieces_left[piece_type as usize][self.current_player as usize] = true;
@@ -230,10 +230,10 @@ impl GameState {
                 candidates.flip_bit(to);
 
                 let mut shape_index: usize = 23;
-                for i in 0..8 {
-                    for p in 0..3 {
-                        if to >= offsets[i][p] {
-                            let action = to - offsets[i][p];
+                for i in &offsets {
+                    for p in i.iter().take(3) {
+                        if to >= *p {
+                            let action = to - *p;
                             let piece = Bitboard::with_piece(action, shape_index);
                             if piece & legal_fields == piece {
                                 action_list.push(Action::Set(
@@ -257,10 +257,10 @@ impl GameState {
                 candidates.flip_bit(to);
 
                 let mut shape_index: usize = 31;
-                for i in 0..4 {
-                    for p in 0..3 {
-                        if to >= offsets[i][p] {
-                            let action = to - offsets[i][p];
+                for i in &offsets {
+                    for offset in i {
+                        if to >= *offset {
+                            let action = to - *offset;
                             let piece = Bitboard::with_piece(action, shape_index);
                             if piece & legal_fields == piece {
                                 action_list.push(Action::Set(
@@ -289,10 +289,10 @@ impl GameState {
                 candidates.flip_bit(to);
 
                 let mut shape_index: usize = 43;
-                for i in 0..4 {
-                    for p in 0..4 {
-                        if to >= offsets[i][p] {
-                            let action = to - offsets[i][p];
+                for i in &offsets {
+                    for offset in i {
+                        if to >= *offset {
+                            let action = to - *offset;
                             let piece = Bitboard::with_piece(action, shape_index);
                             if piece & legal_fields == piece {
                                 action_list.push(Action::Set(
@@ -321,10 +321,10 @@ impl GameState {
                 candidates.flip_bit(to);
 
                 let mut shape_index: usize = 47;
-                for i in 0..4 {
-                    for p in 0..4 {
-                        if to >= offsets[i][p] {
-                            let action = to - offsets[i][p];
+                for i in &offsets {
+                    for offset in i {
+                        if to >= *offset {
+                            let action = to - *offset;
                             let piece = Bitboard::with_piece(action, shape_index);
                             if piece & legal_fields == piece {
                                 action_list.push(Action::Set(
@@ -357,10 +357,10 @@ impl GameState {
                 candidates.flip_bit(to);
 
                 let mut shape_index: usize = 51;
-                for i in 0..8 {
-                    for p in 0..4 {
-                        if to >= offsets[i][p] {
-                            let action = to - offsets[i][p];
+                for i in &offsets {
+                    for offset in i {
+                        if to >= *offset {
+                            let action = to - *offset;
                             let piece = Bitboard::with_piece(action, shape_index);
                             if piece & legal_fields == piece {
                                 action_list.push(Action::Set(
@@ -389,10 +389,10 @@ impl GameState {
                 candidates.flip_bit(to);
 
                 let mut shape_index: usize = 59;
-                for i in 0..4 {
-                    for p in 0..5 {
-                        if to >= offsets[i][p] {
-                            let action = to - offsets[i][p];
+                for i in &offsets {
+                    for offset in i {
+                        if to >= *offset {
+                            let action = to - *offset;
                             let piece = Bitboard::with_piece(action, shape_index);
                             if piece & legal_fields == piece {
                                 action_list.push(Action::Set(
@@ -425,10 +425,10 @@ impl GameState {
                 candidates.flip_bit(to);
 
                 let mut shape_index: usize = 63;
-                for i in 0..8 {
-                    for p in 0..4 {
-                        if to >= offsets[i][p] {
-                            let action = to - offsets[i][p];
+                for i in &offsets {
+                    for offset in i {
+                        if to >= *offset {
+                            let action = to - *offset;
                             let piece = Bitboard::with_piece(action, shape_index);
                             if piece & legal_fields == piece {
                                 action_list.push(Action::Set(
@@ -452,10 +452,10 @@ impl GameState {
                 candidates.flip_bit(to);
 
                 let mut shape_index: usize = 71;
-                for i in 0..4 {
-                    for p in 0..3 {
-                        if to >= offsets[i][p] {
-                            let action = to - offsets[i][p];
+                for i in &offsets {
+                    for offset in i {
+                        if to >= *offset {
+                            let action = to - *offset;
                             let piece = Bitboard::with_piece(action, shape_index);
                             if piece & legal_fields == piece {
                                 action_list.push(Action::Set(
@@ -488,10 +488,10 @@ impl GameState {
                 candidates.flip_bit(to);
 
                 let mut shape_index: usize = 75;
-                for i in 0..8 {
-                    for p in 0..4 {
-                        if to >= offsets[i][p] {
-                            let action = to - offsets[i][p];
+                for i in &offsets {
+                    for offset in i {
+                        if to >= *offset {
+                            let action = to - *offset;
                             let piece = Bitboard::with_piece(action, shape_index);
                             if piece & legal_fields == piece {
                                 action_list.push(Action::Set(
@@ -524,10 +524,10 @@ impl GameState {
                 candidates.flip_bit(to);
 
                 let mut shape_index: usize = 83;
-                for i in 0..8 {
-                    for p in 0..4 {
-                        if to >= offsets[i][p] {
-                            let action = to - offsets[i][p];
+                for i in &offsets {
+                    for offset in i {
+                        if to >= *offset {
+                            let action = to - *offset;
                             let piece = Bitboard::with_piece(action, shape_index);
                             if piece & legal_fields == piece {
                                 action_list.push(Action::Set(
@@ -551,10 +551,10 @@ impl GameState {
                 candidates.flip_bit(to);
 
                 let mut shape_index: usize = 35;
-                for i in 0..4 {
-                    for p in 0..3 {
-                        if to >= offsets[i][p] {
-                            let action = to - offsets[i][p];
+                for i in &offsets {
+                    for offset in i {
+                        if to >= *offset {
+                            let action = to - *offset;
                             let piece = Bitboard::with_piece(action, shape_index);
                             if piece & legal_fields == piece {
                                 action_list.push(Action::Set(
@@ -577,9 +577,9 @@ impl GameState {
                 let to = candidates.trailing_zeros();
                 candidates.flip_bit(to);
 
-                for i in 0..4 {
-                    if to >= offsets[i] {
-                        let action = to - offsets[i];
+                for offset in &offsets {
+                    if to >= *offset {
+                        let action = to - *offset;
                         let piece = Bitboard::with_piece(action, 9);
                         if piece & legal_fields == piece {
                             action_list.push(Action::Set(action, PieceType::OTetromino, 9));
@@ -602,10 +602,10 @@ impl GameState {
                 candidates.flip_bit(to);
 
                 let mut shape_index: usize = 39;
-                for i in 0..4 {
-                    for p in 0..4 {
-                        if to >= offsets[i][p] {
-                            let action = to - offsets[i][p];
+                for i in &offsets {
+                    for offset in i {
+                        if to >= *offset {
+                            let action = to - *offset;
                             let piece = Bitboard::with_piece(action, shape_index);
                             if piece & legal_fields == piece {
                                 action_list.push(Action::Set(
@@ -638,10 +638,10 @@ impl GameState {
                 candidates.flip_bit(to);
 
                 let mut shape_index: usize = 15;
-                for i in 0..8 {
-                    for p in 0..3 {
-                        if to >= offsets[i][p] {
-                            let action = to - offsets[i][p];
+                for i in &offsets {
+                    for offset in i {
+                        if to >= *offset {
+                            let action = to - *offset;
                             let piece = Bitboard::with_piece(action, shape_index);
                             if piece & legal_fields == piece {
                                 action_list.push(Action::Set(
@@ -665,10 +665,10 @@ impl GameState {
                 candidates.flip_bit(to);
 
                 let mut shape_index: usize = 11;
-                for i in 0..4 {
-                    for p in 0..3 {
-                        if to >= offsets[i][p] {
-                            let action = to - offsets[i][p];
+                for i in &offsets {
+                    for offset in i {
+                        if to >= *offset {
+                            let action = to - *offset;
                             let piece = Bitboard::with_piece(action, shape_index);
                             if piece & legal_fields == piece {
                                 action_list.push(Action::Set(
@@ -695,15 +695,12 @@ impl GameState {
         if self.ply / 4 == 0 {
             let mut idx = 0;
             for i in 0..action_list.size {
-                match action_list[i] {
-                    Action::Set(_, piece_type, _) => {
-                        if piece_type == self.start_piece_type {
-                            action_list.swap(idx, i);
-                            idx += 1;
-                        }
+                if let Action::Set(_, piece_type, _) = action_list[i] {
+                    if piece_type == self.start_piece_type {
+                        action_list.swap(idx, i);
+                        idx += 1;
                     }
-                    _ => {}
-                };
+                }
             }
             action_list.size = idx;
         }
@@ -767,8 +764,8 @@ impl GameState {
                 }
             }
         }
-        for start_piece_index in 0..21 {
-            if PIECE_TYPES[start_piece_index] == self.start_piece_type {
+        for (start_piece_index, piece) in PIECE_TYPES.iter().enumerate() {
+            if *piece == self.start_piece_type {
                 info |= (start_piece_index as u128) << 110;
                 break;
             }
@@ -816,7 +813,7 @@ impl GameState {
     }
 
     pub fn from_fen(string: String) -> GameState {
-        let mut entries: Vec<&str> = string.split(" ").collect();
+        let mut entries: Vec<&str> = string.split(' ').collect();
         let mut state = GameState::new();
         state.ply = entries.remove(0).parse::<u8>().unwrap();
         state.current_player = match state.ply % 4 {
@@ -857,7 +854,7 @@ impl Display for GameState {
         string.push_str(info);
 
         for _ in info.len()..43 {
-            string.push_str(" ");
+            string.push(' ');
         }
         string.push_str("║\n");
 
@@ -895,5 +892,11 @@ impl Display for GameState {
         string.push_str("╝");
 
         write!(f, "{}", string)
+    }
+}
+
+impl Default for GameState {
+    fn default() -> GameState {
+        Self::new()
     }
 }

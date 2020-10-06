@@ -1,18 +1,29 @@
-//use argparse::{ArgumentParser, Store};
-use game_sdk::gamestate::GameState;
-use player::search::{random_action, search_action};
+use argparse::{ArgumentParser, Store};
+mod xml_client;
+mod xml_node;
+use xml_client::XMLClient;
 
 fn main() {
-    let mut state = GameState::new();
-    while !state.is_game_over() {
-        let action = if state.ply % 4 == 0 || state.ply % 4 == 2 {
-            search_action(&state)
-        } else {
-            random_action(&state)
-        };
-        println!("{}", action.to_string());
-        state.do_action(action);
-        println!("{}", state);
+    let mut host = "localhost".to_string();
+    let mut port = "13050".to_string();
+    let mut reservation = "".to_string();
+
+    {
+        let mut parser = ArgumentParser::new();
+        parser
+            .refer(&mut host)
+            .add_option(&["-h", "--host"], Store, "Host");
+        parser
+            .refer(&mut port)
+            .add_option(&["-p", "--port"], Store, "Port");
+        parser
+            .refer(&mut reservation)
+            .add_option(&["-r", "--reservation"], Store, "Reservation");
+        parser.parse_args_or_exit();
     }
-    println!("{}", state.game_result());
+
+    println!("{}:{} {}", host, port, reservation);
+    let mut client = XMLClient::new(host, port, reservation);
+    client.run();
+    println!("bye");
 }

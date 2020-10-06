@@ -1,3 +1,5 @@
+use std::fmt::{Display, Formatter, Result};
+
 #[repr(u8)]
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub enum Direction {
@@ -8,14 +10,6 @@ pub enum Direction {
 }
 
 impl Direction {
-    pub fn to_string(&self) -> String {
-        match self {
-            Direction::LEFT => "LEFT".to_string(),
-            Direction::UP => "UP".to_string(),
-            Direction::RIGHT => "RIGHT".to_string(),
-            Direction::DOWN => "DOWN".to_string(),
-        }
-    }
     pub fn from_u16(n: u16) -> Direction {
         match n {
             0 => Direction::LEFT,
@@ -48,6 +42,21 @@ impl Direction {
             Direction::UP => Direction::DOWN,
             Direction::DOWN => Direction::UP,
         }
+    }
+}
+
+impl Display for Direction {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                Direction::LEFT => "LEFT".to_string(),
+                Direction::UP => "UP".to_string(),
+                Direction::RIGHT => "RIGHT".to_string(),
+                Direction::DOWN => "DOWN".to_string(),
+            }
+        )
     }
 }
 

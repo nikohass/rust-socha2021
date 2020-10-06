@@ -15,11 +15,9 @@ fn wait_for_action(client: &mut Client) -> Action {
     loop {
         bufreader.read_line(&mut new_line).expect("Can't read line");
 
-        if new_line.len() != 0 {
-            if new_line.contains("action: ") {
-                new_line = (&new_line[8..]).to_string();
-                break;
-            }
+        if !new_line.is_empty() && new_line.contains("action: ") {
+            new_line = (&new_line[8..]).to_string();
+            break;
         }
         new_line = String::new();
     }
@@ -29,7 +27,7 @@ fn wait_for_action(client: &mut Client) -> Action {
 
 fn request_action(state: &GameState, client: &mut Client) {
     let mut fen = state.to_fen();
-    fen.push_str("\n");
+    fen.push('\n');
     client
         .input
         .write_all(fen.as_bytes())
@@ -40,7 +38,7 @@ fn run_game(state: &mut GameState, client1: &mut Client, client2: &mut Client) -
     let mut action_list = ActionList::default();
 
     while !state.is_game_over() {
-        let team_one = state.ply % 4 == 0 || state.ply % 4 == 1;
+        let team_one = state.ply % 2 == 0;
 
         action_list.size = 0;
         state.get_possible_actions(&mut action_list);
@@ -72,15 +70,19 @@ fn run_game(state: &mut GameState, client1: &mut Client, client2: &mut Client) -
         state.do_action(action);
     }
     let result = state.game_result();
-    if result == 0 {
-        client1.draws_when_team1 += 1;
-        client2.draws_when_team2 += 1;
-    } else if result > 0 {
-        client1.wins_when_team1 += 1;
-        client2.losses_when_team2 += 1;
-    } else {
-        client1.losses_when_team1 += 1;
-        client2.wins_when_team2 += 1;
+    match result {
+        0 => {
+            client1.draws_when_team1 += 1;
+            client2.draws_when_team2 += 1;
+        }
+        r if r > 0 => {
+            client1.wins_when_team1 += 1;
+            client2.losses_when_team2 += 1;
+        }
+        _ => {
+            client1.losses_when_team1 += 1;
+            client2.wins_when_team2 += 1;
+        }
     }
     result
 }
@@ -95,21 +97,23 @@ fn main() {
         let mut parser = ArgumentParser::new();
         parser
             .refer(&mut client1_path)
-            .add_option(&["-o", "--one"], Store, "client path");
+            .add_option(&["-o", "--one"], Store, "client1 path");
         parser
             .refer(&mut client2_path)
-            .add_option(&["-t", "--two"], Store, "client path");
+            .add_option(&["-t", "--two"], Store, "client2 path");
         parser
             .refer(&mut games)
             .add_option(&["-g", "--games"], Store, "number of games");
-        parser
-            .refer(&mut automated_test)
-            .add_option(&["-a", "--automated_test"], Store, "automated test");
+        parser.refer(&mut automated_test).add_option(
+            &["-a", "--automated_test"],
+            Store,
+            "automated test",
+        );
         parser.parse_args_or_exit();
     }
     if !automated_test {
-        println!("client1_path: {}", client1_path);
-        println!("client2_path: {}", client2_path);
+        println!("client1 path: {}", client1_path);
+        println!("client2 path: {}", client2_path);
         println!("games: {}", games);
     }
 
@@ -117,19 +121,20 @@ fn main() {
     let mut client2 = Client::from_path(client2_path);
 
     let mut rng = SmallRng::from_entropy();
-    let mut state = GameState::new();
-    let mut result: i16 = 0;
+    let mut state = random_opening(&mut rng);
     for i in 0..games {
-        if i % 2 == 0 {
-            let state = random_opening(&mut rng);
-            result = run_game(&mut state.clone(), &mut client1, &mut client2);
+        let result = if i % 2 == 0 {
+            run_game(&mut state.clone(), &mut client1, &mut client2)
         } else {
-            result = -run_game(&mut state.clone(), &mut client2, &mut client1);
-        }
+            -run_game(&mut state.clone(), &mut client2, &mut client1)
+        };
         if !automated_test {
             print_stats(&client1, &client2);
         } else {
             println!("{}", result);
+        }
+        if i % 2 == 1 {
+            state = random_opening(&mut rng);
         }
     }
     if automated_test {

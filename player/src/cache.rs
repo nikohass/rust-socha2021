@@ -32,3 +32,9 @@ impl Cache {
         self.entries[index as usize] = Some(entry);
     }
 }
+
+impl Default for Cache {
+    fn default() -> Self {
+        Self::new()
+    }
+}

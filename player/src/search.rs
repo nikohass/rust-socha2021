@@ -21,7 +21,6 @@ pub fn random_action(state: &GameState) -> Action {
 pub struct SearchParams {
     pub nodes_searched: u64,
     pub root_ply: u8,
-    pub target_depth: usize,
     pub start_time: Instant,
     pub stop: bool,
     pub action_list_stack: ActionListStack,
@@ -36,7 +35,6 @@ pub fn search_action(state: &GameState) -> Action {
     let mut params = SearchParams {
         nodes_searched: 0,
         root_ply: state.ply,
-        target_depth: 1,
         start_time: Instant::now(),
         stop: false,
         action_list_stack: ActionListStack::with_size(MAX_SEARCH_DEPTH),
@@ -46,11 +44,10 @@ pub fn search_action(state: &GameState) -> Action {
     };
 
     let mut score = -MATE_SCORE;
-    let mut best_action = params.best_action;
+    let mut best_action = Action::Skip;
     for depth in 1..=MAX_SEARCH_DEPTH {
-        params.target_depth = depth;
-
-        score = principal_variation_search(&mut params, &mut state, -MATE_SCORE, MATE_SCORE, 0);
+        score =
+            -principal_variation_search(&mut params, &mut state, -MATE_SCORE, MATE_SCORE, depth);
         println!("depth {:2}; score: {:3}", depth, score);
 
         if params.stop {
@@ -61,5 +58,5 @@ pub fn search_action(state: &GameState) -> Action {
     }
 
     println!("score: {}; nodes: {}", score, params.nodes_searched);
-    params.best_action
+    best_action
 }

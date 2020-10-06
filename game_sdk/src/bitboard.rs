@@ -1,5 +1,6 @@
 use super::constants::{PIECE_SHAPES, VALID_FIELDS};
 use super::direction::Direction;
+use std::fmt::{Display, Formatter, Result};
 use std::ops::{
     BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Not, Shl, ShlAssign, Shr,
     ShrAssign,
@@ -25,10 +26,10 @@ impl Bitboard {
 
     pub const fn from(one: u128, two: u128, three: u128, four: u128) -> Bitboard {
         Bitboard {
-            one: one,
-            two: two,
-            three: three,
-            four: four,
+            one,
+            two,
+            three,
+            four,
         }
     }
 
@@ -99,19 +100,17 @@ impl Bitboard {
     }
 
     pub fn trailing_zeros(&self) -> u16 {
-        if self.one != 0 {
-            return self.one.trailing_zeros() as u16 + 384;
-        }
-        if self.two != 0 {
-            return self.two.trailing_zeros() as u16 + 256;
-        }
-        if self.three != 0 {
-            return self.three.trailing_zeros() as u16 + 128;
-        }
         if self.four != 0 {
-            return self.four.trailing_zeros() as u16;
+            self.four.trailing_zeros() as u16
+        } else if self.three != 0 {
+            self.three.trailing_zeros() as u16 + 128
+        } else if self.two != 0 {
+            self.two.trailing_zeros() as u16 + 256
+        } else if self.one != 0 {
+            self.one.trailing_zeros() as u16 + 384
+        } else {
+            512
         }
-        512
     }
 
     pub fn not_zero(&self) -> bool {
@@ -265,5 +264,29 @@ impl PartialEq for Bitboard {
             && self.two == other.two
             && self.three == other.three
             && self.four == other.four
+    }
+}
+
+impl Display for Bitboard {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        let mut string = "0 1 2 3 4 5 6 7 8 9 10        15    19\n".to_string();
+        for x in 0..20 {
+            for y in 0..20 {
+                let bit = Bitboard::bit(x * 21 + y);
+                if bit & *self == bit {
+                    string.push_str("X ");
+                } else {
+                    string.push_str(". ");
+                }
+            }
+            string.push_str(&format!("{}\n", x));
+        }
+        write!(f, "{}", string)
+    }
+}
+
+impl Default for Bitboard {
+    fn default() -> Bitboard {
+        Self::new()
     }
 }

@@ -102,3 +102,98 @@ pub const PIECE_SHAPES: [u128; 91] = [
     31457284,
     31457282,
 ];
+
+// rotation, flipped
+pub const PIECE_ORIENTATIONS: [(u8, bool); 91] = [
+    (0, false),
+    (0, false),
+    (1, false),
+    (1, false),
+    (0, false),
+    (1, false),
+    (0, false),
+    (1, false),
+    (0, false),
+    (0, false), // O-Tetromino
+    (0, false), // X-Pentomino
+    (0, false), // L-Tromino
+    (1, false),
+    (2, false),
+    (3, false),
+    (2, true), // L-Tetromino
+    (2, false),
+    (0, true),
+    (0, false),
+    (1, true),
+    (1, false),
+    (1, true),
+    (3, false),
+    (1, true), // L-Pentomino
+    (1, false),
+    (3, true),
+    (3, false),
+    (2, true),
+    (0, false),
+    (2, false),
+    (0, true),
+    (0, false), // T-Pentomino
+    (2, false),
+    (3, false),
+    (1, false),
+    (0, false), // T-Tetromino
+    (2, false),
+    (3, false),
+    (1, false),
+    (0, true), // Z-Tetromino
+    (0, false),
+    (3, false),
+    (1, true),
+    (3, true), // Z-Pentomino
+    (3, false),
+    (0, true),
+    (0, false),
+    (2, false), // U-Pentomino
+    (0, false),
+    (1, false),
+    (3, false),
+    (1, true), // F-Pentomino
+    (1, false),
+    (3, true),
+    (3, false),
+    (0, false),
+    (0, true),
+    (2, true),
+    (2, false),
+    (0, false), // W-Pentomino
+    (3, false),
+    (2, false),
+    (1, false),
+    (3, true), // N-Pentomino
+    (1, false),
+    (1, true),
+    (1, false),
+    (2, false),
+    (0, true),
+    (2, true),
+    (0, false),
+    (1, false), // V-Pentomino
+    (3, false),
+    (2, false),
+    (0, false),
+    (0, false), // P-Pentomino
+    (0, true),
+    (3, false),
+    (1, true),
+    (1, false),
+    (3, true),
+    (2, false),
+    (2, true),
+    (0, true), // Y-Pentomino
+    (2, false),
+    (2, true),
+    (0, false),
+    (3, true),
+    (3, false),
+    (1, false),
+    (1, true),
+];
