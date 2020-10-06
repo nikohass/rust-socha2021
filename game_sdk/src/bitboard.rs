@@ -1,5 +1,4 @@
 use super::constants::{PIECE_SHAPES, VALID_FIELDS};
-use super::direction::Direction;
 use std::fmt::{Display, Formatter, Result};
 use std::ops::{
     BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Not, Shl, ShlAssign, Shr,
@@ -123,15 +122,6 @@ impl Bitboard {
 
     pub fn diagonal_neighbours(&self) -> Bitboard {
         ((*self << 22) | (*self >> 22) | (*self >> 20) | (*self << 20)) & VALID_FIELDS
-    }
-
-    pub fn neighbours_in_direction(&self, d: Direction) -> Bitboard {
-        match d {
-            Direction::LEFT => *self << 1,
-            Direction::RIGHT => *self >> 1,
-            Direction::UP => *self << 21,
-            Direction::DOWN => *self >> 21,
-        }
     }
 }
 

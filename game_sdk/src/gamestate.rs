@@ -3,7 +3,6 @@ use super::actionlist::ActionList;
 use super::bitboard::Bitboard;
 use super::color::Color;
 use super::constants::{START_FIELDS, VALID_FIELDS};
-use super::direction::{Direction, DIRECTIONS};
 use super::piece_type::{PieceType, PIECE_TYPES};
 use std::fmt::{Display, Formatter, Result};
 
@@ -66,7 +65,9 @@ impl GameState {
                 debug_assert!(
                     !((self.board[0] | self.board[1] | self.board[2] | self.board[3]) & piece)
                         .not_zero(),
-                    "Piece can't be placed on other pieces."
+                    "Piece can't be placed on other pieces. Move was {}\n{}",
+                    action.to_string(),
+                    Bitboard::with_piece(to, piece_shape).to_string(),
                 );
                 debug_assert!(
                     self.pieces_left[piece_type as usize][self.current_player as usize],
@@ -135,62 +136,84 @@ impl GameState {
             "Other fields are not valid fields."
         );
 
-        for d in DIRECTIONS.iter() {
-            let mut two_in_a_row = legal_fields & placement_fields.neighbours_in_direction(*d);
-            let mut three_in_a_row = legal_fields & two_in_a_row.neighbours_in_direction(*d);
-            let mut four_in_a_row = legal_fields & three_in_a_row.neighbours_in_direction(*d);
-            let mut five_in_a_row = legal_fields & four_in_a_row.neighbours_in_direction(*d);
+        let two_right = legal_fields & (legal_fields >> 1 & VALID_FIELDS);
+        let two_left = legal_fields & (legal_fields << 1 & VALID_FIELDS);
+        let two_down = legal_fields & (legal_fields >> 21 & VALID_FIELDS);
+        let two_up = legal_fields & (legal_fields << 21 & VALID_FIELDS);
 
-            if self.pieces_left[PieceType::Domino as usize][self.current_player as usize] {
-                while two_in_a_row.not_zero() {
-                    let to = two_in_a_row.trailing_zeros();
-                    two_in_a_row.flip_bit(to);
-                    action_list.push(match *d {
-                        Direction::RIGHT => Action::Set(to, PieceType::Domino, 1),
-                        Direction::LEFT => Action::Set(to - 1, PieceType::Domino, 1),
-                        Direction::UP => Action::Set(to - 21, PieceType::Domino, 2),
-                        Direction::DOWN => Action::Set(to, PieceType::Domino, 2),
-                    });
-                }
+        let three_right = two_right & (legal_fields >> 2 & VALID_FIELDS);
+        let three_left = two_left & (legal_fields << 2 & VALID_FIELDS);
+        let three_down = two_down & (legal_fields >> 42 & VALID_FIELDS);
+        let three_up = two_up & (legal_fields << 42 & VALID_FIELDS);
+
+        let four_right = three_right & (legal_fields >> 3 & VALID_FIELDS);
+        let four_left = three_left & (legal_fields << 3 & VALID_FIELDS);
+        let four_down = three_down & (legal_fields >> 63 & VALID_FIELDS);
+        let four_up = three_up & (legal_fields << 63 & VALID_FIELDS);
+
+        if self.pieces_left[PieceType::Domino as usize][self.current_player as usize] {
+            let mut destinations =
+                two_right & placement_fields | (two_left & placement_fields) >> 1;
+            while destinations.not_zero() {
+                let to = destinations.trailing_zeros();
+                destinations.flip_bit(to);
+                action_list.push(Action::Set(to, PieceType::Domino, 1));
             }
-
-            if self.pieces_left[PieceType::ITromino as usize][self.current_player as usize] {
-                while three_in_a_row.not_zero() {
-                    let to = three_in_a_row.trailing_zeros();
-                    three_in_a_row.flip_bit(to);
-                    action_list.push(match *d {
-                        Direction::RIGHT => Action::Set(to, PieceType::ITromino, 3),
-                        Direction::LEFT => Action::Set(to - 2, PieceType::ITromino, 3),
-                        Direction::UP => Action::Set(to - 42, PieceType::ITromino, 4),
-                        Direction::DOWN => Action::Set(to, PieceType::ITromino, 4),
-                    });
-                }
+            destinations = (two_down & placement_fields) | (two_up & placement_fields) >> 21;
+            while destinations.not_zero() {
+                let to = destinations.trailing_zeros();
+                destinations.flip_bit(to);
+                action_list.push(Action::Set(to, PieceType::Domino, 2));
             }
+        }
 
-            if self.pieces_left[PieceType::ITetromino as usize][self.current_player as usize] {
-                while four_in_a_row.not_zero() {
-                    let to = four_in_a_row.trailing_zeros();
-                    four_in_a_row.flip_bit(to);
-                    action_list.push(match *d {
-                        Direction::RIGHT => Action::Set(to, PieceType::ITetromino, 5),
-                        Direction::LEFT => Action::Set(to - 3, PieceType::ITetromino, 5),
-                        Direction::UP => Action::Set(to - 63, PieceType::ITetromino, 6),
-                        Direction::DOWN => Action::Set(to, PieceType::ITetromino, 6),
-                    });
-                }
+        if self.pieces_left[PieceType::ITromino as usize][self.current_player as usize] {
+            let mut destinations =
+                three_right & placement_fields | (three_left & placement_fields) >> 2;
+            while destinations.not_zero() {
+                let to = destinations.trailing_zeros();
+                destinations.flip_bit(to);
+                action_list.push(Action::Set(to, PieceType::ITromino, 3));
             }
+            destinations = (three_up & placement_fields) >> 42 | (three_down & placement_fields);
+            while destinations.not_zero() {
+                let to = destinations.trailing_zeros();
+                destinations.flip_bit(to);
+                action_list.push(Action::Set(to, PieceType::ITromino, 4));
+            }
+        }
 
-            if self.pieces_left[PieceType::IPentomino as usize][self.current_player as usize] {
-                while five_in_a_row.not_zero() {
-                    let to = five_in_a_row.trailing_zeros();
-                    five_in_a_row.flip_bit(to);
-                    action_list.push(match *d {
-                        Direction::RIGHT => Action::Set(to, PieceType::IPentomino, 7),
-                        Direction::LEFT => Action::Set(to - 4, PieceType::IPentomino, 7),
-                        Direction::UP => Action::Set(to - 84, PieceType::IPentomino, 8),
-                        Direction::DOWN => Action::Set(to, PieceType::IPentomino, 8),
-                    });
-                }
+        if self.pieces_left[PieceType::ITetromino as usize][self.current_player as usize] {
+            let mut destinations =
+                four_right & placement_fields | (four_left & placement_fields) >> 3;
+            while destinations.not_zero() {
+                let to = destinations.trailing_zeros();
+                destinations.flip_bit(to);
+                action_list.push(Action::Set(to, PieceType::ITetromino, 5));
+            }
+            destinations = (four_down & placement_fields) | (four_up & placement_fields) >> 63;
+            while destinations.not_zero() {
+                let to = destinations.trailing_zeros();
+                destinations.flip_bit(to);
+                action_list.push(Action::Set(to, PieceType::ITetromino, 6));
+            }
+        }
+
+        if self.pieces_left[PieceType::IPentomino as usize][self.current_player as usize] {
+            let mut destinations = (four_right & (legal_fields >> 4 & VALID_FIELDS))
+                & placement_fields
+                | ((four_left & (legal_fields << 4 & VALID_FIELDS)) & placement_fields) >> 4;
+            while destinations.not_zero() {
+                let to = destinations.trailing_zeros();
+                destinations.flip_bit(to);
+                action_list.push(Action::Set(to, PieceType::IPentomino, 7));
+            }
+            destinations = ((four_down & (legal_fields >> 84 & VALID_FIELDS)) & placement_fields)
+                | ((four_up & (legal_fields << 84 & VALID_FIELDS)) & placement_fields) >> 84;
+            while destinations.not_zero() {
+                let to = destinations.trailing_zeros();
+                destinations.flip_bit(to);
+                action_list.push(Action::Set(to, PieceType::IPentomino, 8));
             }
         }
 
@@ -867,7 +890,7 @@ impl Display for GameState {
         for i in 0..20 {
             string.push_str("\n║");
             for j in 0..20 {
-                let y = 19 - i;
+                let y = i; //19 - i;
                 let x = j;
                 let field = x + y * 21;
                 let bit = Bitboard::bit(field);
