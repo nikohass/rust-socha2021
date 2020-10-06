@@ -124,7 +124,7 @@ pub const PIECE_ORIENTATIONS: [(u8, bool); 91] = [
     (2, false),
     (0, true),
     (0, false),
-    (1, true),
+    (3, true),
     (1, false),
     (1, true),
     (3, false),

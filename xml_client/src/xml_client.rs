@@ -13,6 +13,7 @@ pub struct XMLClient {
     port: String,
     reservation: String,
     room_id: Option<String>,
+    active_players: [bool; 4],
 }
 
 impl XMLClient {
@@ -24,6 +25,7 @@ impl XMLClient {
             port,
             reservation,
             room_id: None,
+            active_players: [true; 4],
         }
     }
 
@@ -58,7 +60,8 @@ impl XMLClient {
                     let data_class = node.get_attribute("class").unwrap_or(invalid).to_string();
                     match data_class.as_str() {
                         "memento" => {
-                            node.as_memento(&mut self.state);
+                            println!("Recieved memento");
+                            node.as_memento(&mut self.state, &mut self.active_players);
                         }
                         "welcomeMessage" => {
                             println!("Recieved welcome message");
@@ -68,14 +71,7 @@ impl XMLClient {
                             println!("Recieved move request");
                             let action = search_action(&self.state);
                             let xml_move = action.to_xml(self.state.current_player);
-                            println!("{}", action);
-                            //let mut s = self.state.clone();
-                            //s.do_action(action);
-                            println!(
-                                "<room roomId=\"{}\">\n{}\n</room>",
-                                self.room_id.as_ref().expect("error"),
-                                xml_move
-                            );
+                            println!("Sending: {}", action);
                             XMLClient::write_to(
                                 stream,
                                 &format!(
@@ -86,10 +82,29 @@ impl XMLClient {
                             );
                         }
                         "result" => {
-                            println!("recieved result");
+                            println!("got result");
+                            let score = node.get_child("score").expect("Unable to read score");
+                            println!(
+                                "{}",
+                                match score
+                                    .get_attribute("cause")
+                                    .expect("Error while reading cause")
+                                    .as_str()
+                                {
+                                    "REGULAR" => "The game ended regular.".to_string(),
+                                    "LEFT" => "The game ended because a player left.".to_string(),
+                                    "RULE_VIOLATION" =>
+                                        "The game ended because of a rule violation.".to_string(),
+                                    "SOFT_TIMEOUT" =>
+                                        "The game ended because a player caused a soft timeout."
+                                            .to_string(),
+                                    _ => "The game ended because of a hard timeout.".to_string(),
+                                }
+                            );
+                            return;
                         }
                         s => {
-                            println!("{}", s.to_string());
+                            println!("{} {}", s.to_string(), node.data.to_string());
                         }
                     }
                 }
@@ -105,10 +120,6 @@ impl XMLClient {
             }
         }
     }
-
-    /*fn handle_memento_node(&mut self, node: &mut XMLNode) {
-        node.update_state(&self.state);
-    }*/
 
     fn handle_welcome_message_node(&mut self, node: &mut XMLNode) {
         let team = node.as_welcome_message();

@@ -1,3 +1,5 @@
+use game_sdk::action::Action;
+use game_sdk::actionlist::ActionList;
 use game_sdk::bitboard::Bitboard;
 use game_sdk::color::Color;
 use game_sdk::gamestate::GameState;
@@ -78,10 +80,6 @@ impl XMLNode {
         final_node.unwrap()
     }
 
-    pub fn get_attribute(&self, name: &str) -> Option<&String> {
-        self.attribs.get(name).map(|a| &a[0])
-    }
-
     pub fn as_welcome_message(&self) -> usize {
         let err = "Error while parsing XML node to WelcomeMessage";
         match self.get_attribute("color").expect(err).as_str() {
@@ -96,59 +94,60 @@ impl XMLNode {
         self.get_attribute("roomId").expect(err).to_string()
     }
 
-    pub fn as_memento(&self, old_state: &mut GameState) {
+    pub fn as_memento(&self, state: &mut GameState, active_players: &mut [bool; 4]) {
         let err = "Error while parsing XML node to Memento";
-        self.get_child("state").expect(err).update_state(old_state);
+        self.get_child("state")
+            .expect(err)
+            .update_state(state, active_players);
     }
 
-    pub fn get_child(&self, name: &str) -> Option<&XMLNode> {
-        for child in &self.childs {
-            if child.name.as_str() == name {
-                return Some(&child);
+    pub fn update_state(&self, state: &mut GameState, active_players: &mut [bool; 4]) {
+        // update board
+        {
+            let mut new_board = [Bitboard::new(); 4];
+            let vec = &self
+                .get_child("board")
+                .expect("Error while reading board")
+                .get_children();
+            for field in vec.iter() {
+                let x = field
+                    .get_attribute("x")
+                    .expect("Error while reading x")
+                    .parse::<u16>()
+                    .expect("Error while parsing x");
+                let y = field
+                    .get_attribute("y")
+                    .expect("Error while reading y")
+                    .parse::<u16>()
+                    .expect("Error while parsing y");
+                let to = x + y * 21;
+
+                let board_index = match field
+                    .get_attribute("content")
+                    .expect("Error while reading field content")
+                    .as_ref()
+                {
+                    "BLUE" => 0,
+                    "YELLOW" => 1,
+                    "RED" => 2,
+                    _ => 3,
+                };
+                new_board[board_index].flip_bit(to);
             }
+            state.board = new_board;
         }
-        None
-    }
 
-    pub fn update_state(&self, state: &mut GameState) {
-        let new_ply = self
-            .get_attribute("turn")
-            .expect("Error while reading turn")
-            .parse::<u8>()
-            .expect("Error while parsing turn");
-
-        state.ply = new_ply;
-
-        if new_ply == 0 {
-            state.start_piece_type = match self
-                .get_attribute("startPiece")
-                .expect("Error while reading start piece")
-                .as_ref()
+        // update pieces left
+        {
+            let mut pieces_left = [[false; 4]; 21];
+            for (c, child_name) in ["blueShapes", "yellowShapes", "redShapes", "greenShapes"]
+                .iter()
+                .enumerate()
+                .take(4)
             {
-                "PENTO_L" => PieceType::LPentomino,
-                "PENTO_T" => PieceType::TPentomino,
-                "PENTO_V" => PieceType::VPentomino,
-                "PENTO_S" => PieceType::NPentomino,
-                "PENTO_Z" => PieceType::ZPentomino,
-                "PENTO_I" => PieceType::IPentomino,
-                "PENTO_P" => PieceType::PPentomino,
-                "PENTO_W" => PieceType::WPentomino,
-                "PENTO_U" => PieceType::UPentomino,
-                "PENTO_R" => PieceType::FPentomino,
-                "PENTO_Y" => PieceType::YPentomino,
-                _ => panic!("Unknown start piece"),
-            };
-            println!("Start piece type is {}", state.start_piece_type.to_string());
-        }
-
-        let mut pieces_left = [[false; 4]; 21];
-        let vec = &self
-            .get_child("undeployedPieceShapes")
-            .expect("Error while reading undeployedPieceShapes")
-            .get_children();
-        for c in 0..4 {
-            let children = vec[c].get_children();
-            for child in children.iter().take(4) {
+                let child = &self
+                    .get_child(child_name)
+                    .expect("Error while reading undeployedPieceShapes");
                 for piece_type in child.get_children().iter() {
                     let index = match piece_type.data.as_ref() {
                         "MONO" => 0,
@@ -177,76 +176,90 @@ impl XMLNode {
                     pieces_left[index][c] = true;
                 }
             }
+            state.pieces_left = pieces_left;
         }
-        state.pieces_left = pieces_left;
 
-        state.board = [Bitboard::new(); 4]; // clear boards
-        for (x, node) in self
-            .get_child("board")
-            .expect("Error while reading board")
-            .get_child("gameField")
-            .expect("Error while reading gameField")
-            .get_children()
-            .iter()
-            .enumerate()
+        // update current player
         {
-            for (y, field) in node.get_children().iter().enumerate() {
-                let to = y as u16 + (x as u16) * 21;
-                match field.data.as_ref() {
-                    "BLUE" => state.board[0].flip_bit(to),
-                    "YELLOW" => state.board[1].flip_bit(to),
-                    "RED" => state.board[2].flip_bit(to),
-                    "GREEN" => state.board[3].flip_bit(to),
-                    _ => {}
+            let current_player_index = self // currentColorIndex does not behave like described in the xml documentation
+                .get_attribute("currentColorIndex")
+                .expect("Error while reading currentColorIndex")
+                .parse::<usize>()
+                .expect("Error while parsing currentColorIndex");
+
+            if current_player_index == 3 {
+                state.current_player = Color::GREEN;
+            } else {
+                let mut active_player_vec = Vec::new();
+                let mut action_list = ActionList::default();
+                if state.ply > 3 {
+                    for (i, active) in active_players.iter().enumerate().take(4) {
+                        if *active {
+                            active_player_vec.push(match i {
+                                0 => Color::BLUE,
+                                1 => Color::YELLOW,
+                                2 => Color::RED,
+                                _ => Color::GREEN,
+                            });
+                        }
+                    }
+                    // update active players for next round
+                    state.current_player = Color::BLUE;
+                    for i in 0..4 {
+                        state.get_possible_actions(&mut action_list);
+                        active_players[i] = action_list[0] != Action::Skip;
+                        state.current_player = state.current_player.next();
+                        action_list.size = 0;
+                    }
+                    state.current_player = active_player_vec[current_player_index];
+                } else {
+                    state.current_player = match current_player_index {
+                        0 => Color::BLUE,
+                        1 => Color::YELLOW,
+                        2 => Color::RED,
+                        _ => Color::GREEN,
+                    }
                 }
             }
         }
-        /*
-        for field in vec.iter() {
-            println!("field.data = {}", field.data);
 
-            let x = field
-                .get_attribute("x")
-                .expect("error")
-                .parse::<u16>()
-                .expect(err);
-            let y = field
-                .get_attribute("y")
-                .expect("error")
-                .parse::<u16>()
-                .expect(err);
-            let to = x + y * 21;
+        // update ply
+        {
+            let round = self
+                .get_attribute("round")
+                .expect("Error while reading round")
+                .parse::<u8>()
+                .expect("Error while parsing turn")
+                - 1;
 
-            let board_index = match field.get_attribute("content").expect("error").as_ref() {
-                "BLUE" => 0,
-                "YELLOW" => 1,
-                "RED" => 2,
-                _ => 3,
-            };
-            state.board[board_index].flip_bit(to);
-        }*/
-        let current_player_index = self // currentColorIndex does not behave like described in the xml documentation
-            .get_attribute("currentColorIndex")
-            .expect("Error while reading currentColorIndex")
-            .parse::<usize>()
-            .expect("Error while parsing currentColorIndex");
-
-        let mut active_players = Vec::new();
-        for i in 0..4 {
-            //if state.skipped & 1 << i == 0 {
-            active_players.push(match i {
-                0 => Color::BLUE,
-                1 => Color::YELLOW,
-                2 => Color::RED,
-                _ => Color::GREEN,
-            });
-            //}
+            state.ply = round * 4 + state.current_player as u8;
         }
 
-        state.current_player = active_players[current_player_index];
+        if state.ply == 0 {
+            // update start piece type
+            state.start_piece_type = match self
+                .get_attribute("startPiece")
+                .expect("Error while reading start piece")
+                .as_ref()
+            {
+                "PENTO_L" => PieceType::LPentomino,
+                "PENTO_T" => PieceType::TPentomino,
+                "PENTO_V" => PieceType::VPentomino,
+                "PENTO_S" => PieceType::NPentomino,
+                "PENTO_Z" => PieceType::ZPentomino,
+                "PENTO_I" => PieceType::IPentomino,
+                "PENTO_P" => PieceType::PPentomino,
+                "PENTO_W" => PieceType::WPentomino,
+                "PENTO_U" => PieceType::UPentomino,
+                "PENTO_R" => PieceType::FPentomino,
+                "PENTO_Y" => PieceType::YPentomino,
+                _ => panic!("Unknown start piece"),
+            };
+            println!("Start piece type is {}", state.start_piece_type.to_string());
+        }
 
         println!(
-            "Updated state: turn {}, player {} ",
+            "Updated state: ply {}, player {} ",
             state.ply,
             state.current_player.to_string(),
         );
@@ -258,5 +271,18 @@ impl XMLNode {
 
     pub fn get_children(&self) -> &Vec<XMLNode> {
         &self.childs
+    }
+
+    pub fn get_child(&self, name: &str) -> Option<&XMLNode> {
+        for child in &self.childs {
+            if child.name.as_str() == name {
+                return Some(&child);
+            }
+        }
+        None
+    }
+
+    pub fn get_attribute(&self, name: &str) -> Option<&String> {
+        self.attribs.get(name).map(|a| &a[0])
     }
 }

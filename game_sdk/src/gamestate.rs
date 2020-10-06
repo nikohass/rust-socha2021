@@ -92,7 +92,7 @@ impl GameState {
                 self.skipped &= !1 << self.current_player as usize;
             }
             Action::Set(to, piece_type, piece_shape) => {
-                self.skipped |= 1 << self.current_player as usize;
+                //self.skipped |= 1 << self.current_player as usize;
                 let piece = Bitboard::with_piece(to, piece_shape);
                 debug_assert!(
                     !self.pieces_left[piece_type as usize][self.current_player as usize],
