@@ -111,6 +111,7 @@ impl Bitboard {
             512
         }
     }
+
     pub fn is_zero(&self) -> bool {
         self.one == 0 && self.two == 0 && self.three == 0 && self.four == 0
     }

@@ -94,7 +94,6 @@ impl GameState {
                 self.skipped &= !1 << self.current_player as usize;
             }
             Action::Set(to, piece_type, piece_shape) => {
-                //self.skipped |= 1 << self.current_player as usize;
                 let piece = Bitboard::with_piece(to, piece_shape);
                 debug_assert!(
                     !self.pieces_left[piece_type as usize][self.current_player as usize],
@@ -178,6 +177,8 @@ impl GameState {
         let two_down = legal_fields & (legal_fields >> 21 & VALID_FIELDS);
         let two_up = legal_fields & (legal_fields << 21 & VALID_FIELDS);
 
+        let square = two_right & two_right >> 21;
+
         let three_right = two_right & (legal_fields >> 2 & VALID_FIELDS);
         let three_left = two_left & (legal_fields << 2 & VALID_FIELDS);
         let three_down = two_down & (legal_fields >> 42 & VALID_FIELDS);
@@ -190,7 +191,7 @@ impl GameState {
 
         if self.pieces_left[PieceType::Domino as usize][self.current_player as usize] {
             let mut destinations =
-                two_right & placement_fields | (two_left & placement_fields) >> 1;
+                (two_right & placement_fields) | (two_left & placement_fields) >> 1;
             while destinations.not_zero() {
                 let to = destinations.trailing_zeros();
                 destinations.flip_bit(to);
@@ -206,7 +207,7 @@ impl GameState {
 
         if self.pieces_left[PieceType::ITromino as usize][self.current_player as usize] {
             let mut destinations =
-                three_right & placement_fields | (three_left & placement_fields) >> 2;
+                (three_right & placement_fields) | (three_left & placement_fields) >> 2;
             while destinations.not_zero() {
                 let to = destinations.trailing_zeros();
                 destinations.flip_bit(to);
@@ -222,7 +223,7 @@ impl GameState {
 
         if self.pieces_left[PieceType::ITetromino as usize][self.current_player as usize] {
             let mut destinations =
-                four_right & placement_fields | (four_left & placement_fields) >> 3;
+                (four_right & placement_fields) | (four_left & placement_fields) >> 3;
             while destinations.not_zero() {
                 let to = destinations.trailing_zeros();
                 destinations.flip_bit(to);
@@ -237,15 +238,15 @@ impl GameState {
         }
 
         if self.pieces_left[PieceType::IPentomino as usize][self.current_player as usize] {
-            let mut destinations = (four_right & (legal_fields >> 4)) & placement_fields
-                | ((four_left & (legal_fields << 4)) & placement_fields) >> 4;
+            let mut destinations = (four_right & legal_fields >> 4 & placement_fields)
+                | (four_left & legal_fields << 4 & placement_fields) >> 4;
             while destinations.not_zero() {
                 let to = destinations.trailing_zeros();
                 destinations.flip_bit(to);
                 action_list.push(Action::Set(to, PieceType::IPentomino, 7));
             }
-            destinations = ((four_down & (legal_fields >> 84)) & placement_fields)
-                | ((four_up & (legal_fields << 84)) & placement_fields) >> 84;
+            destinations = (four_down & legal_fields >> 84 & placement_fields)
+                | (four_up & legal_fields << 84 & placement_fields) >> 84;
             while destinations.not_zero() {
                 let to = destinations.trailing_zeros();
                 destinations.flip_bit(to);
@@ -254,11 +255,11 @@ impl GameState {
         }
 
         if self.pieces_left[PieceType::XPentomino as usize][self.current_player as usize] {
-            let mut destinations =
-                (((three_right & placement_fields | (three_left & placement_fields) >> 2) >> 20)
-                    & (three_up >> 42 | three_down))
-                    | (((three_right | three_left >> 2) >> 20)
-                        & ((three_up & placement_fields) >> 42 | three_down & placement_fields));
+            let mut destinations = (three_right >> 20 & three_down)
+                & (placement_fields
+                    | placement_fields >> 20
+                    | placement_fields >> 22
+                    | placement_fields >> 42);
             while destinations.not_zero() {
                 let to = destinations.trailing_zeros();
                 destinations.flip_bit(to);
@@ -270,28 +271,22 @@ impl GameState {
             for shape_index in 11..15 {
                 let mut destinations = match shape_index {
                     11 => {
-                        let l = two_up & two_right;
-                        (placement_fields & l >> 21)
-                            | (placement_fields & l) >> 21
-                            | (placement_fields >> 22 & l >> 21)
+                        (two_up & two_right) >> 21
+                            & (placement_fields | placement_fields >> 21 | placement_fields >> 22)
                     }
                     12 => {
-                        let l = two_down & two_right;
-                        (placement_fields & l)
-                            | (placement_fields >> 21 & l)
-                            | (placement_fields >> 1 & l)
+                        (two_down & two_right)
+                            & (placement_fields | placement_fields >> 1 | placement_fields >> 21)
                     }
                     13 => {
-                        let l = two_down >> 1 & two_right;
-                        (placement_fields & l)
-                            | (placement_fields >> 22 & l)
-                            | (placement_fields >> 1 & l)
+                        (two_down >> 1 & two_right)
+                            & (placement_fields | placement_fields >> 1 | placement_fields >> 22)
                     }
                     _ => {
-                        let l = two_down >> 1 & two_right >> 21;
-                        (placement_fields >> 1 & l)
-                            | (placement_fields >> 21 & l)
-                            | (placement_fields >> 22 & l)
+                        (two_down >> 1 & two_right >> 21)
+                            & (placement_fields >> 1
+                                | placement_fields >> 21
+                                | placement_fields >> 22)
                     }
                 };
                 while destinations.not_zero() {
@@ -306,44 +301,40 @@ impl GameState {
             for shape_index in 23..31 {
                 let mut destinations = match shape_index {
                     23 => {
-                        (placement_fields & four_right & two_down >> 3)
-                            | (placement_fields & four_left & two_down) >> 3
-                            | (placement_fields & two_up) >> 24 & four_right
+                        (four_right & legal_fields >> 24)
+                            & (placement_fields | placement_fields >> 3 | placement_fields >> 24)
                     }
                     24 => {
-                        (placement_fields & four_right & two_down)
-                            | (placement_fields >> 21 & four_right & two_down)
-                            | (placement_fields >> 3 & four_right & two_down)
+                        (four_right & two_down)
+                            & (placement_fields | placement_fields >> 3 | placement_fields >> 21)
                     }
                     25 => {
-                        (placement_fields & two_down & four_right >> 21)
-                            | (placement_fields & two_up & four_right) >> 21
-                            | (placement_fields >> 3 & two_up & four_right) >> 21
+                        (legal_fields & four_right >> 21)
+                            & (placement_fields | placement_fields >> 21 | placement_fields >> 24)
                     }
                     26 => {
-                        ((placement_fields & four_right) >> 21 & legal_fields >> 3)
-                            | (placement_fields & four_left & two_up) >> 24
-                            | (placement_fields >> 3 & four_right >> 21)
+                        (four_left & two_up) >> 24
+                            & (placement_fields >> 3
+                                | placement_fields >> 21
+                                | placement_fields >> 24)
                     }
                     27 => {
-                        (placement_fields & two_right & four_down)
-                            | (placement_fields >> 1 & two_right & four_down)
-                            | (placement_fields >> 63 & two_right & four_down)
+                        (two_right & four_down)
+                            & (placement_fields | placement_fields >> 1 | placement_fields >> 63)
                     }
                     28 => {
-                        (placement_fields & four_down & two_right >> 63)
-                            | (placement_fields >> 63 & four_down & two_right >> 63)
-                            | (placement_fields >> 64 & four_down)
+                        (four_down & legal_fields >> 64)
+                            & (placement_fields | placement_fields >> 63 | placement_fields >> 64)
                     }
                     29 => {
-                        (placement_fields & four_down >> 1)
-                            | (placement_fields & four_down & two_left) >> 1
-                            | (placement_fields & four_up) >> 64 & legal_fields
+                        (two_right & four_down >> 1)
+                            & (placement_fields | placement_fields >> 1 | placement_fields >> 64)
                     }
                     _ => {
-                        ((placement_fields & four_down) >> 1 & legal_fields >> 63)
-                            | (placement_fields & four_up & two_left) >> 64
-                            | (placement_fields >> 63 & four_down >> 1)
+                        (four_up & two_left) >> 64
+                            & (placement_fields >> 1
+                                | placement_fields >> 63
+                                | placement_fields >> 64)
                     }
                 };
                 while destinations.not_zero() {
@@ -358,24 +349,24 @@ impl GameState {
             for shape_index in 31..35 {
                 let mut destinations = match shape_index {
                     31 => {
-                        (placement_fields & three_right & three_down >> 1)
-                            | (placement_fields & three_left & three_down << 1) >> 2
-                            | ((placement_fields & three_up) >> 43 & three_right)
+                        (three_right & three_down >> 1)
+                            & (placement_fields | placement_fields >> 2 | placement_fields >> 43)
                     }
                     32 => {
-                        ((placement_fields & three_right) >> 42 & three_down >> 1)
-                            | ((placement_fields & three_left) >> 44 & three_down >> 1)
-                            | ((placement_fields & three_down) >> 1 & three_right >> 42)
+                        (two_left & two_right & three_up) >> 43
+                            & (placement_fields >> 1
+                                | placement_fields >> 42
+                                | placement_fields >> 44)
                     }
                     33 => {
-                        (placement_fields & three_down & three_right >> 21)
-                            | (placement_fields >> 42 & three_down & three_right >> 21)
-                            | ((placement_fields & three_left) >> 23 & three_down)
+                        (three_down & three_right >> 21)
+                            & (placement_fields | placement_fields >> 23 | placement_fields >> 42)
                     }
                     _ => {
-                        ((placement_fields & three_down) >> 2 & three_right >> 21)
-                            | ((placement_fields & three_up) >> 44 & three_right >> 21)
-                            | ((placement_fields & three_right) >> 21 & three_down >> 2)
+                        (three_left & two_up & two_down) >> 23
+                            & (placement_fields >> 2
+                                | placement_fields >> 21
+                                | placement_fields >> 44)
                     }
                 };
                 while destinations.not_zero() {
@@ -397,21 +388,21 @@ impl GameState {
                                 | placement_fields >> 44)
                     }
                     44 => {
-                        (legal_fields >> 2 & (three_right & two_down) >> 21)
-                            & (placement_fields >> 2
+                        ((legal_fields & (three_right & two_down) >> 19)
+                            & (placement_fields
+                                | placement_fields >> 19
                                 | placement_fields >> 21
-                                | placement_fields >> 23
-                                | placement_fields >> 42)
+                                | placement_fields >> 40)) >> 2
                     }
                     45 => {
-                        (legal_fields >> 42 & (three_down & two_right) >> 1)
-                            & (placement_fields >> 2
-                                | placement_fields >> 1
-                                | placement_fields >> 43
-                                | placement_fields >> 42)
+                        (legal_fields >> 2 & (three_up & two_left) >> 43)
+                            & (placement_fields >> 1
+                                | placement_fields >> 2
+                                | placement_fields >> 42
+                                | placement_fields >> 43)
                     }
                     _ => {
-                        (legal_fields & (three_up & two_right) >> 43)
+                        (two_right & (two_right & three_up) >> 43)
                             & (placement_fields
                                 | placement_fields >> 1
                                 | placement_fields >> 43
@@ -430,28 +421,32 @@ impl GameState {
             for shape_index in 47..51 {
                 let mut destinations = match shape_index {
                     47 => {
-                        (placement_fields & three_right & two_down & legal_fields >> 23)
-                            | ((placement_fields & two_up & two_up >> 2) >> 21 & three_right)
-                            | ((placement_fields & two_down) >> 2 & three_right & two_down)
-                            | (placement_fields >> 23 & two_down & three_right)
+                        (three_right & two_down & legal_fields >> 23)
+                            & (placement_fields
+                                | placement_fields >> 2
+                                | placement_fields >> 21
+                                | placement_fields >> 23)
                     }
                     48 => {
-                        (placement_fields & two_down & two_down >> 2 & three_right >> 21)
-                            | ((placement_fields & three_right & two_up) >> 21 & legal_fields >> 2)
-                            | ((placement_fields & three_left & two_up) >> 23 & legal_fields)
-                            | (placement_fields >> 2 & three_right >> 21 & legal_fields)
+                        (legal_fields & (three_left & two_up) >> 23)
+                            & (placement_fields
+                                | placement_fields >> 2
+                                | placement_fields >> 21
+                                | placement_fields >> 23)
                     }
                     49 => {
-                        (placement_fields & three_down & two_right & legal_fields >> 43)
-                            | (placement_fields >> 1 & three_down & legal_fields >> 43)
-                            | ((placement_fields & two_right) >> 42 & three_down & two_right)
-                            | (placement_fields >> 43 & three_down & two_right)
+                        (three_down & two_right & legal_fields >> 43)
+                            & (placement_fields
+                                | placement_fields >> 1
+                                | placement_fields >> 42
+                                | placement_fields >> 43)
                     }
                     _ => {
-                        placement_fields & three_down >> 1 & two_right >> 42
-                            | ((placement_fields & two_left & three_down) >> 1 & two_right >> 42)
-                            | ((placement_fields & two_left & three_up) >> 43 & legal_fields)
-                            | (placement_fields >> 42 & three_down >> 1 & legal_fields)
+                        (two_right & (two_left & three_up) >> 43)
+                            & (placement_fields
+                                | placement_fields >> 1
+                                | placement_fields >> 42
+                                | placement_fields >> 43)
                     }
                 };
                 while destinations.not_zero() {
@@ -473,18 +468,19 @@ impl GameState {
                                 | placement_fields >> 43)
                     }
                     52 => {
-                        ((three_up & two_right) >> 43 & legal_fields >> 21)
+                        (legal_fields >> 21 & (three_up & two_right) >> 43)
                             & (placement_fields >> 1
                                 | placement_fields >> 21
                                 | placement_fields >> 43
                                 | placement_fields >> 44)
                     }
                     53 => {
-                        ((three_down & two_right) >> 1 & legal_fields >> 21)
-                            & (placement_fields >> 1
-                                | placement_fields >> 2
-                                | placement_fields >> 21
-                                | placement_fields >> 43)
+                        (((three_down & two_right) & legal_fields >> 20)
+                            & (placement_fields
+                                | placement_fields >> 1
+                                | placement_fields >> 20
+                                | placement_fields >> 42))
+                            >> 1
                     }
                     54 => {
                         ((three_down & two_left) >> 1 & legal_fields >> 23)
@@ -508,18 +504,18 @@ impl GameState {
                                 | placement_fields >> 43)
                     }
                     57 => {
-                        ((three_left & two_down) >> 23 & legal_fields >> 1)
-                            & (placement_fields >> 1
-                                | placement_fields >> 21
-                                | placement_fields >> 23
-                                | placement_fields >> 44)
+                        ((legal_fields & (three_left & two_down) >> 22)
+                            & (placement_fields
+                                | placement_fields >> 20
+                                | placement_fields >> 22
+                                | placement_fields >> 43)) >> 1
                     }
                     _ => {
-                        ((three_right & two_down) >> 21 & legal_fields >> 1)
-                            & (placement_fields >> 1
-                                | placement_fields >> 21
-                                | placement_fields >> 23
-                                | placement_fields >> 42)
+                        ((legal_fields & (three_right & two_down) >> 20)
+                            & (placement_fields
+                                | placement_fields >> 20
+                                | placement_fields >> 22
+                                | placement_fields >> 41)) >> 1
                     }
                 };
                 while destinations.not_zero() {
@@ -534,34 +530,37 @@ impl GameState {
             for shape_index in 59..63 {
                 let mut destinations = match shape_index {
                     59 => {
-                        (placement_fields & two_right >> 21 & two_right >> 43)
-                            | (placement_fields & two_up & two_right & two_right >> 22) >> 21
-                            | (placement_fields & two_up << 1 & two_right >> 21) >> 22
-                            | (placement_fields & two_right & two_up & two_up << 22) >> 43
-                            | ((placement_fields & two_left) >> 44 & two_right >> 21 & legal_fields)
+                        (two_down & (two_up & two_right) >> 43)
+                            & (placement_fields
+                                | placement_fields >> 21
+                                | placement_fields >> 22
+                                | placement_fields >> 43
+                                | placement_fields >> 44)
                     }
                     60 => {
-                        (placement_fields & two_down) >> 2 & (two_up & two_left) >> 43
-                            | (placement_fields & two_up & two_left) >> 23 & two_right >> 42
-                            | (placement_fields & two_up >> 1 & two_left >> 21) >> 22
-                            | (placement_fields & two_left & two_up) >> 43 & two_down >> 2
-                            | (placement_fields & two_right) >> 42
-                                & two_right >> 22
-                                & legal_fields >> 2
+                        ((two_up & two_left) >> 23 & two_right >> 42)
+                            & (placement_fields >> 2
+                                | placement_fields >> 22
+                                | placement_fields >> 23
+                                | placement_fields >> 42
+                                | placement_fields >> 43)
                     }
                     61 => {
-                        placement_fields & two_right & (two_down & two_left) >> 23
-                            | ((placement_fields & two_left & two_down) >> 1 & two_down >> 23)
-                            | (placement_fields >> 22 & two_right & two_down >> 23)
-                            | ((placement_fields & two_left & two_down) >> 23 & two_right)
-                            | ((placement_fields & two_up) >> 44 & two_right & two_right >> 22)
+                        (two_right & (two_down & two_left) >> 23)
+                            & (placement_fields
+                                | placement_fields >> 1
+                                | placement_fields >> 22
+                                | placement_fields >> 23
+                                | placement_fields >> 44)
                     }
                     _ => {
-                        ((placement_fields & two_left) >> 2 & (two_down & two_right) >> 21)
-                            | ((placement_fields & two_right & two_down) >> 1 & two_down >> 21)
-                            | (placement_fields >> 22 & two_down >> 21 & two_right >> 1)
-                            | ((placement_fields & two_down & two_right) >> 21 & two_right >> 1)
-                            | ((placement_fields & two_up) >> 42 & (two_down & two_right) >> 1)
+                        ((two_right & (two_right & two_down) >> 20)
+                            & (placement_fields
+                                | placement_fields >> 1
+                                | placement_fields >> 20
+                                | placement_fields >> 21
+                                | placement_fields >> 41))
+                            >> 1
                     }
                 };
                 while destinations.not_zero() {
@@ -576,11 +575,12 @@ impl GameState {
             for shape_index in 63..71 {
                 let mut destinations = match shape_index {
                     63 => {
-                        (three_down >> 1 & two_down >> 42)
-                            & (placement_fields >> 1
+                        ((three_down & two_down >> 41)
+                            & (placement_fields
+                                | placement_fields >> 41
                                 | placement_fields >> 42
-                                | placement_fields >> 43
-                                | placement_fields >> 63)
+                                | placement_fields >> 62))
+                            >> 1
                     }
                     64 => {
                         (three_down & two_down >> 43)
@@ -590,25 +590,27 @@ impl GameState {
                                 | placement_fields >> 64)
                     }
                     65 => {
-                        (three_down >> 21 & two_down >> 1)
-                            & (placement_fields >> 1
+                        ((two_down & three_down >> 20)
+                            & (placement_fields
+                                | placement_fields >> 20
                                 | placement_fields >> 21
-                                | placement_fields >> 22
-                                | placement_fields >> 63)
+                                | placement_fields >> 62))
+                            >> 1
                     }
                     66 => {
-                        (three_down >> 22 & two_down)
+                        (two_down & three_down >> 22)
                             & (placement_fields
                                 | placement_fields >> 21
                                 | placement_fields >> 22
                                 | placement_fields >> 64)
                     }
                     67 => {
-                        (three_right >> 21 & two_right >> 2)
-                            & (placement_fields >> 2
-                                | placement_fields >> 3
-                                | placement_fields >> 21
-                                | placement_fields >> 23)
+                        ((two_right & three_right >> 19)
+                            & (placement_fields
+                                | placement_fields >> 1
+                                | placement_fields >> 19
+                                | placement_fields >> 21))
+                            >> 2
                     }
                     68 => {
                         (three_right & two_right >> 23)
@@ -625,11 +627,12 @@ impl GameState {
                                 | placement_fields >> 24)
                     }
                     _ => {
-                        (two_right >> 21 & three_right >> 1)
-                            & (placement_fields >> 1
-                                | placement_fields >> 3
-                                | placement_fields >> 21
-                                | placement_fields >> 22)
+                        ((three_right & two_right >> 20)
+                            & (placement_fields
+                                | placement_fields >> 2
+                                | placement_fields >> 20
+                                | placement_fields >> 21))
+                            >> 1
                     }
                 };
                 while destinations.not_zero() {
@@ -644,24 +647,22 @@ impl GameState {
             for shape_index in 71..75 {
                 let mut destinations = match shape_index {
                     71 => {
-                        (placement_fields & three_right & three_down)
-                            | ((placement_fields & three_left) >> 2 & three_down)
-                            | ((placement_fields & three_up) >> 42 & three_right)
+                        (three_right & three_down)
+                            & (placement_fields | placement_fields >> 2 | placement_fields >> 42)
                     }
                     72 => {
-                        ((placement_fields & three_down) >> 2 & three_right >> 42)
-                            | ((placement_fields & three_left & three_up) >> 44)
-                            | ((placement_fields & three_right) >> 42 & three_down >> 2)
+                        (three_up & three_left) >> 44
+                            & (placement_fields >> 2
+                                | placement_fields >> 42
+                                | placement_fields >> 44)
                     }
                     73 => {
-                        (placement_fields & three_right & three_down >> 2)
-                            | (placement_fields & three_left & three_down) >> 2
-                            | ((placement_fields & three_up) >> 44 & three_right)
+                        (three_right & three_down >> 2)
+                            & (placement_fields | placement_fields >> 2 | placement_fields >> 44)
                     }
                     _ => {
-                        (placement_fields & three_down & three_right >> 42)
-                            | (placement_fields & three_up & three_right) >> 42
-                            | ((placement_fields & three_left) >> 44 & three_down)
+                        (three_down & three_right >> 42)
+                            & (placement_fields | placement_fields >> 42 | placement_fields >> 44)
                     }
                 };
                 while destinations.not_zero() {
@@ -676,44 +677,42 @@ impl GameState {
             for shape_index in 83..91 {
                 let mut destinations = match shape_index {
                     83 => {
-                        (placement_fields & four_down & legal_fields >> 22)
-                            | (placement_fields >> 22 & four_down)
-                            | (placement_fields >> 63 & four_down & legal_fields >> 22)
+                        (four_down & legal_fields >> 22)
+                            & (placement_fields | placement_fields >> 22 | placement_fields >> 63)
                     }
                     84 => {
-                        (placement_fields & four_down & legal_fields >> 43)
-                            | (placement_fields >> 43 & four_down)
-                            | (placement_fields >> 63 & four_down & legal_fields >> 43)
+                        (four_down & legal_fields >> 43)
+                            & (placement_fields | placement_fields >> 43 | placement_fields >> 63)
                     }
                     85 => {
-                        ((placement_fields & four_down) >> 1 & legal_fields >> 42)
-                            | (placement_fields >> 42 & four_down >> 1)
-                            | (placement_fields >> 64 & four_down >> 1 & legal_fields >> 42)
+                        ((four_down & legal_fields >> 41)
+                            & (placement_fields
+                                | placement_fields >> 41
+                                | placement_fields >> 63)) >> 1
                     }
                     86 => {
-                        ((placement_fields & four_down) >> 1 & legal_fields >> 21)
-                            | (placement_fields >> 21 & four_down >> 1)
-                            | (placement_fields >> 64 & four_down >> 1 & legal_fields >> 21)
+                        ((four_down & legal_fields >> 20)
+                            & (placement_fields | placement_fields >> 20 | placement_fields >> 63))
+                            >> 1
                     }
                     87 => {
-                        (placement_fields & four_right & legal_fields >> 23)
-                            | (placement_fields >> 3 & four_right & legal_fields >> 23)
-                            | (placement_fields >> 23 & four_right)
+                        (four_right & legal_fields >> 23)
+                            & (placement_fields | placement_fields >> 3 | placement_fields >> 23)
                     }
                     88 => {
-                        (placement_fields & four_right & legal_fields >> 22)
-                            | (placement_fields >> 3 & four_right & legal_fields >> 22)
-                            | (placement_fields >> 22 & four_right)
+                        (four_right & legal_fields >> 22)
+                            & (placement_fields | placement_fields >> 3 | placement_fields >> 22)
                     }
                     89 => {
-                        (placement_fields >> 2 & four_right >> 21)
-                            | ((placement_fields & four_right) >> 21 & legal_fields >> 2)
-                            | ((placement_fields & four_left) >> 24 & legal_fields >> 2)
+                        (two_up & two_right & three_left) >> 23
+                            & (placement_fields >> 2
+                                | placement_fields >> 21
+                                | placement_fields >> 24)
                     }
                     _ => {
-                        (placement_fields >> 1 & four_right >> 21)
-                            | ((placement_fields & four_right) >> 21 & legal_fields >> 1)
-                            | ((placement_fields & four_left) >> 24 & legal_fields >> 1)
+                        ((legal_fields & four_right >> 20)
+                            & (placement_fields | placement_fields >> 20 | placement_fields >> 23))
+                            >> 1
                     }
                 };
                 while destinations.not_zero() {
@@ -728,24 +727,24 @@ impl GameState {
             for shape_index in 35..39 {
                 let mut destinations = match shape_index {
                     35 => {
-                        (placement_fields & three_left & legal_fields >> 20) >> 2
-                            | (placement_fields & three_right & legal_fields >> 22)
-                            | (placement_fields >> 22 & three_right)
+                        (three_right & legal_fields >> 22)
+                            & (placement_fields | placement_fields >> 2 | placement_fields >> 22)
                     }
                     36 => {
-                        (placement_fields & three_left & legal_fields << 22) >> 23
-                            | (placement_fields & three_right & legal_fields << 20) >> 21
-                            | (placement_fields >> 1 & three_right >> 21)
+                        (two_up & two_right & two_left) >> 22
+                            & (placement_fields >> 1
+                                | placement_fields >> 21
+                                | placement_fields >> 23)
                     }
                     37 => {
-                        (placement_fields & three_up & legal_fields << 20) >> 42
-                            | (placement_fields & three_down & legal_fields >> 22)
-                            | (placement_fields >> 22 & three_down)
+                        (three_down & legal_fields >> 22)
+                            & (placement_fields | placement_fields >> 22 | placement_fields >> 42)
                     }
                     _ => {
-                        ((placement_fields & three_down) >> 1 & legal_fields >> 21)
-                            | ((placement_fields & three_up) >> 43 & legal_fields >> 21)
-                            | (placement_fields >> 21 & three_down >> 1)
+                        (two_up & two_down & two_left) >> 22
+                            & (placement_fields >> 1
+                                | placement_fields >> 21
+                                | placement_fields >> 43)
                     }
                 };
                 while destinations.not_zero() {
@@ -757,10 +756,11 @@ impl GameState {
         }
 
         if self.pieces_left[PieceType::OTetromino as usize][self.current_player as usize] {
-            let mut destinations = (two_right & two_right >> 21 & placement_fields)
-                | (two_left & two_left >> 21 & placement_fields) >> 1
-                | (two_right & two_right << 21 & placement_fields) >> 21
-                | (two_left & two_left << 21 & placement_fields) >> 22;
+            let mut destinations = square
+                & (placement_fields
+                    | placement_fields >> 1
+                    | placement_fields >> 21
+                    | placement_fields >> 22);
             while destinations.not_zero() {
                 let to = destinations.trailing_zeros();
                 destinations.flip_bit(to);
@@ -772,52 +772,62 @@ impl GameState {
             for shape_index in 75..83 {
                 let mut destinations = match shape_index {
                     75 => {
-                        (placement_fields & three_down & two_down >> 1)
-                            | (placement_fields >> 42 & three_down & two_down >> 1)
-                            | ((placement_fields & two_down) >> 1 & three_down)
-                            | ((placement_fields & two_up) >> 22 & three_down)
+                        (square & legal_fields >> 42)
+                            & (placement_fields
+                                | placement_fields >> 1
+                                | placement_fields >> 22
+                                | placement_fields >> 42)
                     }
                     76 => {
-                        (placement_fields & two_down & three_down >> 1)
-                            | ((placement_fields & three_down) >> 1 & two_down)
-                            | ((placement_fields & three_up) >> 43 & two_down)
-                            | ((placement_fields & two_up) >> 21 & three_down >> 1)
+                        (square & legal_fields >> 43)
+                            & (placement_fields
+                                | placement_fields >> 1
+                                | placement_fields >> 21
+                                | placement_fields >> 43)
                     }
                     77 => {
-                        (placement_fields & two_right & three_right >> 21)
-                            | (placement_fields >> 1 & two_right & three_right >> 21)
-                            | ((placement_fields & three_right) >> 21 & two_right)
-                            | ((placement_fields & three_left) >> 23 & two_right)
+                        (square & legal_fields >> 23)
+                            & (placement_fields
+                                | placement_fields >> 1
+                                | placement_fields >> 21
+                                | placement_fields >> 23)
                     }
                     78 => {
-                        (placement_fields & three_right & two_right >> 21)
-                            | (placement_fields >> 2 & three_right & two_right >> 21)
-                            | ((placement_fields & two_right) >> 21 & three_right)
-                            | ((placement_fields & two_left) >> 22 & three_right)
+                        (square & legal_fields >> 2)
+                            & (placement_fields
+                                | placement_fields >> 2
+                                | placement_fields >> 21
+                                | placement_fields >> 22)
                     }
                     79 => {
-                        (placement_fields & three_right & two_right >> 22)
-                            | ((placement_fields & three_left) >> 2 & two_right >> 22)
-                            | ((placement_fields & two_right) >> 22 & three_right)
-                            | ((placement_fields & two_left) >> 23 & three_right)
+                        (square >> 1 & legal_fields)
+                            & (placement_fields
+                                | placement_fields >> 2
+                                | placement_fields >> 22
+                                | placement_fields >> 23)
                     }
                     80 => {
-                        ((placement_fields & two_right) >> 1 & three_right >> 21)
-                            | ((placement_fields & two_left) >> 2 & three_right >> 21)
-                            | ((placement_fields & three_right) >> 21 & two_right >> 1)
-                            | ((placement_fields & three_left) >> 23 & two_right >> 1)
+                        ((square & legal_fields >> 20)
+                            & (placement_fields
+                                | placement_fields >> 1
+                                | placement_fields >> 20
+                                | placement_fields >> 22))
+                            >> 1
                     }
                     81 => {
-                        ((placement_fields & three_down) >> 1 & two_down >> 21)
-                            | ((placement_fields & three_up) >> 43 & two_down >> 21)
-                            | ((placement_fields & two_down) >> 21 & three_down >> 1)
-                            | ((placement_fields & two_up) >> 42 & three_down >> 1)
+                        ((legal_fields & square >> 20)
+                            & (placement_fields
+                                | placement_fields >> 20
+                                | placement_fields >> 41
+                                | placement_fields >> 42))
+                            >> 1
                     }
                     _ => {
-                        (placement_fields & three_down & two_down >> 22)
-                            | ((placement_fields & three_up) >> 42 & two_down >> 22)
-                            | ((placement_fields & two_down) >> 22 & three_down)
-                            | ((placement_fields & two_up) >> 43 & three_down)
+                        (legal_fields & square >> 21)
+                            & (placement_fields
+                                | placement_fields >> 22
+                                | placement_fields >> 42
+                                | placement_fields >> 43)
                     }
                 };
                 while destinations.not_zero() {
@@ -832,11 +842,12 @@ impl GameState {
             for shape_index in 39..43 {
                 let mut destinations = match shape_index {
                     39 => {
-                        (two_right >> 1 & two_right >> 21)
-                            & (placement_fields >> 1
-                                | placement_fields >> 2
-                                | placement_fields >> 21
-                                | placement_fields >> 22)
+                        ((two_right & two_right >> 20)
+                            & (placement_fields
+                                | placement_fields >> 1
+                                | placement_fields >> 20
+                                | placement_fields >> 21))
+                            >> 1
                     }
                     40 => {
                         (two_right & two_right >> 22)
@@ -846,11 +857,12 @@ impl GameState {
                                 | placement_fields >> 23)
                     }
                     41 => {
-                        (two_down >> 1 & two_down >> 21)
-                            & (placement_fields >> 1
+                        ((two_down & two_down >> 20)
+                            & (placement_fields
+                                | placement_fields >> 20
                                 | placement_fields >> 21
-                                | placement_fields >> 22
-                                | placement_fields >> 42)
+                                | placement_fields >> 41))
+                            >> 1
                     }
                     _ => {
                         (two_down & two_down >> 22)
@@ -876,14 +888,13 @@ impl GameState {
                             & (placement_fields | placement_fields >> 1 | placement_fields >> 42)
                     }
                     16 => {
-                        (three_down >> 1 & two_right)
+                        (two_right & three_down >> 1)
                             & (placement_fields | placement_fields >> 1 | placement_fields >> 43)
                     }
                     17 => {
-                        (three_down >> 1 & two_right >> 42)
-                            & (placement_fields >> 1
-                                | placement_fields >> 42
-                                | placement_fields >> 43)
+                        ((three_down & two_right >> 41)
+                            & (placement_fields | placement_fields >> 41 | placement_fields >> 42))
+                            >> 1
                     }
                     18 => {
                         (three_down & two_right >> 42)
@@ -894,11 +905,11 @@ impl GameState {
                             & (placement_fields | placement_fields >> 21 | placement_fields >> 23)
                     }
                     20 => {
-                        (legal_fields >> 21 & three_right)
+                        (three_right & legal_fields >> 21)
                             & (placement_fields | placement_fields >> 2 | placement_fields >> 21)
                     }
                     21 => {
-                        (legal_fields >> 23 & three_right)
+                        (three_right & legal_fields >> 23)
                             & (placement_fields | placement_fields >> 2 | placement_fields >> 23)
                     }
                     _ => {

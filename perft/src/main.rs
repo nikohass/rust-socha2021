@@ -17,7 +17,7 @@ fn perft(state: &mut GameState, depth: usize, als: &mut ActionListStack) -> u64 
 }
 
 fn test() {
-    let current_best: f64 = 27419.;
+    let current_best: f64 = 28917.;
     let depth = 3;
     let start_time = Instant::now();
     let mut als = ActionListStack::with_size(depth + 1);
