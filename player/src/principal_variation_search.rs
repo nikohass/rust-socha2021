@@ -1,8 +1,7 @@
 use super::cache::CacheEntry;
 use super::evaluation::evaluate;
 use super::search::{SearchParams, MATE_SCORE};
-use game_sdk::action::Action;
-use game_sdk::gamestate::GameState;
+use game_sdk::{Action, GameState};
 
 pub fn principal_variation_search(
     params: &mut SearchParams,

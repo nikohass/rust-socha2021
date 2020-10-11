@@ -1,9 +1,4 @@
-use game_sdk::action::Action;
-use game_sdk::actionlist::ActionList;
-use game_sdk::bitboard::Bitboard;
-use game_sdk::color::Color;
-use game_sdk::gamestate::GameState;
-use game_sdk::piece_type::PieceType;
+use game_sdk::{Action, ActionList, Bitboard, Color, GameState, PieceType};
 use std::collections::HashMap;
 use std::collections::VecDeque;
 use std::io::BufReader;

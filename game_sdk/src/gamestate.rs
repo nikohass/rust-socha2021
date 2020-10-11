@@ -54,6 +54,7 @@ impl GameState {
     }
 
     pub fn do_action(&mut self, action: Action) {
+        debug_assert!(self.validate_action(&action), "Action is invalid");
         match action {
             Action::Skip => {
                 self.skipped |= 1 << self.current_player as usize;
@@ -107,6 +108,47 @@ impl GameState {
         debug_assert!(self.check_integrity());
     }
 
+    pub fn validate_action(&self, action: &Action) -> bool {
+        match action {
+            Action::Skip => true,
+            Action::Set(to, piece_type, shape_index) => {
+                let mut is_valid = true;
+                if !self.pieces_left[*piece_type as usize][self.current_player as usize] {
+                    println!("Cannot place piece that has already been placed.");
+                    return false;
+                }
+                let piece = Bitboard::with_piece(*to, *shape_index);
+                let own_fields = self.board[self.current_player as usize];
+                let other_fields =
+                    (self.board[0] | self.board[1] | self.board[2] | self.board[3]) & !own_fields;
+                let legal_fields =
+                    !(own_fields | other_fields | own_fields.neighbours()) & VALID_FIELDS;
+                let placement_fields = if self.ply > 3 {
+                    own_fields.diagonal_neighbours() & legal_fields
+                } else {
+                    START_FIELDS & !other_fields
+                };
+                if (piece & placement_fields).is_zero() {
+                    println!("Piece does not touch a corner");
+                    is_valid = false;
+                }
+                if piece & legal_fields != piece {
+                    println!("Piece destination is not valid");
+                    is_valid = false;
+                }
+                if piece_type.piece_size() != piece.count_ones() as u8 {
+                    println!("Piece is shifted of the board");
+                    is_valid = false;
+                }
+                if !is_valid {
+                    println!("{}", action.to_string());
+                    println!("{}", piece.to_string());
+                }
+                is_valid
+            }
+        }
+    }
+
     pub fn get_possible_actions(&self, action_list: &mut ActionList) {
         // fields of the current player
         let own_fields = self.board[self.current_player as usize];
@@ -121,11 +163,6 @@ impl GameState {
         } else {
             START_FIELDS & !other_fields
         };
-
-        let with_two_in_a_row = placement_fields
-            & (legal_fields << 1 | legal_fields >> 1 | legal_fields << 21 | legal_fields >> 21);
-        let with_three_in_a_row = with_two_in_a_row
-            & (legal_fields << 2 | legal_fields >> 2 | legal_fields << 42 | legal_fields >> 42);
 
         debug_assert!(
             own_fields & VALID_FIELDS == own_fields,
@@ -200,16 +237,15 @@ impl GameState {
         }
 
         if self.pieces_left[PieceType::IPentomino as usize][self.current_player as usize] {
-            let mut destinations = (four_right & (legal_fields >> 4 & VALID_FIELDS))
-                & placement_fields
-                | ((four_left & (legal_fields << 4 & VALID_FIELDS)) & placement_fields) >> 4;
+            let mut destinations = (four_right & (legal_fields >> 4)) & placement_fields
+                | ((four_left & (legal_fields << 4)) & placement_fields) >> 4;
             while destinations.not_zero() {
                 let to = destinations.trailing_zeros();
                 destinations.flip_bit(to);
                 action_list.push(Action::Set(to, PieceType::IPentomino, 7));
             }
-            destinations = ((four_down & (legal_fields >> 84 & VALID_FIELDS)) & placement_fields)
-                | ((four_up & (legal_fields << 84 & VALID_FIELDS)) & placement_fields) >> 84;
+            destinations = ((four_down & (legal_fields >> 84)) & placement_fields)
+                | ((four_up & (legal_fields << 84)) & placement_fields) >> 84;
             while destinations.not_zero() {
                 let to = destinations.trailing_zeros();
                 destinations.flip_bit(to);
@@ -218,491 +254,664 @@ impl GameState {
         }
 
         if self.pieces_left[PieceType::XPentomino as usize][self.current_player as usize] {
-            let mut candidates = with_three_in_a_row;
+            let mut destinations =
+                (((three_right & placement_fields | (three_left & placement_fields) >> 2) >> 20)
+                    & (three_up >> 42 | three_down))
+                    | (((three_right | three_left >> 2) >> 20)
+                        & ((three_up & placement_fields) >> 42 | three_down & placement_fields));
+            while destinations.not_zero() {
+                let to = destinations.trailing_zeros();
+                destinations.flip_bit(to);
+                action_list.push(Action::Set(to, PieceType::XPentomino, 10));
+            }
+        }
 
-            while candidates.not_zero() {
-                let to = candidates.trailing_zeros();
-                candidates.flip_bit(to);
-
-                for offset in [0, 20, 22, 42].iter() {
-                    if to >= *offset {
-                        let destination = to - *offset;
-                        let piece = Bitboard::with_piece(destination, 10);
-                        if piece & legal_fields == piece {
-                            action_list.push(Action::Set(destination, PieceType::XPentomino, 10));
-                        }
+        if self.pieces_left[PieceType::LTromino as usize][self.current_player as usize] {
+            for shape_index in 11..15 {
+                let mut destinations = match shape_index {
+                    11 => {
+                        let l = two_up & two_right;
+                        (placement_fields & l >> 21)
+                            | (placement_fields & l) >> 21
+                            | (placement_fields >> 22 & l >> 21)
                     }
+                    12 => {
+                        let l = two_down & two_right;
+                        (placement_fields & l)
+                            | (placement_fields >> 21 & l)
+                            | (placement_fields >> 1 & l)
+                    }
+                    13 => {
+                        let l = two_down >> 1 & two_right;
+                        (placement_fields & l)
+                            | (placement_fields >> 22 & l)
+                            | (placement_fields >> 1 & l)
+                    }
+                    _ => {
+                        let l = two_down >> 1 & two_right >> 21;
+                        (placement_fields >> 1 & l)
+                            | (placement_fields >> 21 & l)
+                            | (placement_fields >> 22 & l)
+                    }
+                };
+                while destinations.not_zero() {
+                    let to = destinations.trailing_zeros();
+                    destinations.flip_bit(to);
+                    action_list.push(Action::Set(to, PieceType::LTromino, shape_index));
                 }
             }
         }
 
         if self.pieces_left[PieceType::LPentomino as usize][self.current_player as usize] {
-            let mut candidates = with_two_in_a_row;
-            let offsets: [[u16; 3]; 8] = [
-                [0, 3, 24],
-                [0, 3, 21],
-                [0, 21, 24],
-                [3, 21, 24],
-                [0, 1, 63],
-                [0, 63, 64],
-                [0, 1, 64],
-                [1, 63, 64],
-            ];
-            while candidates.not_zero() {
-                let to = candidates.trailing_zeros();
-                candidates.flip_bit(to);
-
-                let mut shape_index: usize = 23;
-                for i in &offsets {
-                    for p in i.iter().take(3) {
-                        if to >= *p {
-                            let action = to - *p;
-                            let piece = Bitboard::with_piece(action, shape_index);
-                            if piece & legal_fields == piece {
-                                action_list.push(Action::Set(
-                                    action,
-                                    PieceType::LPentomino,
-                                    shape_index,
-                                ));
-                            }
-                        }
+            for shape_index in 23..31 {
+                let mut destinations = match shape_index {
+                    23 => {
+                        (placement_fields & four_right & two_down >> 3)
+                            | (placement_fields & four_left & two_down) >> 3
+                            | (placement_fields & two_up) >> 24 & four_right
                     }
-                    shape_index += 1;
+                    24 => {
+                        (placement_fields & four_right & two_down)
+                            | (placement_fields >> 21 & four_right & two_down)
+                            | (placement_fields >> 3 & four_right & two_down)
+                    }
+                    25 => {
+                        (placement_fields & two_down & four_right >> 21)
+                            | (placement_fields & two_up & four_right) >> 21
+                            | (placement_fields >> 3 & two_up & four_right) >> 21
+                    }
+                    26 => {
+                        ((placement_fields & four_right) >> 21 & legal_fields >> 3)
+                            | (placement_fields & four_left & two_up) >> 24
+                            | (placement_fields >> 3 & four_right >> 21)
+                    }
+                    27 => {
+                        (placement_fields & two_right & four_down)
+                            | (placement_fields >> 1 & two_right & four_down)
+                            | (placement_fields >> 63 & two_right & four_down)
+                    }
+                    28 => {
+                        (placement_fields & four_down & two_right >> 63)
+                            | (placement_fields >> 63 & four_down & two_right >> 63)
+                            | (placement_fields >> 64 & four_down)
+                    }
+                    29 => {
+                        (placement_fields & four_down >> 1)
+                            | (placement_fields & four_down & two_left) >> 1
+                            | (placement_fields & four_up) >> 64 & legal_fields
+                    }
+                    _ => {
+                        ((placement_fields & four_down) >> 1 & legal_fields >> 63)
+                            | (placement_fields & four_up & two_left) >> 64
+                            | (placement_fields >> 63 & four_down >> 1)
+                    }
+                };
+                while destinations.not_zero() {
+                    let to = destinations.trailing_zeros();
+                    destinations.flip_bit(to);
+                    action_list.push(Action::Set(to, PieceType::LPentomino, shape_index));
                 }
             }
         }
 
         if self.pieces_left[PieceType::TPentomino as usize][self.current_player as usize] {
-            let mut candidates = with_three_in_a_row;
-            let offsets: [[u16; 3]; 4] = [[0, 2, 43], [1, 42, 44], [0, 23, 42], [2, 21, 44]];
-            while candidates.not_zero() {
-                let to = candidates.trailing_zeros();
-                candidates.flip_bit(to);
-
-                let mut shape_index: usize = 31;
-                for i in &offsets {
-                    for offset in i {
-                        if to >= *offset {
-                            let action = to - *offset;
-                            let piece = Bitboard::with_piece(action, shape_index);
-                            if piece & legal_fields == piece {
-                                action_list.push(Action::Set(
-                                    action,
-                                    PieceType::TPentomino,
-                                    shape_index,
-                                ));
-                            }
-                        }
+            for shape_index in 31..35 {
+                let mut destinations = match shape_index {
+                    31 => {
+                        (placement_fields & three_right & three_down >> 1)
+                            | (placement_fields & three_left & three_down << 1) >> 2
+                            | ((placement_fields & three_up) >> 43 & three_right)
                     }
-                    shape_index += 1;
+                    32 => {
+                        ((placement_fields & three_right) >> 42 & three_down >> 1)
+                            | ((placement_fields & three_left) >> 44 & three_down >> 1)
+                            | ((placement_fields & three_down) >> 1 & three_right >> 42)
+                    }
+                    33 => {
+                        (placement_fields & three_down & three_right >> 21)
+                            | (placement_fields >> 42 & three_down & three_right >> 21)
+                            | ((placement_fields & three_left) >> 23 & three_down)
+                    }
+                    _ => {
+                        ((placement_fields & three_down) >> 2 & three_right >> 21)
+                            | ((placement_fields & three_up) >> 44 & three_right >> 21)
+                            | ((placement_fields & three_right) >> 21 & three_down >> 2)
+                    }
+                };
+                while destinations.not_zero() {
+                    let to = destinations.trailing_zeros();
+                    destinations.flip_bit(to);
+                    action_list.push(Action::Set(to, PieceType::TPentomino, shape_index));
                 }
             }
         }
 
         if self.pieces_left[PieceType::ZPentomino as usize][self.current_player as usize] {
-            let mut candidates = with_two_in_a_row;
-            let offsets: [[u16; 4]; 4] = [
-                [0, 21, 23, 44],
-                [2, 21, 23, 42],
-                [1, 2, 42, 43],
-                [0, 1, 43, 44],
-            ];
-            while candidates.not_zero() {
-                let to = candidates.trailing_zeros();
-                candidates.flip_bit(to);
-
-                let mut shape_index: usize = 43;
-                for i in &offsets {
-                    for offset in i {
-                        if to >= *offset {
-                            let action = to - *offset;
-                            let piece = Bitboard::with_piece(action, shape_index);
-                            if piece & legal_fields == piece {
-                                action_list.push(Action::Set(
-                                    action,
-                                    PieceType::ZPentomino,
-                                    shape_index,
-                                ));
-                            }
-                        }
+            for shape_index in 43..47 {
+                let mut destinations = match shape_index {
+                    43 => {
+                        (legal_fields & (three_left & two_down) >> 23)
+                            & (placement_fields
+                                | placement_fields >> 21
+                                | placement_fields >> 23
+                                | placement_fields >> 44)
                     }
-                    shape_index += 1;
+                    44 => {
+                        (legal_fields >> 2 & (three_right & two_down) >> 21)
+                            & (placement_fields >> 2
+                                | placement_fields >> 21
+                                | placement_fields >> 23
+                                | placement_fields >> 42)
+                    }
+                    45 => {
+                        (legal_fields >> 42 & (three_down & two_right) >> 1)
+                            & (placement_fields >> 2
+                                | placement_fields >> 1
+                                | placement_fields >> 43
+                                | placement_fields >> 42)
+                    }
+                    _ => {
+                        (legal_fields & (three_up & two_right) >> 43)
+                            & (placement_fields
+                                | placement_fields >> 1
+                                | placement_fields >> 43
+                                | placement_fields >> 44)
+                    }
+                };
+                while destinations.not_zero() {
+                    let to = destinations.trailing_zeros();
+                    destinations.flip_bit(to);
+                    action_list.push(Action::Set(to, PieceType::ZPentomino, shape_index));
                 }
             }
         }
 
         if self.pieces_left[PieceType::UPentomino as usize][self.current_player as usize] {
-            let mut candidates = with_two_in_a_row;
-            let offsets: [[u16; 4]; 4] = [
-                [0, 2, 21, 23],
-                [0, 2, 21, 23],
-                [0, 1, 42, 43],
-                [0, 1, 42, 43],
-            ];
-            while candidates.not_zero() {
-                let to = candidates.trailing_zeros();
-                candidates.flip_bit(to);
-
-                let mut shape_index: usize = 47;
-                for i in &offsets {
-                    for offset in i {
-                        if to >= *offset {
-                            let action = to - *offset;
-                            let piece = Bitboard::with_piece(action, shape_index);
-                            if piece & legal_fields == piece {
-                                action_list.push(Action::Set(
-                                    action,
-                                    PieceType::UPentomino,
-                                    shape_index,
-                                ));
-                            }
-                        }
+            for shape_index in 47..51 {
+                let mut destinations = match shape_index {
+                    47 => {
+                        (placement_fields & three_right & two_down & legal_fields >> 23)
+                            | ((placement_fields & two_up & two_up >> 2) >> 21 & three_right)
+                            | ((placement_fields & two_down) >> 2 & three_right & two_down)
+                            | (placement_fields >> 23 & two_down & three_right)
                     }
-                    shape_index += 1;
+                    48 => {
+                        (placement_fields & two_down & two_down >> 2 & three_right >> 21)
+                            | ((placement_fields & three_right & two_up) >> 21 & legal_fields >> 2)
+                            | ((placement_fields & three_left & two_up) >> 23 & legal_fields)
+                            | (placement_fields >> 2 & three_right >> 21 & legal_fields)
+                    }
+                    49 => {
+                        (placement_fields & three_down & two_right & legal_fields >> 43)
+                            | (placement_fields >> 1 & three_down & legal_fields >> 43)
+                            | ((placement_fields & two_right) >> 42 & three_down & two_right)
+                            | (placement_fields >> 43 & three_down & two_right)
+                    }
+                    _ => {
+                        placement_fields & three_down >> 1 & two_right >> 42
+                            | ((placement_fields & two_left & three_down) >> 1 & two_right >> 42)
+                            | ((placement_fields & two_left & three_up) >> 43 & legal_fields)
+                            | (placement_fields >> 42 & three_down >> 1 & legal_fields)
+                    }
+                };
+                while destinations.not_zero() {
+                    let to = destinations.trailing_zeros();
+                    destinations.flip_bit(to);
+                    action_list.push(Action::Set(to, PieceType::UPentomino, shape_index));
                 }
             }
         }
 
         if self.pieces_left[PieceType::FPentomino as usize][self.current_player as usize] {
-            let mut candidates = with_two_in_a_row;
-            let offsets: [[u16; 4]; 8] = [
-                [1, 23, 42, 43],
-                [1, 21, 43, 44],
-                [1, 2, 21, 43],
-                [0, 1, 23, 43],
-                [2, 21, 23, 43],
-                [0, 21, 23, 43],
-                [1, 21, 23, 44],
-                [1, 21, 23, 42],
-            ];
-            while candidates.not_zero() {
-                let to = candidates.trailing_zeros();
-                candidates.flip_bit(to);
-
-                let mut shape_index: usize = 51;
-                for i in &offsets {
-                    for offset in i {
-                        if to >= *offset {
-                            let action = to - *offset;
-                            let piece = Bitboard::with_piece(action, shape_index);
-                            if piece & legal_fields == piece {
-                                action_list.push(Action::Set(
-                                    action,
-                                    PieceType::FPentomino,
-                                    shape_index,
-                                ));
-                            }
-                        }
+            for shape_index in 51..59 {
+                let mut destinations = match shape_index {
+                    51 => {
+                        ((three_up & two_left) >> 43 & legal_fields >> 23)
+                            & (placement_fields >> 1
+                                | placement_fields >> 23
+                                | placement_fields >> 42
+                                | placement_fields >> 43)
                     }
-                    shape_index += 1;
+                    52 => {
+                        ((three_up & two_right) >> 43 & legal_fields >> 21)
+                            & (placement_fields >> 1
+                                | placement_fields >> 21
+                                | placement_fields >> 43
+                                | placement_fields >> 44)
+                    }
+                    53 => {
+                        ((three_down & two_right) >> 1 & legal_fields >> 21)
+                            & (placement_fields >> 1
+                                | placement_fields >> 2
+                                | placement_fields >> 21
+                                | placement_fields >> 43)
+                    }
+                    54 => {
+                        ((three_down & two_left) >> 1 & legal_fields >> 23)
+                            & (placement_fields
+                                | placement_fields >> 1
+                                | placement_fields >> 23
+                                | placement_fields >> 43)
+                    }
+                    55 => {
+                        ((three_left & two_up) >> 23 & legal_fields >> 43)
+                            & (placement_fields >> 2
+                                | placement_fields >> 21
+                                | placement_fields >> 23
+                                | placement_fields >> 43)
+                    }
+                    56 => {
+                        ((three_right & two_up) >> 21 & legal_fields >> 43)
+                            & (placement_fields
+                                | placement_fields >> 21
+                                | placement_fields >> 23
+                                | placement_fields >> 43)
+                    }
+                    57 => {
+                        ((three_left & two_down) >> 23 & legal_fields >> 1)
+                            & (placement_fields >> 1
+                                | placement_fields >> 21
+                                | placement_fields >> 23
+                                | placement_fields >> 44)
+                    }
+                    _ => {
+                        ((three_right & two_down) >> 21 & legal_fields >> 1)
+                            & (placement_fields >> 1
+                                | placement_fields >> 21
+                                | placement_fields >> 23
+                                | placement_fields >> 42)
+                    }
+                };
+                while destinations.not_zero() {
+                    let to = destinations.trailing_zeros();
+                    destinations.flip_bit(to);
+                    action_list.push(Action::Set(to, PieceType::FPentomino, shape_index));
                 }
             }
         }
 
         if self.pieces_left[PieceType::WPentomino as usize][self.current_player as usize] {
-            let mut candidates = with_two_in_a_row;
-            let offsets: [[u16; 5]; 4] = [
-                [0, 21, 22, 43, 44],
-                [2, 22, 23, 42, 43],
-                [0, 1, 22, 23, 44],
-                [1, 2, 21, 22, 42],
-            ];
-            while candidates.not_zero() {
-                let to = candidates.trailing_zeros();
-                candidates.flip_bit(to);
-
-                let mut shape_index: usize = 59;
-                for i in &offsets {
-                    for offset in i {
-                        if to >= *offset {
-                            let action = to - *offset;
-                            let piece = Bitboard::with_piece(action, shape_index);
-                            if piece & legal_fields == piece {
-                                action_list.push(Action::Set(
-                                    action,
-                                    PieceType::WPentomino,
-                                    shape_index,
-                                ));
-                            }
-                        }
+            for shape_index in 59..63 {
+                let mut destinations = match shape_index {
+                    59 => {
+                        (placement_fields & two_right >> 21 & two_right >> 43)
+                            | (placement_fields & two_up & two_right & two_right >> 22) >> 21
+                            | (placement_fields & two_up << 1 & two_right >> 21) >> 22
+                            | (placement_fields & two_right & two_up & two_up << 22) >> 43
+                            | ((placement_fields & two_left) >> 44 & two_right >> 21 & legal_fields)
                     }
-                    shape_index += 1;
+                    60 => {
+                        (placement_fields & two_down) >> 2 & (two_up & two_left) >> 43
+                            | (placement_fields & two_up & two_left) >> 23 & two_right >> 42
+                            | (placement_fields & two_up >> 1 & two_left >> 21) >> 22
+                            | (placement_fields & two_left & two_up) >> 43 & two_down >> 2
+                            | (placement_fields & two_right) >> 42
+                                & two_right >> 22
+                                & legal_fields >> 2
+                    }
+                    61 => {
+                        placement_fields & two_right & (two_down & two_left) >> 23
+                            | ((placement_fields & two_left & two_down) >> 1 & two_down >> 23)
+                            | (placement_fields >> 22 & two_right & two_down >> 23)
+                            | ((placement_fields & two_left & two_down) >> 23 & two_right)
+                            | ((placement_fields & two_up) >> 44 & two_right & two_right >> 22)
+                    }
+                    _ => {
+                        ((placement_fields & two_left) >> 2 & (two_down & two_right) >> 21)
+                            | ((placement_fields & two_right & two_down) >> 1 & two_down >> 21)
+                            | (placement_fields >> 22 & two_down >> 21 & two_right >> 1)
+                            | ((placement_fields & two_down & two_right) >> 21 & two_right >> 1)
+                            | ((placement_fields & two_up) >> 42 & (two_down & two_right) >> 1)
+                    }
+                };
+                while destinations.not_zero() {
+                    let to = destinations.trailing_zeros();
+                    destinations.flip_bit(to);
+                    action_list.push(Action::Set(to, PieceType::WPentomino, shape_index));
                 }
             }
         }
 
         if self.pieces_left[PieceType::NPentomino as usize][self.current_player as usize] {
-            let mut candidates = with_two_in_a_row;
-            let offsets: [[u16; 4]; 8] = [
-                [1, 42, 43, 63],
-                [0, 42, 43, 64],
-                [1, 21, 22, 63],
-                [0, 21, 22, 64],
-                [2, 3, 21, 23],
-                [0, 2, 23, 24],
-                [0, 1, 22, 24],
-                [1, 3, 21, 22],
-            ];
-            while candidates.not_zero() {
-                let to = candidates.trailing_zeros();
-                candidates.flip_bit(to);
-
-                let mut shape_index: usize = 63;
-                for i in &offsets {
-                    for offset in i {
-                        if to >= *offset {
-                            let action = to - *offset;
-                            let piece = Bitboard::with_piece(action, shape_index);
-                            if piece & legal_fields == piece {
-                                action_list.push(Action::Set(
-                                    action,
-                                    PieceType::NPentomino,
-                                    shape_index,
-                                ));
-                            }
-                        }
+            for shape_index in 63..71 {
+                let mut destinations = match shape_index {
+                    63 => {
+                        (three_down >> 1 & two_down >> 42)
+                            & (placement_fields >> 1
+                                | placement_fields >> 42
+                                | placement_fields >> 43
+                                | placement_fields >> 63)
                     }
-                    shape_index += 1;
+                    64 => {
+                        (three_down & two_down >> 43)
+                            & (placement_fields
+                                | placement_fields >> 42
+                                | placement_fields >> 43
+                                | placement_fields >> 64)
+                    }
+                    65 => {
+                        (three_down >> 21 & two_down >> 1)
+                            & (placement_fields >> 1
+                                | placement_fields >> 21
+                                | placement_fields >> 22
+                                | placement_fields >> 63)
+                    }
+                    66 => {
+                        (three_down >> 22 & two_down)
+                            & (placement_fields
+                                | placement_fields >> 21
+                                | placement_fields >> 22
+                                | placement_fields >> 64)
+                    }
+                    67 => {
+                        (three_right >> 21 & two_right >> 2)
+                            & (placement_fields >> 2
+                                | placement_fields >> 3
+                                | placement_fields >> 21
+                                | placement_fields >> 23)
+                    }
+                    68 => {
+                        (three_right & two_right >> 23)
+                            & (placement_fields
+                                | placement_fields >> 2
+                                | placement_fields >> 23
+                                | placement_fields >> 24)
+                    }
+                    69 => {
+                        (two_right & three_right >> 22)
+                            & (placement_fields
+                                | placement_fields >> 1
+                                | placement_fields >> 22
+                                | placement_fields >> 24)
+                    }
+                    _ => {
+                        (two_right >> 21 & three_right >> 1)
+                            & (placement_fields >> 1
+                                | placement_fields >> 3
+                                | placement_fields >> 21
+                                | placement_fields >> 22)
+                    }
+                };
+                while destinations.not_zero() {
+                    let to = destinations.trailing_zeros();
+                    destinations.flip_bit(to);
+                    action_list.push(Action::Set(to, PieceType::NPentomino, shape_index));
                 }
             }
         }
 
         if self.pieces_left[PieceType::VPentomino as usize][self.current_player as usize] {
-            let mut candidates = with_three_in_a_row;
-            let offsets: [[u16; 3]; 4] = [[0, 2, 42], [2, 42, 44], [0, 2, 44], [0, 42, 44]];
-            while candidates.not_zero() {
-                let to = candidates.trailing_zeros();
-                candidates.flip_bit(to);
-
-                let mut shape_index: usize = 71;
-                for i in &offsets {
-                    for offset in i {
-                        if to >= *offset {
-                            let action = to - *offset;
-                            let piece = Bitboard::with_piece(action, shape_index);
-                            if piece & legal_fields == piece {
-                                action_list.push(Action::Set(
-                                    action,
-                                    PieceType::VPentomino,
-                                    shape_index,
-                                ));
-                            }
-                        }
+            for shape_index in 71..75 {
+                let mut destinations = match shape_index {
+                    71 => {
+                        (placement_fields & three_right & three_down)
+                            | ((placement_fields & three_left) >> 2 & three_down)
+                            | ((placement_fields & three_up) >> 42 & three_right)
                     }
-                    shape_index += 1;
-                }
-            }
-        }
-
-        if self.pieces_left[PieceType::PPentomino as usize][self.current_player as usize] {
-            let mut candidates = with_two_in_a_row;
-            let offsets: [[u16; 4]; 8] = [
-                [0, 1, 22, 42],
-                [0, 1, 21, 43],
-                [0, 1, 21, 23],
-                [0, 2, 21, 22],
-                [0, 2, 22, 23],
-                [1, 2, 21, 23],
-                [1, 21, 42, 43],
-                [0, 22, 42, 43],
-            ];
-            while candidates.not_zero() {
-                let to = candidates.trailing_zeros();
-                candidates.flip_bit(to);
-
-                let mut shape_index: usize = 75;
-                for i in &offsets {
-                    for offset in i {
-                        if to >= *offset {
-                            let action = to - *offset;
-                            let piece = Bitboard::with_piece(action, shape_index);
-                            if piece & legal_fields == piece {
-                                action_list.push(Action::Set(
-                                    action,
-                                    PieceType::PPentomino,
-                                    shape_index,
-                                ));
-                            }
-                        }
+                    72 => {
+                        ((placement_fields & three_down) >> 2 & three_right >> 42)
+                            | ((placement_fields & three_left & three_up) >> 44)
+                            | ((placement_fields & three_right) >> 42 & three_down >> 2)
                     }
-                    shape_index += 1;
+                    73 => {
+                        (placement_fields & three_right & three_down >> 2)
+                            | (placement_fields & three_left & three_down) >> 2
+                            | ((placement_fields & three_up) >> 44 & three_right)
+                    }
+                    _ => {
+                        (placement_fields & three_down & three_right >> 42)
+                            | (placement_fields & three_up & three_right) >> 42
+                            | ((placement_fields & three_left) >> 44 & three_down)
+                    }
+                };
+                while destinations.not_zero() {
+                    let to = destinations.trailing_zeros();
+                    destinations.flip_bit(to);
+                    action_list.push(Action::Set(to, PieceType::VPentomino, shape_index));
                 }
             }
         }
 
         if self.pieces_left[PieceType::YPentomino as usize][self.current_player as usize] {
-            let mut candidates = with_two_in_a_row;
-            let offsets: [[u16; 4]; 8] = [
-                [0, 22, 42, 63],
-                [0, 21, 43, 63],
-                [1, 22, 42, 64],
-                [1, 21, 43, 64],
-                [0, 1, 3, 23],
-                [0, 2, 3, 22],
-                [2, 21, 22, 24],
-                [1, 21, 23, 24],
-            ];
-            while candidates.not_zero() {
-                let to = candidates.trailing_zeros();
-                candidates.flip_bit(to);
-
-                let mut shape_index: usize = 83;
-                for i in &offsets {
-                    for offset in i {
-                        if to >= *offset {
-                            let action = to - *offset;
-                            let piece = Bitboard::with_piece(action, shape_index);
-                            if piece & legal_fields == piece {
-                                action_list.push(Action::Set(
-                                    action,
-                                    PieceType::YPentomino,
-                                    shape_index,
-                                ));
-                            }
-                        }
+            for shape_index in 83..91 {
+                let mut destinations = match shape_index {
+                    83 => {
+                        (placement_fields & four_down & legal_fields >> 22)
+                            | (placement_fields >> 22 & four_down)
+                            | (placement_fields >> 63 & four_down & legal_fields >> 22)
                     }
-                    shape_index += 1;
+                    84 => {
+                        (placement_fields & four_down & legal_fields >> 43)
+                            | (placement_fields >> 43 & four_down)
+                            | (placement_fields >> 63 & four_down & legal_fields >> 43)
+                    }
+                    85 => {
+                        ((placement_fields & four_down) >> 1 & legal_fields >> 42)
+                            | (placement_fields >> 42 & four_down >> 1)
+                            | (placement_fields >> 64 & four_down >> 1 & legal_fields >> 42)
+                    }
+                    86 => {
+                        ((placement_fields & four_down) >> 1 & legal_fields >> 21)
+                            | (placement_fields >> 21 & four_down >> 1)
+                            | (placement_fields >> 64 & four_down >> 1 & legal_fields >> 21)
+                    }
+                    87 => {
+                        (placement_fields & four_right & legal_fields >> 23)
+                            | (placement_fields >> 3 & four_right & legal_fields >> 23)
+                            | (placement_fields >> 23 & four_right)
+                    }
+                    88 => {
+                        (placement_fields & four_right & legal_fields >> 22)
+                            | (placement_fields >> 3 & four_right & legal_fields >> 22)
+                            | (placement_fields >> 22 & four_right)
+                    }
+                    89 => {
+                        (placement_fields >> 2 & four_right >> 21)
+                            | ((placement_fields & four_right) >> 21 & legal_fields >> 2)
+                            | ((placement_fields & four_left) >> 24 & legal_fields >> 2)
+                    }
+                    _ => {
+                        (placement_fields >> 1 & four_right >> 21)
+                            | ((placement_fields & four_right) >> 21 & legal_fields >> 1)
+                            | ((placement_fields & four_left) >> 24 & legal_fields >> 1)
+                    }
+                };
+                while destinations.not_zero() {
+                    let to = destinations.trailing_zeros();
+                    destinations.flip_bit(to);
+                    action_list.push(Action::Set(to, PieceType::YPentomino, shape_index));
                 }
             }
         }
 
         if self.pieces_left[PieceType::TTetromino as usize][self.current_player as usize] {
-            let mut candidates = with_two_in_a_row;
-            let offsets: [[u16; 3]; 4] = [[0, 2, 22], [1, 21, 23], [0, 22, 42], [1, 21, 43]];
-            while candidates.not_zero() {
-                let to = candidates.trailing_zeros();
-                candidates.flip_bit(to);
-
-                let mut shape_index: usize = 35;
-                for i in &offsets {
-                    for offset in i {
-                        if to >= *offset {
-                            let action = to - *offset;
-                            let piece = Bitboard::with_piece(action, shape_index);
-                            if piece & legal_fields == piece {
-                                action_list.push(Action::Set(
-                                    action,
-                                    PieceType::TTetromino,
-                                    shape_index,
-                                ));
-                            }
-                        }
+            for shape_index in 35..39 {
+                let mut destinations = match shape_index {
+                    35 => {
+                        (placement_fields & three_left & legal_fields >> 20) >> 2
+                            | (placement_fields & three_right & legal_fields >> 22)
+                            | (placement_fields >> 22 & three_right)
                     }
-                    shape_index += 1;
+                    36 => {
+                        (placement_fields & three_left & legal_fields << 22) >> 23
+                            | (placement_fields & three_right & legal_fields << 20) >> 21
+                            | (placement_fields >> 1 & three_right >> 21)
+                    }
+                    37 => {
+                        (placement_fields & three_up & legal_fields << 20) >> 42
+                            | (placement_fields & three_down & legal_fields >> 22)
+                            | (placement_fields >> 22 & three_down)
+                    }
+                    _ => {
+                        ((placement_fields & three_down) >> 1 & legal_fields >> 21)
+                            | ((placement_fields & three_up) >> 43 & legal_fields >> 21)
+                            | (placement_fields >> 21 & three_down >> 1)
+                    }
+                };
+                while destinations.not_zero() {
+                    let to = destinations.trailing_zeros();
+                    destinations.flip_bit(to);
+                    action_list.push(Action::Set(to, PieceType::TTetromino, shape_index));
                 }
             }
         }
 
         if self.pieces_left[PieceType::OTetromino as usize][self.current_player as usize] {
-            let mut candidates = with_two_in_a_row;
-            let offsets: [u16; 4] = [0, 1, 21, 22];
-            while candidates.not_zero() {
-                let to = candidates.trailing_zeros();
-                candidates.flip_bit(to);
+            let mut destinations = (two_right & two_right >> 21 & placement_fields)
+                | (two_left & two_left >> 21 & placement_fields) >> 1
+                | (two_right & two_right << 21 & placement_fields) >> 21
+                | (two_left & two_left << 21 & placement_fields) >> 22;
+            while destinations.not_zero() {
+                let to = destinations.trailing_zeros();
+                destinations.flip_bit(to);
+                action_list.push(Action::Set(to, PieceType::OTetromino, 9));
+            }
+        }
 
-                for offset in &offsets {
-                    if to >= *offset {
-                        let action = to - *offset;
-                        let piece = Bitboard::with_piece(action, 9);
-                        if piece & legal_fields == piece {
-                            action_list.push(Action::Set(action, PieceType::OTetromino, 9));
-                        }
+        if self.pieces_left[PieceType::PPentomino as usize][self.current_player as usize] {
+            for shape_index in 75..83 {
+                let mut destinations = match shape_index {
+                    75 => {
+                        (placement_fields & three_down & two_down >> 1)
+                            | (placement_fields >> 42 & three_down & two_down >> 1)
+                            | ((placement_fields & two_down) >> 1 & three_down)
+                            | ((placement_fields & two_up) >> 22 & three_down)
                     }
+                    76 => {
+                        (placement_fields & two_down & three_down >> 1)
+                            | ((placement_fields & three_down) >> 1 & two_down)
+                            | ((placement_fields & three_up) >> 43 & two_down)
+                            | ((placement_fields & two_up) >> 21 & three_down >> 1)
+                    }
+                    77 => {
+                        (placement_fields & two_right & three_right >> 21)
+                            | (placement_fields >> 1 & two_right & three_right >> 21)
+                            | ((placement_fields & three_right) >> 21 & two_right)
+                            | ((placement_fields & three_left) >> 23 & two_right)
+                    }
+                    78 => {
+                        (placement_fields & three_right & two_right >> 21)
+                            | (placement_fields >> 2 & three_right & two_right >> 21)
+                            | ((placement_fields & two_right) >> 21 & three_right)
+                            | ((placement_fields & two_left) >> 22 & three_right)
+                    }
+                    79 => {
+                        (placement_fields & three_right & two_right >> 22)
+                            | ((placement_fields & three_left) >> 2 & two_right >> 22)
+                            | ((placement_fields & two_right) >> 22 & three_right)
+                            | ((placement_fields & two_left) >> 23 & three_right)
+                    }
+                    80 => {
+                        ((placement_fields & two_right) >> 1 & three_right >> 21)
+                            | ((placement_fields & two_left) >> 2 & three_right >> 21)
+                            | ((placement_fields & three_right) >> 21 & two_right >> 1)
+                            | ((placement_fields & three_left) >> 23 & two_right >> 1)
+                    }
+                    81 => {
+                        ((placement_fields & three_down) >> 1 & two_down >> 21)
+                            | ((placement_fields & three_up) >> 43 & two_down >> 21)
+                            | ((placement_fields & two_down) >> 21 & three_down >> 1)
+                            | ((placement_fields & two_up) >> 42 & three_down >> 1)
+                    }
+                    _ => {
+                        (placement_fields & three_down & two_down >> 22)
+                            | ((placement_fields & three_up) >> 42 & two_down >> 22)
+                            | ((placement_fields & two_down) >> 22 & three_down)
+                            | ((placement_fields & two_up) >> 43 & three_down)
+                    }
+                };
+                while destinations.not_zero() {
+                    let to = destinations.trailing_zeros();
+                    destinations.flip_bit(to);
+                    action_list.push(Action::Set(to, PieceType::PPentomino, shape_index));
                 }
             }
         }
 
         if self.pieces_left[PieceType::ZTetromino as usize][self.current_player as usize] {
-            let mut candidates = with_two_in_a_row;
-            let offsets: [[u16; 4]; 4] = [
-                [1, 2, 21, 22],
-                [0, 1, 22, 23],
-                [1, 21, 22, 42],
-                [0, 21, 22, 43],
-            ];
-            while candidates.not_zero() {
-                let to = candidates.trailing_zeros();
-                candidates.flip_bit(to);
-
-                let mut shape_index: usize = 39;
-                for i in &offsets {
-                    for offset in i {
-                        if to >= *offset {
-                            let action = to - *offset;
-                            let piece = Bitboard::with_piece(action, shape_index);
-                            if piece & legal_fields == piece {
-                                action_list.push(Action::Set(
-                                    action,
-                                    PieceType::ZTetromino,
-                                    shape_index,
-                                ));
-                            }
-                        }
+            for shape_index in 39..43 {
+                let mut destinations = match shape_index {
+                    39 => {
+                        (two_right >> 1 & two_right >> 21)
+                            & (placement_fields >> 1
+                                | placement_fields >> 2
+                                | placement_fields >> 21
+                                | placement_fields >> 22)
                     }
-                    shape_index += 1;
+                    40 => {
+                        (two_right & two_right >> 22)
+                            & (placement_fields
+                                | placement_fields >> 1
+                                | placement_fields >> 22
+                                | placement_fields >> 23)
+                    }
+                    41 => {
+                        (two_down >> 1 & two_down >> 21)
+                            & (placement_fields >> 1
+                                | placement_fields >> 21
+                                | placement_fields >> 22
+                                | placement_fields >> 42)
+                    }
+                    _ => {
+                        (two_down & two_down >> 22)
+                            & (placement_fields
+                                | placement_fields >> 21
+                                | placement_fields >> 22
+                                | placement_fields >> 43)
+                    }
+                };
+                while destinations.not_zero() {
+                    let to = destinations.trailing_zeros();
+                    destinations.flip_bit(to);
+                    action_list.push(Action::Set(to, PieceType::ZTetromino, shape_index));
                 }
             }
         }
 
         if self.pieces_left[PieceType::LTetromino as usize][self.current_player as usize] {
-            let mut candidates = with_two_in_a_row;
-            let offsets: [[u16; 3]; 8] = [
-                [0, 1, 42],
-                [0, 1, 43],
-                [1, 43, 42],
-                [0, 42, 43],
-                [0, 21, 23],
-                [0, 2, 21],
-                [0, 2, 23],
-                [2, 21, 23],
-            ];
-            while candidates.not_zero() {
-                let to = candidates.trailing_zeros();
-                candidates.flip_bit(to);
-
-                let mut shape_index: usize = 15;
-                for i in &offsets {
-                    for offset in i {
-                        if to >= *offset {
-                            let action = to - *offset;
-                            let piece = Bitboard::with_piece(action, shape_index);
-                            if piece & legal_fields == piece {
-                                action_list.push(Action::Set(
-                                    action,
-                                    PieceType::LTetromino,
-                                    shape_index,
-                                ));
-                            }
-                        }
+            for shape_index in 15..23 {
+                let mut destinations = match shape_index {
+                    15 => {
+                        (three_down & two_right)
+                            & (placement_fields | placement_fields >> 1 | placement_fields >> 42)
                     }
-                    shape_index += 1;
-                }
-            }
-        }
-
-        if self.pieces_left[PieceType::LTromino as usize][self.current_player as usize] {
-            let mut candidates = with_two_in_a_row;
-            let offsets: [[u16; 3]; 4] = [[0, 21, 22], [0, 1, 21], [0, 1, 22], [1, 21, 22]];
-            while candidates.not_zero() {
-                let to = candidates.trailing_zeros();
-                candidates.flip_bit(to);
-
-                let mut shape_index: usize = 11;
-                for i in &offsets {
-                    for offset in i {
-                        if to >= *offset {
-                            let action = to - *offset;
-                            let piece = Bitboard::with_piece(action, shape_index);
-                            if piece & legal_fields == piece {
-                                action_list.push(Action::Set(
-                                    action,
-                                    PieceType::LTromino,
-                                    shape_index,
-                                ));
-                            }
-                        }
+                    16 => {
+                        (three_down >> 1 & two_right)
+                            & (placement_fields | placement_fields >> 1 | placement_fields >> 43)
                     }
-                    shape_index += 1;
+                    17 => {
+                        (three_down >> 1 & two_right >> 42)
+                            & (placement_fields >> 1
+                                | placement_fields >> 42
+                                | placement_fields >> 43)
+                    }
+                    18 => {
+                        (three_down & two_right >> 42)
+                            & (placement_fields | placement_fields >> 42 | placement_fields >> 43)
+                    }
+                    19 => {
+                        (legal_fields & three_right >> 21)
+                            & (placement_fields | placement_fields >> 21 | placement_fields >> 23)
+                    }
+                    20 => {
+                        (legal_fields >> 21 & three_right)
+                            & (placement_fields | placement_fields >> 2 | placement_fields >> 21)
+                    }
+                    21 => {
+                        (legal_fields >> 23 & three_right)
+                            & (placement_fields | placement_fields >> 2 | placement_fields >> 23)
+                    }
+                    _ => {
+                        (two_up & three_left) >> 23
+                            & (placement_fields >> 2
+                                | placement_fields >> 21
+                                | placement_fields >> 23)
+                    }
+                };
+                while destinations.not_zero() {
+                    let to = destinations.trailing_zeros();
+                    destinations.flip_bit(to);
+                    action_list.push(Action::Set(to, PieceType::LTetromino, shape_index));
                 }
             }
         }
@@ -887,11 +1096,9 @@ impl Display for GameState {
         }
         string.push_str("╣");
 
-        for i in 0..20 {
+        for y in 0..20 {
             string.push_str("\n║");
-            for j in 0..20 {
-                let y = i; //19 - i;
-                let x = j;
+            for x in 0..20 {
                 let field = x + y * 21;
                 let bit = Bitboard::bit(field);
                 if self.board[0] & bit == bit {

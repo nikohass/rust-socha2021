@@ -1,5 +1,4 @@
-use game_sdk::actionlist::ActionListStack;
-use game_sdk::gamestate::GameState;
+use game_sdk::{ActionListStack, GameState};
 use std::time::Instant;
 
 fn perft(state: &mut GameState, depth: usize, als: &mut ActionListStack) -> u64 {
@@ -18,7 +17,7 @@ fn perft(state: &mut GameState, depth: usize, als: &mut ActionListStack) -> u64 
 }
 
 fn test() {
-    let current_best: f64 = 16140.;
+    let current_best: f64 = 27419.;
     let depth = 3;
     let start_time = Instant::now();
     let mut als = ActionListStack::with_size(depth + 1);
@@ -75,5 +74,5 @@ fn main() {
 
     let actions = count_actions(&mut state, 2, &mut als); // ensures that the move generation is not accidentally changed
     println!("{}", actions);
-    assert!(actions == 52230240);
+    assert!(actions == 46643240);
 }

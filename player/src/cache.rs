@@ -1,4 +1,4 @@
-use game_sdk::action::Action;
+use game_sdk::Action;
 
 const ENTRIES: usize = 1024 * 64;
 

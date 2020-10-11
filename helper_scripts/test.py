@@ -1,4 +1,5 @@
 import os
+import sys
 import time
 import math
 import subprocess
@@ -32,7 +33,11 @@ class TestServer(Thread):
             retcode = p.poll()
             line = p.stdout.readline()
             if line != b"":
-                self.results.append([int(v) for v in line.strip().split()])
+                try:
+                    self.results.append([int(v) for v in line.strip().split()])
+                except Exception as e:
+                    print(e)
+                    print(line)
             if self.stop or line == b"bye":
                 p.terminate()
                 break
@@ -87,8 +92,10 @@ def run_tests(client1, client2, servers=3):
     for thread in threads:
         thread.stop = True
 
+client1 = sys.argv[1].strip()
+client2 = sys.argv[2].strip()
+print(client1, client2)
 run_tests(
-    PATH + "/target/release/test_client.exe",
-    PATH + "/target/release/test_client.exe",
+    PATH + "/target/release/" + client1,
+    PATH + "/target/release/" + client2,
 )
-

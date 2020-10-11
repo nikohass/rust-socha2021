@@ -1,7 +1,5 @@
 use argparse::{ArgumentParser, Store};
-use game_sdk::action::Action;
-use game_sdk::actionlist::ActionList;
-use game_sdk::gamestate::GameState;
+use game_sdk::{Action, ActionList, GameState};
 use std::io::{BufRead, BufReader, Write};
 mod client;
 use client::{print_stats, Client};
@@ -59,7 +57,7 @@ fn run_game(state: &mut GameState, client1: &mut Client, client2: &mut Client) -
             }
         }
         if !valid {
-            println!("Invalid action {} {}", state, action.to_string());
+            println!("Invalid action\n{} {}", state, action.to_string());
             for i in 0..action_list.size {
                 println!("{}", action_list[i].to_string());
             }

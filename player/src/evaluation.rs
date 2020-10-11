@@ -1,7 +1,4 @@
-use game_sdk::bitboard::Bitboard;
-use game_sdk::color::Color;
-use game_sdk::constants::VALID_FIELDS;
-use game_sdk::gamestate::GameState;
+use game_sdk::{Bitboard, Color, GameState, VALID_FIELDS};
 
 pub fn evaluate(state: &GameState) -> i16 {
     let team_0_fields = state.board[0] | state.board[2];

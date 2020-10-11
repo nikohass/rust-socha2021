@@ -1,4 +1,4 @@
-use game_sdk::gamestate::GameState;
+use game_sdk::GameState;
 use std::io::{prelude::Write, BufReader, BufWriter};
 use std::net::TcpStream;
 extern crate xml;
@@ -38,7 +38,7 @@ impl XMLClient {
 
         let join_xml: String;
         match self.reservation.as_str() {
-            "" => join_xml = "<join gameType=\"swc_2020_blokus\"/>".to_string(),
+            "" => join_xml = "<join gameType=\"swc_2021_blokus\"/>".to_string(),
             _ => join_xml = format!("<joinPrepared reservationCode=\"{}\" />", self.reservation),
         }
 

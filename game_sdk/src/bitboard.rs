@@ -111,6 +111,9 @@ impl Bitboard {
             512
         }
     }
+    pub fn is_zero(&self) -> bool {
+        self.one == 0 && self.two == 0 && self.three == 0 && self.four == 0
+    }
 
     pub fn not_zero(&self) -> bool {
         self.one != 0 || self.two != 0 || self.three != 0 || self.four != 0
@@ -260,16 +263,16 @@ impl PartialEq for Bitboard {
 impl Display for Bitboard {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         let mut string = "0 1 2 3 4 5 6 7 8 9 10        15    19\n".to_string();
-        for x in 0..20 {
-            for y in 0..20 {
-                let bit = Bitboard::bit(x * 21 + y);
+        for y in 0..20 {
+            for x in 0..20 {
+                let bit = Bitboard::bit(x + y * 21);
                 if bit & *self == bit {
                     string.push_str("X ");
                 } else {
                     string.push_str(". ");
                 }
             }
-            string.push_str(&format!("{}\n", x));
+            string.push_str(&format!("{}\n", y));
         }
         write!(f, "{}", string)
     }
