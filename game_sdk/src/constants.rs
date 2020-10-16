@@ -1,4 +1,4 @@
-use super::bitboard::Bitboard;
+use super::Bitboard;
 
 pub const VALID_FIELDS: Bitboard = Bitboard::from(
     34359721983,

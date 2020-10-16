@@ -12,4 +12,4 @@ pub use bitboard::Bitboard;
 pub use color::Color;
 pub use constants::*;
 pub use gamestate::GameState;
-pub use piece_type::PieceType;
+pub use piece_type::{PieceType, PIECE_TYPES};

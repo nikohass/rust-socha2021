@@ -1,9 +1,6 @@
-use super::action::Action;
-use super::actionlist::ActionList;
-use super::bitboard::Bitboard;
-use super::color::Color;
-use super::constants::{START_FIELDS, VALID_FIELDS};
-use super::piece_type::{PieceType, PIECE_TYPES};
+use super::{
+    Action, ActionList, Bitboard, Color, PieceType, PIECE_TYPES, START_FIELDS, VALID_FIELDS,
+};
 use std::fmt::{Display, Formatter, Result};
 
 #[derive(Clone, Eq, PartialEq)]
@@ -15,7 +12,6 @@ pub struct GameState {
     pub monomino_placed_last: [bool; 4],
     pub skipped: u8,
     pub start_piece_type: PieceType,
-    pub hash: u64,
 }
 
 impl GameState {
@@ -28,7 +24,6 @@ impl GameState {
             monomino_placed_last: [false; 4],
             skipped: 0,
             start_piece_type: PieceType::random_pentomino(),
-            hash: 0,
         }
     }
 
@@ -59,8 +54,8 @@ impl GameState {
             Action::Skip => {
                 self.skipped |= 1 << self.current_player as usize;
             }
-            Action::Set(to, piece_type, piece_shape) => {
-                let piece = Bitboard::with_piece(to, piece_shape);
+            Action::Set(to, piece_type, shape_index) => {
+                let piece = Bitboard::with_piece(to, shape_index);
                 self.skipped &= !1 << self.current_player as usize;
 
                 debug_assert!(
@@ -68,15 +63,10 @@ impl GameState {
                         .not_zero(),
                     "Piece can't be placed on other pieces. Move was {}\n{}",
                     action.to_string(),
-                    Bitboard::with_piece(to, piece_shape).to_string(),
-                );
-                debug_assert!(
-                    self.pieces_left[piece_type as usize][self.current_player as usize],
-                    "Cannot place piece that has already been placed."
+                    Bitboard::with_piece(to, shape_index).to_string(),
                 );
                 self.pieces_left[piece_type as usize][self.current_player as usize] = false;
                 self.board[self.current_player as usize] ^= piece;
-                self.hash += ((to as u64) + 1) * ((piece_shape as u64) * 419 + 1);
                 self.monomino_placed_last[self.current_player as usize] =
                     piece_type == PieceType::Monomino;
             }
@@ -93,15 +83,14 @@ impl GameState {
             Action::Skip => {
                 self.skipped &= !1 << self.current_player as usize;
             }
-            Action::Set(to, piece_type, piece_shape) => {
-                let piece = Bitboard::with_piece(to, piece_shape);
+            Action::Set(to, piece_type, shape_index) => {
+                let piece = Bitboard::with_piece(to, shape_index);
                 debug_assert!(
                     !self.pieces_left[piece_type as usize][self.current_player as usize],
                     "Cannot remove piece that has not been placed."
                 );
                 self.pieces_left[piece_type as usize][self.current_player as usize] = true;
                 self.board[self.current_player as usize] ^= piece;
-                self.hash -= ((to as u64) + 1) * ((piece_shape as u64) * 419 + 1);
             }
         };
         debug_assert!(self.check_integrity());
@@ -149,6 +138,7 @@ impl GameState {
     }
 
     pub fn get_possible_actions(&self, action_list: &mut ActionList) {
+        action_list.size = 0;
         // fields of the current player
         let own_fields = self.board[self.current_player as usize];
         let other_fields =
@@ -392,7 +382,8 @@ impl GameState {
                             & (placement_fields
                                 | placement_fields >> 19
                                 | placement_fields >> 21
-                                | placement_fields >> 40)) >> 2
+                                | placement_fields >> 40))
+                            >> 2
                     }
                     45 => {
                         (legal_fields >> 2 & (three_up & two_left) >> 43)
@@ -508,14 +499,16 @@ impl GameState {
                             & (placement_fields
                                 | placement_fields >> 20
                                 | placement_fields >> 22
-                                | placement_fields >> 43)) >> 1
+                                | placement_fields >> 43))
+                            >> 1
                     }
                     _ => {
                         ((legal_fields & (three_right & two_down) >> 20)
                             & (placement_fields
                                 | placement_fields >> 20
                                 | placement_fields >> 22
-                                | placement_fields >> 41)) >> 1
+                                | placement_fields >> 41))
+                            >> 1
                     }
                 };
                 while destinations.not_zero() {
@@ -686,9 +679,8 @@ impl GameState {
                     }
                     85 => {
                         ((four_down & legal_fields >> 41)
-                            & (placement_fields
-                                | placement_fields >> 41
-                                | placement_fields >> 63)) >> 1
+                            & (placement_fields | placement_fields >> 41 | placement_fields >> 63))
+                            >> 1
                     }
                     86 => {
                         ((four_down & legal_fields >> 20)

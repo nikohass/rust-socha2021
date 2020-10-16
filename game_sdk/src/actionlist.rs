@@ -1,7 +1,7 @@
 use super::action::Action;
 use std::ops::{Index, IndexMut};
 
-pub const MAX_ACTIONS: usize = 1300;
+pub const MAX_ACTIONS: usize = 900;
 
 #[derive(Clone)]
 pub struct ActionList {
@@ -14,6 +14,7 @@ impl ActionList {
         self.actions[self.size] = action;
         self.size += 1;
     }
+
     pub fn swap(&mut self, x: usize, y: usize) {
         let tmp = self[x];
         self.actions[x] = self[y];
