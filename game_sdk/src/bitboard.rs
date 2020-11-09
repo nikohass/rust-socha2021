@@ -33,69 +33,39 @@ impl Bitboard {
     }
 
     pub fn with_piece(to: u16, shape_index: usize) -> Bitboard {
-        let piece_shape = PIECE_SHAPES[shape_index];
-
-        if to == 0 {
-            return Bitboard::from(0, 0, 0, piece_shape);
-        }
         if to <= 128 {
-            let mut board = Bitboard::from(0, 0, piece_shape, 0);
-            if to != 128 {
-                board >>= (128 - to) as u8;
-            }
-            return board;
+            Bitboard::from(0, 0, PIECE_SHAPES[shape_index], 0) >> (128 - to) as u8
+        } else if to <= 256 {
+            Bitboard::from(0, PIECE_SHAPES[shape_index], 0, 0) >> (256 - to) as u8
+        } else if to <= 384 {
+            Bitboard::from(PIECE_SHAPES[shape_index], 0, 0, 0) >> (384 - to) as u8
+        } else {
+            Bitboard::from(PIECE_SHAPES[shape_index], 0, 0, 0) << (512 - to) as u8
         }
-        if to <= 256 {
-            let mut board = Bitboard::from(0, piece_shape, 0, 0);
-            if to != 256 {
-                board >>= (256 - to) as u8;
-            }
-            return board;
-        }
-        if to <= 384 {
-            let mut board = Bitboard::from(piece_shape, 0, 0, 0);
-            if to != 384 {
-                board >>= (384 - to) as u8;
-            }
-            return board;
-        }
-        Bitboard::from(piece_shape, 0, 0, 0) << (to - 384) as u8
     }
 
     pub fn bit(bit_idx: u16) -> Bitboard {
         if bit_idx < 128 {
-            return Bitboard::from(0, 0, 0, 1 << bit_idx);
+            Bitboard::from(0, 0, 0, 1 << bit_idx)
+        } else if bit_idx < 256 {
+            Bitboard::from(0, 0, 1 << (bit_idx - 128), 0)
+        } else if bit_idx < 384 {
+            Bitboard::from(0, 1 << (bit_idx - 256), 0, 0)
+        } else {
+            Bitboard::from(1 << (bit_idx - 384), 0, 0, 0)
         }
-        if bit_idx < 256 {
-            return Bitboard::from(0, 0, 1 << (bit_idx - 128), 0);
-        }
-        if bit_idx < 384 {
-            return Bitboard::from(0, 1 << (bit_idx - 256), 0, 0);
-        }
-        Bitboard::from(1 << (bit_idx - 384), 0, 0, 0)
     }
 
     pub fn flip_bit(&mut self, bit_idx: u16) {
         if bit_idx < 128 {
             self.four ^= 1 << bit_idx;
-            return;
-        }
-        if bit_idx < 256 {
+        } else if bit_idx < 256 {
             self.three ^= 1 << (bit_idx - 128);
-            return;
-        }
-        if bit_idx < 384 {
+        } else if bit_idx < 384 {
             self.two ^= 1 << (bit_idx - 256);
-            return;
+        } else {
+            self.one ^= 1 << (bit_idx - 384);
         }
-        self.one ^= 1 << (bit_idx - 384);
-    }
-
-    pub fn count_ones(&self) -> u32 {
-        self.one.count_ones()
-            + self.two.count_ones()
-            + self.three.count_ones()
-            + self.four.count_ones()
     }
 
     pub fn trailing_zeros(&self) -> u16 {
@@ -112,18 +82,30 @@ impl Bitboard {
         }
     }
 
+    #[inline(always)]
+    pub fn count_ones(&self) -> u32 {
+        self.one.count_ones()
+            + self.two.count_ones()
+            + self.three.count_ones()
+            + self.four.count_ones()
+    }
+
+    #[inline(always)]
     pub fn is_zero(&self) -> bool {
         self.one == 0 && self.two == 0 && self.three == 0 && self.four == 0
     }
 
+    #[inline(always)]
     pub fn not_zero(&self) -> bool {
         self.one != 0 || self.two != 0 || self.three != 0 || self.four != 0
     }
 
+    #[inline(always)]
     pub fn neighbours(&self) -> Bitboard {
         ((*self << 1) | (*self >> 1) | (*self >> 21) | (*self << 21)) & VALID_FIELDS
     }
 
+    #[inline(always)]
     pub fn diagonal_neighbours(&self) -> Bitboard {
         ((*self << 22) | (*self >> 22) | (*self >> 20) | (*self << 20)) & VALID_FIELDS
     }

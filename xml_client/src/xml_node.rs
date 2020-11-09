@@ -1,4 +1,4 @@
-use game_sdk::{Action, ActionList, Bitboard, Color, GameState, PieceType};
+use game_sdk::{Bitboard, Color, GameState, PieceType};
 use std::collections::HashMap;
 use std::collections::VecDeque;
 use std::io::BufReader;
@@ -89,14 +89,12 @@ impl XMLNode {
         self.get_attribute("roomId").expect(err).to_string()
     }
 
-    pub fn as_memento(&self, state: &mut GameState, active_players: &mut [bool; 4]) {
+    pub fn as_memento(&self, state: &mut GameState) {
         let err = "Error while parsing XML node to Memento";
-        self.get_child("state")
-            .expect(err)
-            .update_state(state, active_players);
+        self.get_child("state").expect(err).update_state(state);
     }
 
-    pub fn update_state(&self, state: &mut GameState, active_players: &mut [bool; 4]) {
+    pub fn update_state(&self, state: &mut GameState) {
         // update board
         {
             let mut new_board = [Bitboard::new(); 4];
@@ -176,45 +174,27 @@ impl XMLNode {
 
         // update current player
         {
-            let current_player_index = self // currentColorIndex does not behave like described in the xml documentation
+            let ordered_colors = &self
+                .get_child("orderedColors")
+                .expect("Error while reading orderedColors")
+                .get_children();
+            let current_player_index = self
                 .get_attribute("currentColorIndex")
                 .expect("Error while reading currentColorIndex")
                 .parse::<usize>()
                 .expect("Error while parsing currentColorIndex");
 
-            if current_player_index == 3 {
-                state.current_player = Color::GREEN;
-            } else {
-                let mut active_player_vec = Vec::new();
-                let mut action_list = ActionList::default();
-                if state.ply > 3 {
-                    for (i, active) in active_players.iter().enumerate().take(4) {
-                        if *active {
-                            active_player_vec.push(match i {
-                                0 => Color::BLUE,
-                                1 => Color::YELLOW,
-                                2 => Color::RED,
-                                _ => Color::GREEN,
-                            });
-                        }
-                    }
-                    // update active players for next round
-                    state.current_player = Color::BLUE;
-                    for i in 0..4 {
-                        state.get_possible_actions(&mut action_list);
-                        active_players[i] = action_list[0] != Action::Skip;
-                        state.current_player = state.current_player.next();
-                        action_list.size = 0;
-                    }
-                    state.current_player = active_player_vec[current_player_index];
-                } else {
-                    state.current_player = match current_player_index {
-                        0 => Color::BLUE,
-                        1 => Color::YELLOW,
-                        2 => Color::RED,
-                        _ => Color::GREEN,
-                    }
-                }
+            let mut active_player_vec = Vec::new();
+            for color in ordered_colors.iter() {
+                active_player_vec.push(match color.data.as_str() {
+                    "BLUE" => Color::BLUE,
+                    "YELLOW" => Color::YELLOW,
+                    "RED" => Color::RED,
+                    _ => Color::GREEN,
+                });
+            }
+            if current_player_index < active_player_vec.len() {
+                state.current_player = active_player_vec[current_player_index];
             }
         }
 

@@ -125,7 +125,7 @@ impl GameState {
                     is_valid = false;
                 }
                 if piece_type.piece_size() != piece.count_ones() as u8 {
-                    println!("Piece is shifted of the board");
+                    println!("Piece shifted to invalid position");
                     is_valid = false;
                 }
                 if !is_valid {
@@ -166,8 +166,6 @@ impl GameState {
         let two_left = legal_fields & (legal_fields << 1 & VALID_FIELDS);
         let two_down = legal_fields & (legal_fields >> 21 & VALID_FIELDS);
         let two_up = legal_fields & (legal_fields << 21 & VALID_FIELDS);
-
-        let square = two_right & two_right >> 21;
 
         let three_right = two_right & (legal_fields >> 2 & VALID_FIELDS);
         let three_left = two_left & (legal_fields << 2 & VALID_FIELDS);
@@ -747,85 +745,88 @@ impl GameState {
             }
         }
 
-        if self.pieces_left[PieceType::OTetromino as usize][self.current_player as usize] {
-            let mut destinations = square
-                & (placement_fields
-                    | placement_fields >> 1
-                    | placement_fields >> 21
-                    | placement_fields >> 22);
-            while destinations.not_zero() {
-                let to = destinations.trailing_zeros();
-                destinations.flip_bit(to);
-                action_list.push(Action::Set(to, PieceType::OTetromino, 9));
-            }
-        }
-
-        if self.pieces_left[PieceType::PPentomino as usize][self.current_player as usize] {
-            for shape_index in 75..83 {
-                let mut destinations = match shape_index {
-                    75 => {
-                        (square & legal_fields >> 42)
-                            & (placement_fields
-                                | placement_fields >> 1
-                                | placement_fields >> 22
-                                | placement_fields >> 42)
-                    }
-                    76 => {
-                        (square & legal_fields >> 43)
-                            & (placement_fields
-                                | placement_fields >> 1
-                                | placement_fields >> 21
-                                | placement_fields >> 43)
-                    }
-                    77 => {
-                        (square & legal_fields >> 23)
-                            & (placement_fields
-                                | placement_fields >> 1
-                                | placement_fields >> 21
-                                | placement_fields >> 23)
-                    }
-                    78 => {
-                        (square & legal_fields >> 2)
-                            & (placement_fields
-                                | placement_fields >> 2
-                                | placement_fields >> 21
-                                | placement_fields >> 22)
-                    }
-                    79 => {
-                        (square >> 1 & legal_fields)
-                            & (placement_fields
-                                | placement_fields >> 2
-                                | placement_fields >> 22
-                                | placement_fields >> 23)
-                    }
-                    80 => {
-                        ((square & legal_fields >> 20)
-                            & (placement_fields
-                                | placement_fields >> 1
-                                | placement_fields >> 20
-                                | placement_fields >> 22))
-                            >> 1
-                    }
-                    81 => {
-                        ((legal_fields & square >> 20)
-                            & (placement_fields
-                                | placement_fields >> 20
-                                | placement_fields >> 41
-                                | placement_fields >> 42))
-                            >> 1
-                    }
-                    _ => {
-                        (legal_fields & square >> 21)
-                            & (placement_fields
-                                | placement_fields >> 22
-                                | placement_fields >> 42
-                                | placement_fields >> 43)
-                    }
-                };
+        {
+            let square = two_right & two_right >> 21;
+            if self.pieces_left[PieceType::OTetromino as usize][self.current_player as usize] {
+                let mut destinations = square
+                    & (placement_fields
+                        | placement_fields >> 1
+                        | placement_fields >> 21
+                        | placement_fields >> 22);
                 while destinations.not_zero() {
                     let to = destinations.trailing_zeros();
                     destinations.flip_bit(to);
-                    action_list.push(Action::Set(to, PieceType::PPentomino, shape_index));
+                    action_list.push(Action::Set(to, PieceType::OTetromino, 9));
+                }
+            }
+
+            if self.pieces_left[PieceType::PPentomino as usize][self.current_player as usize] {
+                for shape_index in 75..83 {
+                    let mut destinations = match shape_index {
+                        75 => {
+                            (square & legal_fields >> 42)
+                                & (placement_fields
+                                    | placement_fields >> 1
+                                    | placement_fields >> 22
+                                    | placement_fields >> 42)
+                        }
+                        76 => {
+                            (square & legal_fields >> 43)
+                                & (placement_fields
+                                    | placement_fields >> 1
+                                    | placement_fields >> 21
+                                    | placement_fields >> 43)
+                        }
+                        77 => {
+                            (square & legal_fields >> 23)
+                                & (placement_fields
+                                    | placement_fields >> 1
+                                    | placement_fields >> 21
+                                    | placement_fields >> 23)
+                        }
+                        78 => {
+                            (square & legal_fields >> 2)
+                                & (placement_fields
+                                    | placement_fields >> 2
+                                    | placement_fields >> 21
+                                    | placement_fields >> 22)
+                        }
+                        79 => {
+                            (square >> 1 & legal_fields)
+                                & (placement_fields
+                                    | placement_fields >> 2
+                                    | placement_fields >> 22
+                                    | placement_fields >> 23)
+                        }
+                        80 => {
+                            ((square & legal_fields >> 20)
+                                & (placement_fields
+                                    | placement_fields >> 1
+                                    | placement_fields >> 20
+                                    | placement_fields >> 22))
+                                >> 1
+                        }
+                        81 => {
+                            ((legal_fields & square >> 20)
+                                & (placement_fields
+                                    | placement_fields >> 20
+                                    | placement_fields >> 41
+                                    | placement_fields >> 42))
+                                >> 1
+                        }
+                        _ => {
+                            (legal_fields & square >> 21)
+                                & (placement_fields
+                                    | placement_fields >> 22
+                                    | placement_fields >> 42
+                                    | placement_fields >> 43)
+                        }
+                    };
+                    while destinations.not_zero() {
+                        let to = destinations.trailing_zeros();
+                        destinations.flip_bit(to);
+                        action_list.push(Action::Set(to, PieceType::PPentomino, shape_index));
+                    }
                 }
             }
         }
@@ -945,46 +946,28 @@ impl GameState {
         }
     }
 
+    #[inline(always)]
     pub fn is_game_over(&self) -> bool {
         self.skipped == 15 || self.ply / 4 == 26 // the game is over after round 25 or when all players skipped
     }
 
     pub fn game_result(&self) -> i16 {
-        let mut blue_score = self.board[Color::BLUE as usize].count_ones() as i16;
-        let mut yellow_score = self.board[Color::YELLOW as usize].count_ones() as i16;
-        let mut red_score = self.board[Color::RED as usize].count_ones() as i16;
-        let mut green_score = self.board[Color::GREEN as usize].count_ones() as i16;
+        let mut scores: [i16; 4] = [
+            self.board[Color::BLUE as usize].count_ones() as i16,
+            self.board[Color::YELLOW as usize].count_ones() as i16,
+            self.board[Color::RED as usize].count_ones() as i16,
+            self.board[Color::GREEN as usize].count_ones() as i16,
+        ];
 
-        if blue_score == 89 {
-            if self.monomino_placed_last[Color::BLUE as usize] {
-                blue_score += 20;
-            } else {
-                blue_score += 15;
+        for (i, score) in scores.iter_mut().enumerate() {
+            if *score == 89 {
+                *score += 5;
+            }
+            if self.monomino_placed_last[i] {
+                *score += 15;
             }
         }
-        if yellow_score == 89 {
-            if self.monomino_placed_last[Color::YELLOW as usize] {
-                yellow_score += 20;
-            } else {
-                yellow_score += 15;
-            }
-        }
-        if red_score == 89 {
-            if self.monomino_placed_last[Color::RED as usize] {
-                red_score += 20;
-            } else {
-                red_score += 15;
-            }
-        }
-        if green_score == 89 {
-            if self.monomino_placed_last[Color::GREEN as usize] {
-                green_score += 20;
-            } else {
-                green_score += 15;
-            }
-        }
-
-        blue_score + red_score - yellow_score - green_score
+        scores[0] + scores[2] - scores[1] - scores[3]
     }
 
     pub fn piece_info_to_int(&self) -> u128 {

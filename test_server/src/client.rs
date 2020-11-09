@@ -13,8 +13,9 @@ pub struct Client {
 }
 
 impl Client {
-    pub fn from_path(path: String) -> Client {
+    pub fn from_path(path: String, time: u64) -> Client {
         let mut process = Command::new(path.clone())
+            .args(&["--time", &time.to_string()])
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())

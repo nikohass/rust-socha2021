@@ -1,5 +1,5 @@
 use super::evaluation::evaluate;
-use super::search::{SearchParams, MATE_SCORE};
+use super::search::{SearchParams, MAX_SCORE};
 use game_sdk::GameState;
 
 pub fn principal_variation_search(
@@ -14,25 +14,25 @@ pub fn principal_variation_search(
     let is_pv_node = beta > 1 + alpha;
     params.pv_table[current_depth].size = 0;
 
-    params.stop = params.start_time.elapsed().as_millis() > 200;
+    if params.nodes_searched % 4096 == 0 {
+        params.stop = params.start_time.elapsed().as_millis() > params.time;
+    }
     if depth_left == 0 || params.stop || state.is_game_over() {
         return evaluate(state);
     }
     state.get_possible_actions(&mut params.action_list_stack[depth_left]);
 
-    {
-        if params.principal_variation.size > current_depth {
-            let pv_action = params.principal_variation[current_depth];
-            for i in 0..params.action_list_stack[depth_left].size {
-                if pv_action == params.action_list_stack[depth_left][i] {
-                    params.action_list_stack[depth_left].swap(0, i);
-                    break;
-                }
+    if params.principal_variation.size > current_depth {
+        let pv_action = params.principal_variation[current_depth];
+        for i in 0..params.action_list_stack[depth_left].size {
+            if pv_action == params.action_list_stack[depth_left][i] {
+                params.action_list_stack[depth_left].swap(0, i);
+                break;
             }
         }
     }
 
-    let mut best_score = -MATE_SCORE;
+    let mut best_score = -MAX_SCORE;
     for index in 0..params.action_list_stack[depth_left].size {
         let action = params.action_list_stack[depth_left][index];
         state.do_action(action);

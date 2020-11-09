@@ -90,6 +90,7 @@ fn main() {
     let mut client2_path = String::new();
     let mut games: u32 = 1_000_000;
     let mut automated_test = false;
+    let mut time: u64 = 200;
 
     {
         let mut parser = ArgumentParser::new();
@@ -107,16 +108,20 @@ fn main() {
             Store,
             "automated test",
         );
+        parser
+            .refer(&mut time)
+            .add_option(&["-t", "--time"], Store, "Time in milliseconds");
         parser.parse_args_or_exit();
     }
     if !automated_test {
         println!("client1 path: {}", client1_path);
         println!("client2 path: {}", client2_path);
         println!("games: {}", games);
+        println!("time / action: {}", time);
     }
 
-    let mut client1 = Client::from_path(client1_path);
-    let mut client2 = Client::from_path(client2_path);
+    let mut client1 = Client::from_path(client1_path, time);
+    let mut client2 = Client::from_path(client2_path, time);
 
     let mut rng = SmallRng::from_entropy();
     let mut state = random_opening(&mut rng);

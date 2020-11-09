@@ -91,7 +91,7 @@ impl Display for Action {
             match self {
                 Action::Skip => "Skip".to_string(),
                 Action::Set(to, piece_type, shape_index) => format!(
-                    "Set {} to {} (X={}, Y={} Shape={})",
+                    "Set {} to {} (X={} Y={} Shape={})",
                     piece_type.to_string(),
                     to,
                     to % 21,

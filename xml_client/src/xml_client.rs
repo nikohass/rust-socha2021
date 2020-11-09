@@ -13,11 +13,11 @@ pub struct XMLClient {
     port: String,
     reservation: String,
     room_id: Option<String>,
-    active_players: [bool; 4],
+    time: u64,
 }
 
 impl XMLClient {
-    pub fn new(host: String, port: String, reservation: String) -> XMLClient {
+    pub fn new(host: String, port: String, reservation: String, time: u64) -> XMLClient {
         XMLClient {
             my_team: None,
             state: GameState::default(),
@@ -25,7 +25,7 @@ impl XMLClient {
             port,
             reservation,
             room_id: None,
-            active_players: [true; 4],
+            time,
         }
     }
 
@@ -61,7 +61,7 @@ impl XMLClient {
                     match data_class.as_str() {
                         "memento" => {
                             println!("Recieved memento");
-                            node.as_memento(&mut self.state, &mut self.active_players);
+                            node.as_memento(&mut self.state);
                         }
                         "welcomeMessage" => {
                             println!("Recieved welcome message");
@@ -69,14 +69,14 @@ impl XMLClient {
                         }
                         "sc.framework.plugins.protocol.MoveRequest" => {
                             println!("Recieved move request");
-                            let action = search_action(&self.state);
+                            let action = search_action(&self.state, self.time);
                             let xml_move = action.to_xml(self.state.current_player);
                             println!("Sending: {}", action);
                             XMLClient::write_to(
                                 stream,
                                 &format!(
                                     "<room roomId=\"{}\">\n{}\n</room>",
-                                    self.room_id.as_ref().expect("error"),
+                                    self.room_id.as_ref().expect("Error while reading room id"),
                                     xml_move
                                 ),
                             );

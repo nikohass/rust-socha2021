@@ -1,7 +1,7 @@
-use super::action::Action;
+use super::Action;
 use std::ops::{Index, IndexMut};
 
-pub const MAX_ACTIONS: usize = 900;
+pub const MAX_ACTIONS: usize = 1024;
 
 #[derive(Clone)]
 pub struct ActionList {

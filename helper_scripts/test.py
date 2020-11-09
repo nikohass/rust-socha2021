@@ -25,6 +25,7 @@ class TestServer(Thread):
 
     def run(self):
         cmd = f"{self.test_server_path} --one {self.client1} --two {self.client2}"
+        print(cmd)
         for argument in self.args:
             cmd += " " + argument
 
@@ -41,6 +42,12 @@ class TestServer(Thread):
             if self.stop or line == b"bye":
                 p.terminate()
                 break
+
+    def __str__(self):
+        return f"TestServer({self.client1}, {self.client2}, {self.args})"
+
+    def __repr__(self):
+        return str(self)
 
 def calculate_LOS(wins, draws, losses):
     def erf(x):
@@ -67,11 +74,12 @@ def get_stats(results):
     LOS = round(calculate_LOS(wins, draws, losses), 2) if len(results) > 0 else None
     return average_score, wins, draws, losses, LOS
 
-def run_tests(client1, client2, servers=3):
+def run_tests(client1, client2, servers=3, t=200):
     results = []
-    threads = [TestServer(client1, client2, results) for _ in range(servers)]
+    threads = [TestServer(client1, client2, results, f"--time {t}") for _ in range(servers)]
     for thread in threads:
         thread.daemon = True
+        print("Starting", thread)
         thread.start()
 
     last_len = None
@@ -79,7 +87,7 @@ def run_tests(client1, client2, servers=3):
         if len(results) != last_len:
             last_len = len(results)
             average_score, wins, draws, losses, LOS = get_stats(results)
-            print(f"games: {len(results)}; average score: {average_score}; wins: {wins}; draws: {draws}; losses: {losses}; LOS: {LOS}")
+            print(f"games: {len(results)} average score: {average_score} wins: {wins} draws: {draws} losses: {losses} LOS: {LOS}")
 
             if len(results) > 30 and LOS > 0.95:
                 if wins > losses:
@@ -94,8 +102,14 @@ def run_tests(client1, client2, servers=3):
 
 client1 = sys.argv[1].strip()
 client2 = sys.argv[2].strip()
-print(client1, client2)
+t = 200
+try:
+    t = int(sys.argv[3].strip())
+except: pass
+print(client1, client2, t)
 run_tests(
     PATH + "/target/release/" + client1,
     PATH + "/target/release/" + client2,
+    servers=3,
+    t=t
 )
