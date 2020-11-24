@@ -169,7 +169,7 @@ pub const PIECE_ORIENTATIONS: [(u8, bool); 91] = [
     (2, false),
     (1, false),
     (3, true), // N-Pentomino
-    (1, false),
+    (3, false),
     (1, true),
     (1, false),
     (2, false),

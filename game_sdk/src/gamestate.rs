@@ -1,5 +1,6 @@
 use super::{
-    Action, ActionList, Bitboard, Color, PieceType, PIECE_TYPES, START_FIELDS, VALID_FIELDS,
+    Action, ActionList, Bitboard, Color, PieceType, FIELD_HASH, PIECE_HASH, PIECE_TYPES, PLY_HASH,
+    START_FIELDS, VALID_FIELDS,
 };
 use std::fmt::{Display, Formatter, Result};
 
@@ -12,6 +13,7 @@ pub struct GameState {
     pub monomino_placed_last: [bool; 4],
     pub skipped: u8,
     pub start_piece_type: PieceType,
+    pub hash: u64,
 }
 
 impl GameState {
@@ -24,6 +26,7 @@ impl GameState {
             monomino_placed_last: [false; 4],
             skipped: 0,
             start_piece_type: PieceType::random_pentomino(),
+            hash: 0,
         }
     }
 
@@ -50,11 +53,14 @@ impl GameState {
 
     pub fn do_action(&mut self, action: Action) {
         debug_assert!(self.validate_action(&action), "Action is invalid");
+        self.hash ^= PLY_HASH[self.ply as usize];
         match action {
             Action::Skip => {
                 self.skipped |= 1 << self.current_player as usize;
             }
             Action::Set(to, piece_type, shape_index) => {
+                self.hash ^= PIECE_HASH[shape_index][self.current_player as usize];
+                self.hash ^= FIELD_HASH[to as usize][self.current_player as usize];
                 let piece = Bitboard::with_piece(to, shape_index);
                 self.skipped &= !1 << self.current_player as usize;
 
@@ -79,11 +85,14 @@ impl GameState {
     pub fn undo_action(&mut self, action: Action) {
         self.current_player = self.current_player.previous();
         self.ply -= 1;
+        self.hash ^= PLY_HASH[self.ply as usize];
         match action {
             Action::Skip => {
                 self.skipped &= !1 << self.current_player as usize;
             }
             Action::Set(to, piece_type, shape_index) => {
+                self.hash ^= PIECE_HASH[shape_index][self.current_player as usize];
+                self.hash ^= FIELD_HASH[to as usize][self.current_player as usize];
                 let piece = Bitboard::with_piece(to, shape_index);
                 debug_assert!(
                     !self.pieces_left[piece_type as usize][self.current_player as usize],

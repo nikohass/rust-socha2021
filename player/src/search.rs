@@ -1,3 +1,4 @@
+use super::cache::Cache;
 use super::principal_variation_search::principal_variation_search;
 use game_sdk::{Action, ActionList, ActionListStack, GameState};
 use rand::{rngs::SmallRng, RngCore, SeedableRng};
@@ -16,7 +17,7 @@ pub fn random_action(state: &GameState) -> Action {
     action_list[rand]
 }
 
-pub struct SearchParams {
+pub struct SearchParameters {
     pub nodes_searched: u64,
     pub root_ply: u8,
     pub start_time: Instant,
@@ -24,6 +25,7 @@ pub struct SearchParams {
     pub action_list_stack: ActionListStack,
     pub principal_variation: ActionList,
     pub pv_table: ActionListStack,
+    pub transposition_table: Cache,
     pub time: u128,
 }
 
@@ -31,18 +33,20 @@ pub fn search_action(state: &GameState, time: u64) -> Action {
     println!("Searching action for {}...", state.to_fen());
 
     let time = time as u128;
-    let mut params = SearchParams {
+    let mut params = SearchParameters {
         nodes_searched: 0,
         root_ply: state.ply,
         start_time: Instant::now(),
         stop: false,
         action_list_stack: ActionListStack::with_size(MAX_SEARCH_DEPTH),
         principal_variation: ActionList::default(),
+        transposition_table: Cache::with_size(60_000_000),
         pv_table: ActionListStack::with_size(MAX_SEARCH_DEPTH + 2),
         time,
     };
 
     let mut state = state.clone();
+    state.hash = 0;
     let mut score = -MAX_SCORE;
     let mut best_action = Action::Skip;
     for depth in 1..=usize::max(MAX_SEARCH_DEPTH, 101 - state.ply as usize) {
@@ -62,9 +66,8 @@ pub fn search_action(state: &GameState, time: u64) -> Action {
         }
         println!();
     }
-
     println!(
-        "Search finished after {}ms. Score: {}, nodes searched: {}",
+        "\nSearch finished after {}ms. Score: {}, nodes searched: {}",
         params.start_time.elapsed().as_millis(),
         score,
         params.nodes_searched,

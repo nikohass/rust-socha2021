@@ -33,14 +33,22 @@ impl Bitboard {
     }
 
     pub fn with_piece(to: u16, shape_index: usize) -> Bitboard {
-        if to <= 128 {
-            Bitboard::from(0, 0, PIECE_SHAPES[shape_index], 0) >> (128 - to) as u8
-        } else if to <= 256 {
-            Bitboard::from(0, PIECE_SHAPES[shape_index], 0, 0) >> (256 - to) as u8
-        } else if to <= 384 {
-            Bitboard::from(PIECE_SHAPES[shape_index], 0, 0, 0) >> (384 - to) as u8
+        if to == 0 {
+            Bitboard::from(0, 0, 0, PIECE_SHAPES[shape_index])
+        } else if to < 128 {
+            Bitboard::from(0, 0, 0, PIECE_SHAPES[shape_index]) << to as u8
+        } else if to == 128 {
+            Bitboard::from(0, 0, PIECE_SHAPES[shape_index], 0)
+        } else if to < 256 {
+            Bitboard::from(0, 0, PIECE_SHAPES[shape_index], 0) << (to - 128) as u8
+        } else if to == 256 {
+            Bitboard::from(0, PIECE_SHAPES[shape_index], 0, 0)
+        } else if to < 384 {
+            Bitboard::from(0, PIECE_SHAPES[shape_index], 0, 0) << (to - 256) as u8
+        } else if to == 384 {
+            Bitboard::from(PIECE_SHAPES[shape_index], 0, 0, 0)
         } else {
-            Bitboard::from(PIECE_SHAPES[shape_index], 0, 0, 0) << (512 - to) as u8
+            Bitboard::from(PIECE_SHAPES[shape_index], 0, 0, 0) << (to - 384) as u8
         }
     }
 
