@@ -1,6 +1,6 @@
 use super::cache::CacheEntry;
 use super::evaluation::evaluate;
-use super::search::{SearchParameters, MAX_SCORE};
+use super::search::{SearchParameters, MATE_SCORE, MAX_SCORE};
 use game_sdk::GameState;
 
 pub fn principal_variation_search(
@@ -12,8 +12,8 @@ pub fn principal_variation_search(
     depth_left: usize,
 ) -> i16 {
     params.nodes_searched += 1;
-    let is_pv_node = beta > 1 + alpha;
     params.pv_table[current_depth].size = 0;
+    let is_pv_node = beta > 1 + alpha;
     let original_alpha = alpha;
 
     if params.nodes_searched % 4096 == 0 {
@@ -22,6 +22,17 @@ pub fn principal_variation_search(
     if depth_left == 0 || params.stop || state.is_game_over() {
         return evaluate(state);
     }
+
+    if current_depth != 0 {
+        if state.ply % 2 == 0 {
+            if state.skipped & 0b101 == 0b101 && state.game_result() < 0 {
+                return MATE_SCORE; // team one will lose
+            }
+        } else if state.skipped & 0b1010 == 0b1010 && state.game_result() > 0 {
+            return MATE_SCORE; // team two will lose
+        }
+    }
+
     state.get_possible_actions(&mut params.action_list_stack[depth_left]);
 
     let mut ordering_index: usize = 0;

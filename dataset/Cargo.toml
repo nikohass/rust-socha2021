@@ -1,5 +1,5 @@
 [package]
-name = "player"
+name = "dataset"
 version = "0.1.0"
 authors = ["Niko Haß <nikohass571@gmail.com>"]
 edition = "2018"
@@ -8,4 +8,6 @@ edition = "2018"
 
 [dependencies]
 game_sdk = { path = "../game_sdk"}
+player = {path = "../player"}
 rand = { version = "0.7.3", features = ["small_rng"] }
+argparse = "0.2.2"

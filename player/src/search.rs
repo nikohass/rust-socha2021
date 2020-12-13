@@ -1,4 +1,5 @@
 use super::cache::Cache;
+//use super::opening_book::OpeningBook;
 use super::principal_variation_search::principal_variation_search;
 use game_sdk::{Action, ActionList, ActionListStack, GameState};
 use rand::{rngs::SmallRng, RngCore, SeedableRng};
@@ -6,7 +7,7 @@ use std::time::Instant;
 
 pub const MAX_SEARCH_DEPTH: usize = 30;
 pub const MAX_SCORE: i16 = i16::MAX;
-pub const MATE_SCORE: i16 = -32000;
+pub const MATE_SCORE: i16 = -32_000;
 
 pub fn random_action(state: &GameState) -> Action {
     let state = state.clone();
@@ -29,48 +30,114 @@ pub struct SearchParameters {
     pub time: u128,
 }
 
-pub fn search_action(state: &GameState, time: u64) -> Action {
-    println!("Searching action for {}...", state.to_fen());
+pub struct Searcher {
+    pub search_time: u128,
+    pub dont_cancel: bool,
+    pub verbose: usize,
+    //pub opening_book: OpeningBook,
+    pub depth_reached: u8,
+}
 
-    let time = time as u128;
-    let mut params = SearchParameters {
-        nodes_searched: 0,
-        root_ply: state.ply,
-        start_time: Instant::now(),
-        stop: false,
-        action_list_stack: ActionListStack::with_size(MAX_SEARCH_DEPTH),
-        principal_variation: ActionList::default(),
-        transposition_table: Cache::with_size(60_000_000),
-        pv_table: ActionListStack::with_size(MAX_SEARCH_DEPTH + 2),
-        time,
-    };
-
-    let mut state = state.clone();
-    state.hash = 0;
-    let mut score = -MAX_SCORE;
-    let mut best_action = Action::Skip;
-    for depth in 1..=usize::max(MAX_SEARCH_DEPTH, 101 - state.ply as usize) {
-        score =
-            principal_variation_search(&mut params, &mut state, -MAX_SCORE, MAX_SCORE, 0, depth);
-        print!("depth: {:3} score: {:5} ", depth, score);
-
-        if params.stop {
-            break;
+impl Searcher {
+    pub fn new(search_time: u128, dont_cancel: bool, verbose: usize) -> Searcher {
+        Searcher {
+            search_time,
+            dont_cancel,
+            verbose,
+            //opening_book: OpeningBook::from_file("opening_book.txt".to_string(), 10_000_000),
+            depth_reached: 0,
         }
-        params.principal_variation = params.pv_table[0].clone();
-        best_action = params.principal_variation[0];
-
-        print!("pv: ");
-        for i in 0..params.principal_variation.size {
-            print!("{:20}, ", params.principal_variation[i]);
-        }
-        println!();
     }
-    println!(
-        "\nSearch finished after {}ms. Score: {}, nodes searched: {}",
-        params.start_time.elapsed().as_millis(),
-        score,
-        params.nodes_searched,
-    );
-    best_action
+
+    pub fn search_action(&mut self, state: &GameState) -> Action {
+        if self.verbose > 0 {
+            println!("Searching action for {}...", state.to_fen());
+            if self.verbose == 2 {
+                println!("{}", state);
+            }
+        }
+        /*
+        if self.opening_book.size > 0 {
+            let book_action = self.opening_book.lookup(&state);
+            if let Some(book_action) = book_action {
+                if self.verbose > 0 {
+                    println!("Found opening book action: {}", book_action);
+                }
+                let is_valid = state.validate_action(&book_action);
+                if is_valid {
+                    return book_action;
+                } else {
+                    panic!("Invalid action");
+                }
+            }
+        }*/
+
+        /*if state.ply > 3 && self.opening_book.size > 0 {
+            if self.verbose > 0 {
+                println!("Deleting opening book.");
+            }
+            self.opening_book.delete();
+        }*/
+
+        let mut params = SearchParameters {
+            nodes_searched: 0,
+            root_ply: state.ply,
+            start_time: Instant::now(),
+            stop: false,
+            action_list_stack: ActionListStack::with_size(MAX_SEARCH_DEPTH),
+            principal_variation: ActionList::default(),
+            transposition_table: Cache::with_size(60_000_000),
+            pv_table: ActionListStack::with_size(MAX_SEARCH_DEPTH + 2),
+            time: if self.dont_cancel {
+                100_000_000u128
+            } else {
+                self.search_time
+            },
+        };
+
+        let mut state = state.clone();
+        state.hash = 0;
+        let mut score = -MAX_SCORE;
+        let mut best_action = Action::Skip;
+        for depth in 1..=usize::max(MAX_SEARCH_DEPTH, 101 - state.ply as usize) {
+            score = principal_variation_search(
+                &mut params,
+                &mut state,
+                -MAX_SCORE,
+                MAX_SCORE,
+                0,
+                depth,
+            );
+            if self.verbose > 0 {
+                print!("depth: {:3} score: {:5} ", depth, score);
+            }
+            if params.stop {
+                break;
+            }
+            self.depth_reached = depth as u8;
+            params.principal_variation = params.pv_table[0].clone();
+            best_action = params.principal_variation[0];
+
+            if self.verbose > 0 {
+                print!("pv: ");
+                for i in 0..params.principal_variation.size {
+                    print!("{:20}, ", params.principal_variation[i]);
+                }
+                println!();
+            }
+
+            if self.dont_cancel && params.start_time.elapsed().as_millis() > self.search_time {
+                break;
+            }
+        }
+        if self.verbose > 0 {
+            println!(
+                "\nSearch finished after {}ms. Score: {}, nodes searched: {}",
+                params.start_time.elapsed().as_millis(),
+                score,
+                params.nodes_searched,
+            );
+        }
+        best_action
+    }
 }

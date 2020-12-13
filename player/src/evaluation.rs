@@ -32,9 +32,9 @@ impl EvaluationParameters {
 }
 
 const DEFAULT_PARAMS: EvaluationParameters = EvaluationParameters::new(
-    [25., 5., 2.5, 12.5, 30., -6., -4., -3., 0.],
+    [25., 8., 2.5, 12.5, 30., -6., -4., -3., 0.],
     [
-        -500., -250., 7.5, 7.5, 10., 10., 10., 10., 10., 12.5, 12.5, 12.5, 12.5, 12.5, 12.5, 12.5,
+        -300., -250., 7.5, 7.5, 10., 10., 10., 10., 10., 12.5, 12.5, 12.5, 12.5, 12.5, 12.5, 12.5,
         12.5, 12.5, 12.5, 12.5, 12.5,
     ],
     Bitboard::from(
@@ -59,7 +59,7 @@ pub fn evaluate(state: &GameState) -> i16 {
     }
 }
 
-pub fn evaluate_with_params(state: &GameState, params: EvaluationParameters) -> i16 {
+pub fn evaluate_with_params(state: &GameState, params: &EvaluationParameters) -> i16 {
     if state.is_game_over() {
         MATE_SCORE - state.game_result() * ((state.current_player as i16) % 2 * 2 - 1)
     } else {

@@ -1,3 +1,4 @@
+use super::bitboard::Bitboard;
 use super::color::Color;
 use super::constants::PIECE_ORIENTATIONS;
 use super::piece_type::{PieceType, PIECE_TYPES};
@@ -36,6 +37,40 @@ impl Action {
         let piece_type = PIECE_TYPES[piece_index];
         let shape_index = entries.remove(0).parse::<usize>().unwrap();
         Action::Set(to, piece_type, shape_index)
+    }
+
+    pub fn from_bitboard(board: Bitboard) -> Action {
+        if board.is_zero() {
+            return Action::Skip;
+        }
+        // determine top left corner of the piece
+        let mut board_copy = board;
+        let mut left = 21;
+        let mut top = 21;
+        while board_copy.not_zero() {
+            let field_index = board_copy.trailing_zeros();
+            board_copy.flip_bit(field_index);
+            let x = field_index % 21;
+            let y = (field_index - x) / 21;
+            if x < left {
+                left = x;
+            }
+            if y < top {
+                top = y;
+            }
+        }
+        let to = left + top * 21;
+        // determine new shape_index
+        for shape_index in 0..91 {
+            if Bitboard::with_piece(to, shape_index) == board {
+                return Action::Set(to, PieceType::from_shape_index(shape_index), shape_index);
+            }
+        }
+        println!(
+            "Can't determine action from bitboard.\n{}",
+            board.to_string()
+        );
+        Action::Skip
     }
 
     pub fn to_xml(&self, color: Color) -> String {

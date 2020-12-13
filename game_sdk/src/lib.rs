@@ -13,5 +13,5 @@ pub use bitboard::Bitboard;
 pub use color::Color;
 pub use constants::*;
 pub use gamestate::GameState;
-pub use hashing::{FIELD_HASH, PIECE_HASH, PLY_HASH};
-pub use piece_type::{PieceType, PIECE_TYPES};
+pub use hashing::*;
+pub use piece_type::{PieceType, PIECE_TYPES, START_PIECE_TYPES};

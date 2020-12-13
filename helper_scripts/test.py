@@ -25,7 +25,6 @@ class TestServer(Thread):
 
     def run(self):
         cmd = f"{self.test_server_path} --one {self.client1} --two {self.client2}"
-        print(cmd)
         for argument in self.args:
             cmd += " " + argument
 
@@ -102,14 +101,17 @@ def run_tests(client1, client2, servers=3, t=200):
 
 client1 = sys.argv[1].strip()
 client2 = sys.argv[2].strip()
-t = 200
-try:
+t = 1900
+servers = 3
+if len(sys.argv) > 3:
     t = int(sys.argv[3].strip())
-except: pass
-print(client1, client2, t)
+if len(sys.argv) > 4:
+    servers = int(sys.argv[4].strip())
+print(f"Client1: {client1}\nClient2: {client2}\ntime/action: {t}\ntest servers: {servers}")
+
 run_tests(
     PATH + "/target/release/" + client1,
     PATH + "/target/release/" + client2,
-    servers=3,
+    servers=servers,
     t=t
 )

@@ -5,7 +5,8 @@ members = [
 	"perft",
 	"player",
 	"test_client",
-	"test_server"
+	"test_server",
+	"dataset",
 ]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

@@ -7,6 +7,15 @@ pub const VALID_FIELDS: Bitboard = Bitboard::from(
     297747050773401880467613752304696557567,
 );
 
+pub const COLUMN_MASK: Bitboard = Bitboard::from(
+    32768,
+    5316914518442072874470106890883956736,
+    21267658073768291497880427563535826944,
+    85070632295073165991521710254143307777,
+);
+
+pub const ROW_MASK: Bitboard = Bitboard::from(0, 0, 0, 1048575);
+
 pub const START_FIELDS: Bitboard = Bitboard::from(1 << 34 | 1 << 15, 0, 0, 1 | 1 << 19);
 
 pub const PIECE_SHAPES: [u128; 91] = [

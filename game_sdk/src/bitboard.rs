@@ -1,4 +1,4 @@
-use super::constants::{PIECE_SHAPES, VALID_FIELDS};
+use super::constants::{COLUMN_MASK, PIECE_SHAPES, ROW_MASK, VALID_FIELDS};
 use std::fmt::{Display, Formatter, Result};
 use std::ops::{
     BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Not, Shl, ShlAssign, Shr,
@@ -64,6 +64,18 @@ impl Bitboard {
         }
     }
 
+    pub fn check_bit(&self, bit_idx: u16) -> bool {
+        if bit_idx < 128 {
+            self.four & 1 << bit_idx != 0
+        } else if bit_idx < 256 {
+            self.three & 1 << (bit_idx - 128) != 0
+        } else if bit_idx < 384 {
+            self.two & 1 << (bit_idx - 256) != 0
+        } else {
+            self.one & 1 << (bit_idx - 384) != 0
+        }
+    }
+
     pub fn flip_bit(&mut self, bit_idx: u16) {
         if bit_idx < 128 {
             self.four ^= 1 << bit_idx;
@@ -88,6 +100,68 @@ impl Bitboard {
         } else {
             512
         }
+    }
+
+    pub fn r_shift_save(&self, mut n: usize) -> Bitboard {
+        let mut ret = *self;
+        while n > 127 {
+            n -= 127;
+            ret >>= 127;
+        }
+        if n != 0 {
+            ret >> n as u8
+        } else {
+            ret
+        }
+    }
+
+    pub fn l_shift_save(&self, mut n: usize) -> Bitboard {
+        let mut ret = *self;
+        while n > 127 {
+            n -= 127;
+            ret <<= 127;
+        }
+        if n != 0 {
+            ret << n as u8
+        } else {
+            ret
+        }
+    }
+
+    pub fn flip(&self) -> Bitboard {
+        let mut board = Bitboard::new();
+        for row in 0..20 {
+            board |= (self.r_shift_save(21 * row) & ROW_MASK).l_shift_save((19 - row) * 21);
+        }
+        board
+    }
+
+    pub fn mirror(&self) -> Bitboard {
+        let mut board = Bitboard::new();
+        for col in 0..20 {
+            board |= (self.r_shift_save(col) & COLUMN_MASK).l_shift_save(19 - col);
+        }
+        board
+    }
+
+    pub fn mirror_diagonal(&self) -> Bitboard {
+        let mut board = Bitboard::new();
+        for x in 0..20 {
+            for y in 0..20 {
+                if self.check_bit((x + y * 21) as u16) {
+                    board.flip_bit((y + x * 21) as u16);
+                }
+            }
+        }
+        board
+    }
+
+    pub fn rotate_left(&self) -> Bitboard {
+        self.mirror_diagonal().flip()
+    }
+
+    pub fn rotate_right(&self) -> Bitboard {
+        self.mirror_diagonal().mirror()
     }
 
     #[inline(always)]
@@ -254,11 +328,15 @@ impl PartialEq for Bitboard {
 impl Display for Bitboard {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         let mut string = "0 1 2 3 4 5 6 7 8 9 10        15    19\n".to_string();
-        for y in 0..20 {
-            for x in 0..20 {
+        for y in 0..21 {
+            for x in 0..21 {
                 let bit = Bitboard::bit(x + y * 21);
                 if bit & *self == bit {
-                    string.push_str("X ");
+                    if x < 20 && y < 20 {
+                        string.push_str("🟩");
+                    } else {
+                        string.push_str("🟥");
+                    }
                 } else {
                     string.push_str(". ");
                 }

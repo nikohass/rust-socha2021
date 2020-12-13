@@ -4,7 +4,7 @@ use std::net::TcpStream;
 extern crate xml;
 use self::xml::reader::*;
 use super::xml_node::XMLNode;
-use player::search::search_action;
+use player::search::Searcher;
 
 pub struct XMLClient {
     my_team: Option<usize>,
@@ -13,11 +13,11 @@ pub struct XMLClient {
     port: String,
     reservation: String,
     room_id: Option<String>,
-    time: u64,
+    searcher: Searcher,
 }
 
 impl XMLClient {
-    pub fn new(host: String, port: String, reservation: String, time: u64) -> XMLClient {
+    pub fn new(host: String, port: String, reservation: String, searcher: Searcher) -> XMLClient {
         XMLClient {
             my_team: None,
             state: GameState::default(),
@@ -25,7 +25,7 @@ impl XMLClient {
             port,
             reservation,
             room_id: None,
-            time,
+            searcher,
         }
     }
 
@@ -69,7 +69,7 @@ impl XMLClient {
                         }
                         "sc.framework.plugins.protocol.MoveRequest" => {
                             println!("Recieved move request");
-                            let action = search_action(&self.state, self.time);
+                            let action = self.searcher.search_action(&self.state);
                             let xml_move = action.to_xml(self.state.current_player);
                             println!("Sending: {}", action);
                             XMLClient::write_to(
