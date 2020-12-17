@@ -1,10 +1,9 @@
 [workspace]
 members = [
 	"game_sdk",
-	"xml_client",
+	"client",
 	"perft",
 	"player",
-	"test_client",
 	"test_server",
 	"dataset",
 ]

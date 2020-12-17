@@ -13,7 +13,7 @@ class NpNeuralNetwork:
     def __init__(self, weights):
         self.layers = [NpLayer(weights[i * 2], weights[i * 2 + 1]) for i in range(len(weights) // 2)]
 
-    @staticmethod  
+    @staticmethod
     def from_tf_model(model):
         nn = NpNeuralNetwork(model.get_weights())
         for layer_index, layer in enumerate(nn.layers):

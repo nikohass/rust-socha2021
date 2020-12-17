@@ -2,8 +2,7 @@ use argparse::{ArgumentParser, Store};
 use game_sdk::{Action, GameState};
 mod evaluation_cache;
 use evaluation_cache::EvaluationCache;
-use player::search::random_action;
-use player::search::Searcher;
+use player::search::{random_action, Searcher};
 use rand::{rngs::SmallRng, RngCore, SeedableRng};
 use std::fs::OpenOptions;
 use std::io::prelude::*;
@@ -34,14 +33,14 @@ impl EvaluatedState {
     }
 }
 
-fn generate_evaluated_states(path: &str) {
+fn generate_evaluated_states(path: &str, weights_file: &str) {
     let mut rng = SmallRng::from_entropy();
-    let mut searcher = Searcher::new(2000, true, 1);
+    let mut searcher = Searcher::new(2500, true, 1, weights_file);
     let mut cache = EvaluationCache::from_file("cache.txt", 100_000_000);
     let mut last_saved = 0;
     loop {
         let mut state = GameState::new();
-        while !state.is_game_over() && state.ply < 20 {
+        while !state.is_game_over() && state.ply < 50 {
             let mut evaluated_state = EvaluatedState::from_state(state.clone());
             let mut cache_action = Action::Skip;
             let mut cache_hit = false;
@@ -72,7 +71,7 @@ fn generate_evaluated_states(path: &str) {
             println!("{}", state);
             if evaluated_state.best_action != Action::Skip && !cache_hit {
                 save(&evaluated_state, path);
-                if last_saved > 10 {
+                if last_saved > 30 {
                     cache.merge("cache.txt");
                     println!("Saved cache");
                     last_saved = 0;
@@ -98,12 +97,18 @@ fn save(evaluated_state: &EvaluatedState, path: &str) {
 
 fn main() {
     let mut path = "dataset.txt".to_string();
+    let mut weights_file = "weights".to_string();
     {
         let mut parser = ArgumentParser::new();
         parser
             .refer(&mut path)
             .add_option(&["-p", "--path"], Store, "File path");
+        parser.refer(&mut weights_file).add_option(
+            &["-w", "--weights_file"],
+            Store,
+            "File to load neural network weights.",
+        );
         parser.parse_args_or_exit();
     }
-    generate_evaluated_states(&path);
+    generate_evaluated_states(&path, &weights_file);
 }

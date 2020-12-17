@@ -2,8 +2,8 @@ use argparse::{ArgumentParser, Store};
 use game_sdk::{Action, ActionList, GameState};
 use std::io::{BufRead, BufReader, Write};
 mod openings;
-use openings::random_opening;
-use rand::{rngs::SmallRng, SeedableRng};
+//use openings::random_opening;
+//use rand::{rngs::SmallRng, SeedableRng};
 use std::process::{ChildStdin, ChildStdout, Command, Stdio};
 use std::time::Instant;
 
@@ -20,6 +20,7 @@ impl Client {
     pub fn from_path(path: String, time: u64) -> Client {
         let mut process = Command::new(path.clone())
             .args(&["--time", &time.to_string()])
+            .args(&["--testclient", "true"])
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
@@ -77,7 +78,12 @@ fn request_action(state: &GameState, client: &mut Client) {
         .expect("Can't write to stdin");
 }
 
-fn run_game(state: &mut GameState, client1: &mut Client, client2: &mut Client) -> i16 {
+fn run_game(
+    state: &mut GameState,
+    client1: &mut Client,
+    client2: &mut Client,
+    automated_test: bool,
+) -> i16 {
     let mut action_list = ActionList::default();
     while !state.is_game_over() {
         let team_one = state.ply % 2 == 0;
@@ -108,6 +114,9 @@ fn run_game(state: &mut GameState, client1: &mut Client, client2: &mut Client) -
             panic!("Invalid action");
         }
         state.do_action(action);
+        if !automated_test {
+            println!("{}", state);
+        }
     }
     let result = state.game_result();
     match result {
@@ -132,7 +141,7 @@ fn main() {
     let mut client2_path = String::new();
     let mut games: u32 = 1_000_000;
     let mut automated_test = false;
-    let mut time: u64 = 200;
+    let mut time: u64 = 1900;
 
     {
         let mut parser = ArgumentParser::new();
@@ -165,13 +174,24 @@ fn main() {
 
     let mut client1 = Client::from_path(client1_path, time);
     let mut client2 = Client::from_path(client2_path, time);
-    let mut rng = SmallRng::from_entropy();
-    let mut state = random_opening(&mut rng);
+    //let mut rng = SmallRng::from_entropy();
+    let mut state = GameState::new(); //random_opening(&mut rng);
+    std::thread::sleep(std::time::Duration::from_millis(1000));
     for i in 0..games {
         let result = if i % 2 == 0 {
-            run_game(&mut state.clone(), &mut client1, &mut client2)
+            run_game(
+                &mut state.clone(),
+                &mut client1,
+                &mut client2,
+                automated_test,
+            )
         } else {
-            -run_game(&mut state.clone(), &mut client2, &mut client1)
+            -run_game(
+                &mut state.clone(),
+                &mut client2,
+                &mut client1,
+                automated_test,
+            )
         };
         if !automated_test {
             print_stats(&client1, &client2);
@@ -179,7 +199,7 @@ fn main() {
             println!("{}", result);
         }
         if i % 2 == 1 {
-            state = random_opening(&mut rng);
+            state = GameState::new(); //random_opening(&mut rng);
         }
     }
     if automated_test {

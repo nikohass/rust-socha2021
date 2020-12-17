@@ -12,6 +12,7 @@ TEST_SERVER_PATH = PATH + "/target/release/test_server.exe"
 class TestServer(Thread):
     def __init__(self, client1, client2, results, *args, test_server_path=TEST_SERVER_PATH):
         Thread.__init__(self)
+        self.daemon = True
         self.client1 = client1
         self.client2 = client2
         self.test_server_path = test_server_path
@@ -34,10 +35,11 @@ class TestServer(Thread):
             line = p.stdout.readline()
             if line != b"":
                 try:
-                    self.results.append([int(v) for v in line.strip().split()])
+                    self.results.append(int(line.decode("utf-8") .strip()))
                 except Exception as e:
                     print(e)
                     print(line)
+                    self.stop = True
             if self.stop or line == b"bye":
                 p.terminate()
                 break
@@ -53,7 +55,7 @@ def calculate_LOS(wins, draws, losses):
         x = abs(x)
         t = 1.0 / (1.0 + 0.3275911 * x)
         y = 1.0 - (((((1.061405429 * t - 1.453152027) * t) + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * math.exp(-x*x)
-        return y if x >= 0 else -y
+        return y
     return 0.5 + 0.5 * erf((wins - losses) / (2.0 * (wins + draws + losses) ** 0.5))
 
 def get_stats(results):
@@ -62,8 +64,8 @@ def get_stats(results):
     losses = 0
     draws = 0
     for result in results:
-        average_score += result[0]
-        if result[0] > 0:
+        average_score += result
+        if result > 0:
             wins += 1
         elif result == 0:
             draws += 1
@@ -77,7 +79,6 @@ def run_tests(client1, client2, servers=3, t=200):
     results = []
     threads = [TestServer(client1, client2, results, f"--time {t}") for _ in range(servers)]
     for thread in threads:
-        thread.daemon = True
         print("Starting", thread)
         thread.start()
 

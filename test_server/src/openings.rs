@@ -1,4 +1,4 @@
-use game_sdk::gamestate::GameState;
+/*use game_sdk::gamestate::GameState;
 use rand::{rngs::SmallRng, RngCore};
 
 pub fn random_opening(rng: &mut SmallRng) -> GameState {
@@ -106,3 +106,4 @@ pub fn random_opening(rng: &mut SmallRng) -> GameState {
     ];
     GameState::from_fen(openings[rng.next_u64() as usize % openings.len()].to_string())
 }
+*/

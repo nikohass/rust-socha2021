@@ -19,6 +19,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4785bdd1c96b2a846b2bd7cc02e86b6b3dbf14e7e53446c4f54c92a361040822"
 
 [[package]]
+name = "client"
+version = "0.1.0"
+dependencies = [
+ "argparse",
+ "game_sdk",
+ "player",
+ "xml-rs",
+]
+
+[[package]]
 name = "dataset"
 version = "0.1.0"
 dependencies = [
@@ -125,15 +135,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "test_client"
-version = "0.1.0"
-dependencies = [
- "argparse",
- "game_sdk",
- "player",
-]
-
-[[package]]
 name = "test_server"
 version = "0.1.0"
 dependencies = [
@@ -155,14 +156,4 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3c1cb601d29fe2c2ac60a2b2e5e293994d87a1f6fa9687a31a15270f909be9c2"
 dependencies = [
  "bitflags",
-]
-
-[[package]]
-name = "xml_client"
-version = "0.1.0"
-dependencies = [
- "argparse",
- "game_sdk",
- "player",
- "xml-rs",
 ]

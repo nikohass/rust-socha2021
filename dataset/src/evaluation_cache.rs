@@ -137,6 +137,7 @@ impl EvaluationCache {
                 loaded_cache.hashes[i] = *hash;
                 loaded_cache.plies[i] = self.plies[i];
                 loaded_cache.actions[i] = self.actions[i];
+                loaded_cache.depth[i] = self.depth[i];
                 println!("Added {} to {}", self.actions[i], filename);
             }
         }

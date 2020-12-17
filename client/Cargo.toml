@@ -1,5 +1,5 @@
 [package]
-name = "test_client"
+name = "client"
 version = "0.1.0"
 authors = ["Niko Haß <nikohass571@gmail.com>"]
 edition = "2018"
@@ -10,3 +10,4 @@ edition = "2018"
 game_sdk = { path = "../game_sdk"}
 player = { path = "../player" }
 argparse = "0.2.2"
+xml-rs = "0.7"

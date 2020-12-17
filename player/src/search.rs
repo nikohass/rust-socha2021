@@ -1,5 +1,5 @@
 use super::cache::Cache;
-//use super::opening_book::OpeningBook;
+use super::neural_network::NeuralNetwork;
 use super::principal_variation_search::principal_variation_search;
 use game_sdk::{Action, ActionList, ActionListStack, GameState};
 use rand::{rngs::SmallRng, RngCore, SeedableRng};
@@ -34,17 +34,24 @@ pub struct Searcher {
     pub search_time: u128,
     pub dont_cancel: bool,
     pub verbose: usize,
-    //pub opening_book: OpeningBook,
+    pub neural_network: NeuralNetwork,
     pub depth_reached: u8,
 }
 
 impl Searcher {
-    pub fn new(search_time: u128, dont_cancel: bool, verbose: usize) -> Searcher {
+    pub fn new(
+        search_time: u128,
+        dont_cancel: bool,
+        verbose: usize,
+        weights_file: &str,
+    ) -> Searcher {
+        let mut neural_network = NeuralNetwork::new();
+        neural_network.load_weights(weights_file);
         Searcher {
             search_time,
             dont_cancel,
             verbose,
-            //opening_book: OpeningBook::from_file("opening_book.txt".to_string(), 10_000_000),
+            neural_network,
             depth_reached: 0,
         }
     }
@@ -56,28 +63,6 @@ impl Searcher {
                 println!("{}", state);
             }
         }
-        /*
-        if self.opening_book.size > 0 {
-            let book_action = self.opening_book.lookup(&state);
-            if let Some(book_action) = book_action {
-                if self.verbose > 0 {
-                    println!("Found opening book action: {}", book_action);
-                }
-                let is_valid = state.validate_action(&book_action);
-                if is_valid {
-                    return book_action;
-                } else {
-                    panic!("Invalid action");
-                }
-            }
-        }*/
-
-        /*if state.ply > 3 && self.opening_book.size > 0 {
-            if self.verbose > 0 {
-                println!("Deleting opening book.");
-            }
-            self.opening_book.delete();
-        }*/
 
         let mut params = SearchParameters {
             nodes_searched: 0,
@@ -96,10 +81,40 @@ impl Searcher {
         };
 
         let mut state = state.clone();
+        //let (nn_action, _) = self.neural_network.choose_action(&state);
+        //return nn_action;
+
+        /*
+        if state.ply < 20 {
+            let mut test_state = state.clone();
+            for i in 0..(20 - state.ply as usize) {
+                let (nn_action, confidence) = self.neural_network.choose_action(&test_state);
+                test_state.do_action(nn_action);
+                params.principal_variation.push(nn_action);
+                if i > 5 {
+                    break;
+                }
+            }
+            for i in 0..params.principal_variation.size {
+                println!("{}", params.principal_variation[i].to_string());
+            }
+        }*/
+
         state.hash = 0;
         let mut score = -MAX_SCORE;
         let mut best_action = Action::Skip;
         for depth in 1..=usize::max(MAX_SEARCH_DEPTH, 101 - state.ply as usize) {
+            /*
+            let mut toy_state = state.clone();
+            for index in 0..params.principal_variation.size {
+                toy_state.do_action(params.principal_variation[index]);
+            }
+            let (nn_action, confidence) = self.neural_network.choose_action(&toy_state);
+            if self.verbose > 0 {
+                println!("nn_action {}, conf: {}", nn_action.to_string(), confidence);
+            }
+            params.principal_variation.push(nn_action);*/
+
             score = principal_variation_search(
                 &mut params,
                 &mut state,
@@ -109,7 +124,7 @@ impl Searcher {
                 depth,
             );
             if self.verbose > 0 {
-                print!("depth: {:3} score: {:5} ", depth, score);
+                print!("Depth {:3} Score {:5} ", depth, score);
             }
             if params.stop {
                 break;
