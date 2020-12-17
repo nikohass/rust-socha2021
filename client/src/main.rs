@@ -11,7 +11,6 @@ fn main() {
     let mut port = "13050".to_string();
     let mut reservation = "".to_string();
     let mut time: u128 = 1900;
-    let mut verbose: usize = 1;
     let mut weights_file = "weights".to_string();
     let mut test = false;
 
@@ -31,9 +30,6 @@ fn main() {
             Store,
             "Time per action in milliseconds",
         );
-        parser
-            .refer(&mut verbose)
-            .add_option(&["-v", "--verbose"], Store, "Verbose 0/1/2");
         parser.refer(&mut weights_file).add_option(
             &["-w", "--weights_file"],
             Store,
@@ -48,13 +44,12 @@ fn main() {
     }
 
     println!(
-        "{}:{} {} {}ms {} {} {}",
-        host, port, reservation, time, verbose, weights_file, test
+        "{}:{} {} {}ms {} {}",
+        host, port, reservation, time, weights_file, test
     );
-    let mut searcher = Searcher::new(time, false, verbose, &weights_file);
+    let searcher = Searcher::new(time, false, &weights_file);
 
     if test {
-        searcher.verbose = 0;
         run_test_client(searcher);
     } else {
         let mut client = XMLClient::new(host, port, reservation, searcher);

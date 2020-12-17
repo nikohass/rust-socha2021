@@ -172,42 +172,20 @@ impl XMLNode {
             state.pieces_left = pieces_left;
         }
 
-        // update current player
+        // update current player and ply
         {
-            let ordered_colors = &self
-                .get_child("orderedColors")
-                .expect("Error while reading orderedColors")
-                .get_children();
-            let current_player_index = self
-                .get_attribute("currentColorIndex")
-                .expect("Error while reading currentColorIndex")
-                .parse::<usize>()
-                .expect("Error while parsing currentColorIndex");
-
-            let mut active_player_vec = Vec::new();
-            for color in ordered_colors.iter() {
-                active_player_vec.push(match color.data.as_str() {
-                    "BLUE" => Color::BLUE,
-                    "YELLOW" => Color::YELLOW,
-                    "RED" => Color::RED,
-                    _ => Color::GREEN,
-                });
-            }
-            if current_player_index < active_player_vec.len() {
-                state.current_player = active_player_vec[current_player_index];
-            }
-        }
-
-        // update ply
-        {
-            let round = self
-                .get_attribute("round")
-                .expect("Error while reading round")
+            state.ply = self
+                .get_attribute("turn")
+                .expect("Error while reading turn")
                 .parse::<u8>()
-                .expect("Error while parsing turn")
-                - 1;
+                .expect("Error while parsing turn");
 
-            state.ply = round * 4 + state.current_player as u8;
+            state.current_player = match state.ply % 4 {
+                0 => Color::BLUE,
+                1 => Color::YELLOW,
+                2 => Color::RED,
+                _ => Color::GREEN,
+            };
         }
 
         if state.ply == 0 {

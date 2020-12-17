@@ -35,7 +35,7 @@ impl EvaluatedState {
 
 fn generate_evaluated_states(path: &str, weights_file: &str) {
     let mut rng = SmallRng::from_entropy();
-    let mut searcher = Searcher::new(2500, true, 1, weights_file);
+    let mut searcher = Searcher::new(2500, true, weights_file);
     let mut cache = EvaluationCache::from_file("cache.txt", 100_000_000);
     let mut last_saved = 0;
     loop {

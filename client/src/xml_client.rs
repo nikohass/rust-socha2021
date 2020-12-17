@@ -82,7 +82,7 @@ impl XMLClient {
                             );
                         }
                         "result" => {
-                            println!("got result");
+                            println!("Recieved result");
                             let score = node.get_child("score").expect("Unable to read score");
                             println!(
                                 "{}",
