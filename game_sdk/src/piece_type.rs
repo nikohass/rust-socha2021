@@ -100,6 +100,33 @@ impl PieceType {
         }
         .to_string()
     }
+
+    pub fn to_short_name(&self) -> String {
+        match self {
+            PieceType::Monomino => "M",
+            PieceType::Domino => "D",
+            PieceType::ITromino => "I3",
+            PieceType::LTromino => "L3",
+            PieceType::ITetromino => "I4",
+            PieceType::LTetromino => "L4",
+            PieceType::TTetromino => "T4",
+            PieceType::OTetromino => "O4",
+            PieceType::ZTetromino => "Z4",
+            PieceType::FPentomino => "R5",
+            PieceType::IPentomino => "I5",
+            PieceType::LPentomino => "L5",
+            PieceType::NPentomino => "S5",
+            PieceType::PPentomino => "P5",
+            PieceType::TPentomino => "T5",
+            PieceType::UPentomino => "U5",
+            PieceType::VPentomino => "V5",
+            PieceType::WPentomino => "W5",
+            PieceType::XPentomino => "X5",
+            PieceType::YPentomino => "Y5",
+            PieceType::ZPentomino => "Z5",
+        }
+        .to_string()
+    }
 }
 
 pub const PIECE_TYPES: [PieceType; 21] = [

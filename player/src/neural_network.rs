@@ -77,8 +77,6 @@ impl NeuralNetwork {
             Layer::with_size(1608, 1608, false),
             Layer::with_size(1608, 1024, false),
             Layer::with_size(1024, 512, false),
-            Layer::with_size(512, 512, false),
-            Layer::with_size(512, 512, false),
             Layer::with_size(512, 400, true),
         ];
         NeuralNetwork { layers }
@@ -86,9 +84,15 @@ impl NeuralNetwork {
 
     pub fn load_weights(&mut self, weights_file: &str) {
         println!("loading weights from {}...", weights_file);
-        let mut file = File::open(weights_file).unwrap();
+        let file = File::open(weights_file);
         let mut bytes = Vec::new();
-        file.read_to_end(&mut bytes).unwrap();
+        match file {
+            Ok(mut file) => file.read_to_end(&mut bytes).unwrap(),
+            Err(error) => {
+                println!("Unable to load weights file {}", error);
+                return;
+            }
+        };
         println!("bytes: {}", bytes.len());
         let mut byte_index: usize = 0;
 
@@ -128,7 +132,7 @@ impl NeuralNetwork {
         }
         println!("parameters: {}", byte_index / 4);
         if bytes.len() != byte_index {
-            panic!("WARNING: The length of the weights file does not match the number of network parameters.");
+            println!("WARNING: The length of the weights file does not match the number of network parameters.");
         }
         println!("Network parameters have been loaded.");
     }

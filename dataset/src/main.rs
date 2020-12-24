@@ -33,14 +33,15 @@ impl EvaluatedState {
     }
 }
 
-fn generate_evaluated_states(path: &str, weights_file: &str) {
+fn generate_evaluated_states(path: &str) {
     let mut rng = SmallRng::from_entropy();
-    let mut searcher = Searcher::new(2500, true, weights_file);
+    let mut searcher = Searcher::new(9500);
+    searcher.dont_cancel = true;
     let mut cache = EvaluationCache::from_file("cache.txt", 100_000_000);
     let mut last_saved = 0;
     loop {
         let mut state = GameState::new();
-        while !state.is_game_over() && state.ply < 50 {
+        while !state.is_game_over() && state.ply < 20 {
             let mut evaluated_state = EvaluatedState::from_state(state.clone());
             let mut cache_action = Action::Skip;
             let mut cache_hit = false;
@@ -97,18 +98,12 @@ fn save(evaluated_state: &EvaluatedState, path: &str) {
 
 fn main() {
     let mut path = "dataset.txt".to_string();
-    let mut weights_file = "weights".to_string();
     {
         let mut parser = ArgumentParser::new();
         parser
             .refer(&mut path)
             .add_option(&["-p", "--path"], Store, "File path");
-        parser.refer(&mut weights_file).add_option(
-            &["-w", "--weights_file"],
-            Store,
-            "File to load neural network weights.",
-        );
         parser.parse_args_or_exit();
     }
-    generate_evaluated_states(&path, &weights_file);
+    generate_evaluated_states(&path);
 }

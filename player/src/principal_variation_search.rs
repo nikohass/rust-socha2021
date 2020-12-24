@@ -1,30 +1,40 @@
-use super::cache::CacheEntry;
-use super::evaluation::evaluate;
-use super::search::{SearchParameters, MATE_SCORE, MAX_SCORE};
+use super::cache::TranspositionTableEntry;
+use super::evaluation::static_evaluation;
+use super::search::{Searcher, MATE_SCORE, MAX_SCORE};
 use game_sdk::GameState;
 
 pub fn principal_variation_search(
-    params: &mut SearchParameters,
+    searcher: &mut Searcher,
     state: &mut GameState,
     mut alpha: i16,
     mut beta: i16,
     current_depth: usize,
     depth_left: usize,
 ) -> i16 {
-    params.nodes_searched += 1;
-    params.pv_table[current_depth].size = 0;
+    searcher.nodes_searched += 1;
+    searcher.pv_table[current_depth].size = 0;
     let is_pv_node = beta > 1 + alpha;
     let original_alpha = alpha;
 
-    if params.nodes_searched % 4096 == 0 {
-        params.stop = params.start_time.elapsed().as_millis() > params.time;
-    }
-    if depth_left == 0 || params.stop || state.is_game_over() {
-        return evaluate(state);
+    if searcher.nodes_searched % 4096 == 0 {
+        searcher.stop = searcher.start_time.elapsed().as_millis() > searcher.time_limit;
     }
 
-    if current_depth != 0 {
-        if state.ply % 2 == 0 {
+    if depth_left == 0 || searcher.stop || state.is_game_over() {
+        let evaluation_cache_entry = searcher.evaluation_cache.lookup(state.hash);
+        if evaluation_cache_entry.hash == state.hash
+            && evaluation_cache_entry.score != std::i16::MIN
+        {
+            return evaluation_cache_entry.score;
+        } else {
+            let score = static_evaluation(state);
+            searcher.evaluation_cache.insert(state.hash, score);
+            return score;
+        }
+    }
+
+    if !is_pv_node && current_depth > 2 {
+        if state.ply & 0b1 == 0 {
             if state.skipped & 0b101 == 0b101 && state.game_result() < 0 {
                 return MATE_SCORE; // team one will lose
             }
@@ -33,24 +43,25 @@ pub fn principal_variation_search(
         }
     }
 
-    state.get_possible_actions(&mut params.action_list_stack[depth_left]);
+    state.get_possible_actions(&mut searcher.action_list_stack[depth_left]);
 
     let mut ordering_index: usize = 0;
-    if params.principal_variation.size > current_depth {
-        let pv_action = params.principal_variation[current_depth];
-        for i in 0..params.action_list_stack[depth_left].size {
-            if pv_action == params.action_list_stack[depth_left][i] {
-                params.action_list_stack[depth_left].swap(ordering_index, i);
+    if searcher.principal_variation.size > current_depth {
+        let pv_action = searcher.principal_variation[current_depth];
+        for i in 0..searcher.action_list_stack[depth_left].size {
+            if pv_action == searcher.action_list_stack[depth_left][i] {
+                searcher.action_list_stack[depth_left].swap(ordering_index, i);
                 ordering_index += 1;
                 break;
             }
         }
     }
 
-    let transposition_table_entry = params.transposition_table.lookup(state.hash);
+    let transposition_table_entry = searcher.transposition_table.lookup(state.hash);
     if !transposition_table_entry.is_empty()
         && transposition_table_entry.depth_left >= depth_left as u8
         && transposition_table_entry.depth == current_depth as u8
+        && transposition_table_entry.hash == state.hash
     {
         if !is_pv_node {
             if transposition_table_entry.alpha && transposition_table_entry.beta {
@@ -62,9 +73,9 @@ pub fn principal_variation_search(
             }
         }
         let tt_action = transposition_table_entry.action;
-        for i in ordering_index..params.action_list_stack[depth_left].size {
-            if tt_action == params.action_list_stack[depth_left][i] {
-                params.action_list_stack[depth_left].swap(ordering_index, i);
+        for i in ordering_index..searcher.action_list_stack[depth_left].size {
+            if tt_action == searcher.action_list_stack[depth_left][i] {
+                searcher.action_list_stack[depth_left].swap(ordering_index, i);
                 //ordering_index += 1;
                 break;
             }
@@ -73,13 +84,13 @@ pub fn principal_variation_search(
 
     let mut best_score = -MAX_SCORE;
     let mut best_action_index: usize = 0;
-    for index in 0..params.action_list_stack[depth_left].size {
-        let action = params.action_list_stack[depth_left][index];
+    for index in 0..searcher.action_list_stack[depth_left].size {
+        let action = searcher.action_list_stack[depth_left][index];
         state.do_action(action);
 
         let score = if index == 0 {
             -principal_variation_search(
-                params,
+                searcher,
                 state,
                 -beta,
                 -alpha,
@@ -88,7 +99,7 @@ pub fn principal_variation_search(
             )
         } else {
             let mut score = -principal_variation_search(
-                params,
+                searcher,
                 state,
                 -alpha - 1,
                 -alpha,
@@ -97,7 +108,7 @@ pub fn principal_variation_search(
             );
             if score > alpha {
                 score = -principal_variation_search(
-                    params,
+                    searcher,
                     state,
                     -beta,
                     -alpha,
@@ -112,12 +123,12 @@ pub fn principal_variation_search(
         if score > best_score {
             best_action_index = index;
             best_score = score;
-            params.pv_table[current_depth].size = 0;
-            params.pv_table[current_depth].push(action);
+            searcher.pv_table[current_depth].size = 0;
+            searcher.pv_table[current_depth].push(action);
             if is_pv_node {
-                for i in 0..params.pv_table[current_depth + 1].size {
-                    let action = params.pv_table[current_depth + 1][i];
-                    params.pv_table[current_depth].push(action);
+                for i in 0..searcher.pv_table[current_depth + 1].size {
+                    let action = searcher.pv_table[current_depth + 1][i];
+                    searcher.pv_table[current_depth].push(action);
                 }
             }
             if score > alpha {
@@ -129,15 +140,16 @@ pub fn principal_variation_search(
         }
     }
 
-    params.transposition_table.insert(
+    searcher.transposition_table.insert(
         state.hash,
-        CacheEntry {
-            action: params.action_list_stack[depth_left][best_action_index],
+        TranspositionTableEntry {
+            action: searcher.action_list_stack[depth_left][best_action_index],
             score: best_score,
             depth: current_depth as u8,
             depth_left: depth_left as u8,
             alpha: best_score <= original_alpha,
             beta: alpha >= beta,
+            hash: state.hash,
         },
     );
 

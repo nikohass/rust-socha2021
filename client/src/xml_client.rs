@@ -7,7 +7,6 @@ use super::xml_node::XMLNode;
 use player::search::Searcher;
 
 pub struct XMLClient {
-    my_team: Option<usize>,
     state: GameState,
     host: String,
     port: String,
@@ -19,7 +18,6 @@ pub struct XMLClient {
 impl XMLClient {
     pub fn new(host: String, port: String, reservation: String, searcher: Searcher) -> XMLClient {
         XMLClient {
-            my_team: None,
             state: GameState::default(),
             host,
             port,
@@ -52,8 +50,7 @@ impl XMLClient {
         let mut parser = EventReader::new(BufReader::new(stream));
 
         loop {
-            let mut node = XMLNode::read_from(&mut parser);
-
+            let node = XMLNode::read_from(&mut parser);
             match node.name.as_str() {
                 "data" => {
                     let invalid = &"".to_string();
@@ -65,7 +62,6 @@ impl XMLClient {
                         }
                         "welcomeMessage" => {
                             println!("Recieved welcome message");
-                            self.handle_welcome_message_node(&mut node)
                         }
                         "sc.framework.plugins.protocol.MoveRequest" => {
                             println!("Recieved move request");
@@ -119,11 +115,6 @@ impl XMLClient {
                 _ => {}
             }
         }
-    }
-
-    fn handle_welcome_message_node(&mut self, node: &mut XMLNode) {
-        let team = node.as_welcome_message();
-        self.my_team = Some(team);
     }
 
     fn write_to(stream: &TcpStream, data: &str) {

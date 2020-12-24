@@ -184,7 +184,6 @@ fn normalize_board(board: [Bitboard; 4]) -> ([Bitboard; 4], bool, usize) {
             mirror = true;
             break;
         } else if !a && b {
-            mirror = false;
             break;
         }
     }

@@ -123,6 +123,15 @@ impl Action {
             }
         }
     }
+
+    pub fn to_short_name(&self) -> String {
+        match self {
+            Action::Skip => "Skip".to_string(),
+            Action::Set(to, piece_type, shape_index) => {
+                format!("{} {} to {}", piece_type.to_short_name(), shape_index, to)
+            }
+        }
+    }
 }
 
 impl Display for Action {

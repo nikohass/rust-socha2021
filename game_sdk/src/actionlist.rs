@@ -1,7 +1,7 @@
-use super::Action;
+use super::{Action, Bitboard, PieceType};
 use std::ops::{Index, IndexMut};
 
-pub const MAX_ACTIONS: usize = 1024;
+pub const MAX_ACTIONS: usize = 1100;
 
 #[derive(Clone)]
 pub struct ActionList {
@@ -19,6 +19,19 @@ impl ActionList {
         let tmp = self[x];
         self.actions[x] = self[y];
         self.actions[y] = tmp;
+    }
+
+    pub fn append_actions(
+        &mut self,
+        destinations: &mut Bitboard,
+        piece_type: PieceType,
+        shape_index: usize,
+    ) {
+        while destinations.not_zero() {
+            let to = destinations.trailing_zeros();
+            destinations.flip_bit(to);
+            self.push(Action::Set(to, piece_type, shape_index));
+        }
     }
 }
 

@@ -75,15 +75,6 @@ impl XMLNode {
         final_node.unwrap()
     }
 
-    pub fn as_welcome_message(&self) -> usize {
-        let err = "Error while parsing XML node to WelcomeMessage";
-        match self.get_attribute("color").expect(err).as_str() {
-            "one" => 0,
-            "two" => 1,
-            _ => panic!(err),
-        }
-    }
-
     pub fn as_room(&self) -> String {
         let err = "Error while parsing XML node to Room";
         self.get_attribute("roomId").expect(err).to_string()

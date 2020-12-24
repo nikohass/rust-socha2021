@@ -79,7 +79,6 @@ def run_tests(client1, client2, servers=3, t=200):
     results = []
     threads = [TestServer(client1, client2, results, f"--time {t}") for _ in range(servers)]
     for thread in threads:
-        print("Starting", thread)
         thread.start()
 
     last_len = None

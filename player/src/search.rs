@@ -1,5 +1,4 @@
-use super::cache::Cache;
-use super::neural_network::NeuralNetwork;
+use super::cache::{EvaluationCache, TranspositionTable};
 use super::principal_variation_search::principal_variation_search;
 use game_sdk::{Action, ActionList, ActionListStack, GameState};
 use rand::{rngs::SmallRng, RngCore, SeedableRng};
@@ -8,6 +7,8 @@ use std::time::Instant;
 pub const MAX_SEARCH_DEPTH: usize = 30;
 pub const MAX_SCORE: i16 = i16::MAX;
 pub const MATE_SCORE: i16 = -32_000;
+pub const TT_SIZE: usize = 20_000_000;
+pub const EVAL_CACHE_SIZE: usize = 1_000_000;
 
 pub fn random_action(state: &GameState) -> Action {
     let state = state.clone();
@@ -18,129 +19,103 @@ pub fn random_action(state: &GameState) -> Action {
     action_list[rand]
 }
 
-pub struct SearchParameters {
+pub struct Searcher {
     pub nodes_searched: u64,
+    pub depth_reached: u8,
     pub root_ply: u8,
-    pub start_time: Instant,
     pub stop: bool,
     pub action_list_stack: ActionListStack,
     pub principal_variation: ActionList,
     pub pv_table: ActionListStack,
-    pub transposition_table: Cache,
-    pub time: u128,
-}
-
-pub struct Searcher {
-    pub search_time: u128,
+    pub transposition_table: TranspositionTable,
+    pub evaluation_cache: EvaluationCache,
+    pub start_time: Instant,
+    pub time_limit: u128,
     pub dont_cancel: bool,
-    pub neural_network: NeuralNetwork,
-    pub depth_reached: u8,
 }
 
 impl Searcher {
-    pub fn new(search_time: u128, dont_cancel: bool, weights_file: &str) -> Searcher {
-        let mut neural_network = NeuralNetwork::new();
-        neural_network.load_weights(weights_file);
+    pub fn new(time_limit: u128) -> Searcher {
         Searcher {
-            search_time,
-            dont_cancel,
-            neural_network,
+            nodes_searched: 0,
             depth_reached: 0,
+            root_ply: 0,
+            stop: false,
+            action_list_stack: ActionListStack::with_size(MAX_SEARCH_DEPTH),
+            principal_variation: ActionList::default(),
+            pv_table: ActionListStack::with_size(MAX_SEARCH_DEPTH + 2),
+            transposition_table: TranspositionTable::with_size(TT_SIZE),
+            evaluation_cache: EvaluationCache::with_size(EVAL_CACHE_SIZE),
+            start_time: Instant::now(),
+            time_limit,
+            dont_cancel: false,
         }
     }
 
     pub fn search_action(&mut self, state: &GameState) -> Action {
         println!("Searching action for {}...", state.to_fen());
-
-        let mut params = SearchParameters {
-            nodes_searched: 0,
-            root_ply: state.ply,
-            start_time: Instant::now(),
-            stop: false,
-            action_list_stack: ActionListStack::with_size(MAX_SEARCH_DEPTH),
-            principal_variation: ActionList::default(),
-            transposition_table: Cache::with_size(60_000_000),
-            pv_table: ActionListStack::with_size(MAX_SEARCH_DEPTH + 2),
-            time: if self.dont_cancel {
-                100_000_000u128
-            } else {
-                self.search_time
-            },
+        let mut state = state.clone();
+        state.hash = 0;
+        self.nodes_searched = 0;
+        self.root_ply = state.ply;
+        self.start_time = Instant::now();
+        self.stop = false;
+        self.principal_variation.size = 0;
+        self.time_limit = if self.dont_cancel {
+            100_000_000u128
+        } else {
+            self.time_limit
         };
 
-        let mut state = state.clone();
-        //let (nn_action, _) = self.neural_network.choose_action(&state);
-        //return nn_action;
-
-        /*
-        if state.ply < 20 {
-            let mut test_state = state.clone();
-            for i in 0..(20 - state.ply as usize) {
-                let (nn_action, confidence) = self.neural_network.choose_action(&test_state);
-                test_state.do_action(nn_action);
-                params.principal_variation.push(nn_action);
-                if i > 5 {
-                    break;
-                }
-            }
-            for i in 0..params.principal_variation.size {
-                println!("{}", params.principal_variation[i].to_string());
-            }
-        }*/
-
-        state.hash = 0;
         let mut score = -MAX_SCORE;
         let mut best_action = Action::Skip;
         let mut last_principal_variation_size: usize = 0;
-        for depth in 1..=usize::max(MAX_SEARCH_DEPTH, 101 - state.ply as usize) {
-            /*
-            let mut toy_state = state.clone();
-            for index in 0..params.principal_variation.size {
-                toy_state.do_action(params.principal_variation[index]);
-            }
-            let (nn_action, confidence) = self.neural_network.choose_action(&toy_state);
-            println!("nn_action {}, conf: {}", nn_action.to_string(), confidence);
-
-            params.principal_variation.push(nn_action);*/
-
-            score = principal_variation_search(
-                &mut params,
-                &mut state,
-                -MAX_SCORE,
-                MAX_SCORE,
-                0,
-                depth,
-            );
+        for depth in 1..=MAX_SEARCH_DEPTH {
+            score = principal_variation_search(self, &mut state, -MAX_SCORE, MAX_SCORE, 0, depth);
             print!("Depth {:3} Score {:5} ", depth, score);
-
-            if params.stop {
+            if self.stop {
+                println!("(canceled)");
                 break;
             }
             self.depth_reached = depth as u8;
-            params.principal_variation = params.pv_table[0].clone();
-            best_action = params.principal_variation[0];
-            if params.principal_variation.size == last_principal_variation_size {
-                print!("\nReached the end of the search tree.");
+            self.principal_variation = self.pv_table[0].clone();
+            best_action = self.principal_variation[0];
+
+            if self.principal_variation.size == last_principal_variation_size {
+                println!("\nReached the end of the search tree.");
                 break;
             }
-            last_principal_variation_size = params.principal_variation.size;
+            last_principal_variation_size = self.principal_variation.size;
+            println!("{}", self.format_principal_variation());
 
-            print!("pv: ");
-            for i in 0..params.principal_variation.size {
-                print!("{:20}, ", params.principal_variation[i]);
-            }
-            println!();
-
-            if self.dont_cancel && params.start_time.elapsed().as_millis() > self.search_time {
+            if self.dont_cancel && self.start_time.elapsed().as_millis() > self.time_limit {
                 break;
             }
         }
         println!(
-            "\nSearch finished after {}ms. Score: {}, nodes searched: {}",
-            params.start_time.elapsed().as_millis(),
+            "Search finished after {}ms. Score: {}, nodes searched: {}",
+            self.start_time.elapsed().as_millis(),
             score,
-            params.nodes_searched,
+            self.nodes_searched,
         );
         best_action
+    }
+
+    pub fn reset(&mut self) {
+        self.transposition_table = TranspositionTable::with_size(TT_SIZE);
+        self.evaluation_cache = EvaluationCache::with_size(EVAL_CACHE_SIZE);
+        self.depth_reached = 0;
+        self.nodes_searched = 0;
+    }
+
+    pub fn format_principal_variation(&self) -> String {
+        let mut ret = "pv: ".to_string();
+        for i in 0..self.principal_variation.size {
+            if i != 0 {
+                ret.push_str(", ");
+            }
+            ret.push_str(&self.principal_variation[i].to_short_name());
+        }
+        ret
     }
 }

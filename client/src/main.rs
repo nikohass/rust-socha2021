@@ -11,7 +11,6 @@ fn main() {
     let mut port = "13050".to_string();
     let mut reservation = "".to_string();
     let mut time: u128 = 1900;
-    let mut weights_file = "weights".to_string();
     let mut test = false;
 
     {
@@ -30,11 +29,6 @@ fn main() {
             Store,
             "Time per action in milliseconds",
         );
-        parser.refer(&mut weights_file).add_option(
-            &["-w", "--weights_file"],
-            Store,
-            "File to load neural network weights.",
-        );
         parser.refer(&mut test).add_option(
             &["-c", "--testclient"],
             Store,
@@ -43,11 +37,8 @@ fn main() {
         parser.parse_args_or_exit();
     }
 
-    println!(
-        "{}:{} {} {}ms {} {}",
-        host, port, reservation, time, weights_file, test
-    );
-    let searcher = Searcher::new(time, false, &weights_file);
+    println!("{}:{}{} {}ms {}", host, port, reservation, time, test);
+    let searcher = Searcher::new(time);
 
     if test {
         run_test_client(searcher);

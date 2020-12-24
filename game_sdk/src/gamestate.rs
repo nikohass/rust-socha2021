@@ -187,757 +187,754 @@ impl GameState {
         let four_up = three_up & (legal_fields << 63 & VALID_FIELDS);
 
         if self.pieces_left[PieceType::Domino as usize][self.current_player as usize] {
-            let mut destinations =
-                (two_right & placement_fields) | (two_left & placement_fields) >> 1;
-            while destinations.not_zero() {
-                let to = destinations.trailing_zeros();
-                destinations.flip_bit(to);
-                action_list.push(Action::Set(to, PieceType::Domino, 1));
-            }
-            destinations = (two_down & placement_fields) | (two_up & placement_fields) >> 21;
-            while destinations.not_zero() {
-                let to = destinations.trailing_zeros();
-                destinations.flip_bit(to);
-                action_list.push(Action::Set(to, PieceType::Domino, 2));
-            }
+            action_list.append_actions(
+                &mut ((two_right & placement_fields) | (two_left & placement_fields) >> 1),
+                PieceType::Domino,
+                1,
+            );
+            action_list.append_actions(
+                &mut ((two_down & placement_fields) | (two_up & placement_fields) >> 21),
+                PieceType::Domino,
+                2,
+            );
         }
 
         if self.pieces_left[PieceType::ITromino as usize][self.current_player as usize] {
-            let mut destinations =
-                (three_right & placement_fields) | (three_left & placement_fields) >> 2;
-            while destinations.not_zero() {
-                let to = destinations.trailing_zeros();
-                destinations.flip_bit(to);
-                action_list.push(Action::Set(to, PieceType::ITromino, 3));
-            }
-            destinations = (three_up & placement_fields) >> 42 | (three_down & placement_fields);
-            while destinations.not_zero() {
-                let to = destinations.trailing_zeros();
-                destinations.flip_bit(to);
-                action_list.push(Action::Set(to, PieceType::ITromino, 4));
-            }
+            action_list.append_actions(
+                &mut ((three_right & placement_fields) | (three_left & placement_fields) >> 2),
+                PieceType::ITromino,
+                3,
+            );
+            action_list.append_actions(
+                &mut ((three_up & placement_fields) >> 42 | (three_down & placement_fields)),
+                PieceType::ITromino,
+                4,
+            );
         }
 
         if self.pieces_left[PieceType::ITetromino as usize][self.current_player as usize] {
-            let mut destinations =
-                (four_right & placement_fields) | (four_left & placement_fields) >> 3;
-            while destinations.not_zero() {
-                let to = destinations.trailing_zeros();
-                destinations.flip_bit(to);
-                action_list.push(Action::Set(to, PieceType::ITetromino, 5));
-            }
-            destinations = (four_down & placement_fields) | (four_up & placement_fields) >> 63;
-            while destinations.not_zero() {
-                let to = destinations.trailing_zeros();
-                destinations.flip_bit(to);
-                action_list.push(Action::Set(to, PieceType::ITetromino, 6));
-            }
+            action_list.append_actions(
+                &mut ((four_right & placement_fields) | (four_left & placement_fields) >> 3),
+                PieceType::ITetromino,
+                5,
+            );
+            action_list.append_actions(
+                &mut ((four_down & placement_fields) | (four_up & placement_fields) >> 63),
+                PieceType::ITetromino,
+                6,
+            );
         }
 
         if self.pieces_left[PieceType::IPentomino as usize][self.current_player as usize] {
-            let mut destinations = (four_right & legal_fields >> 4 & placement_fields)
-                | (four_left & legal_fields << 4 & placement_fields) >> 4;
-            while destinations.not_zero() {
-                let to = destinations.trailing_zeros();
-                destinations.flip_bit(to);
-                action_list.push(Action::Set(to, PieceType::IPentomino, 7));
-            }
-            destinations = (four_down & legal_fields >> 84 & placement_fields)
-                | (four_up & legal_fields << 84 & placement_fields) >> 84;
-            while destinations.not_zero() {
-                let to = destinations.trailing_zeros();
-                destinations.flip_bit(to);
-                action_list.push(Action::Set(to, PieceType::IPentomino, 8));
-            }
+            action_list.append_actions(
+                &mut ((four_right & legal_fields >> 4 & placement_fields)
+                    | (four_left & legal_fields << 4 & placement_fields) >> 4),
+                PieceType::IPentomino,
+                7,
+            );
+            action_list.append_actions(
+                &mut ((four_down & legal_fields >> 84 & placement_fields)
+                    | (four_up & legal_fields << 84 & placement_fields) >> 84),
+                PieceType::IPentomino,
+                8,
+            );
         }
 
         if self.pieces_left[PieceType::XPentomino as usize][self.current_player as usize] {
-            let mut destinations = (three_right >> 20 & three_down)
-                & (placement_fields
-                    | placement_fields >> 20
-                    | placement_fields >> 22
-                    | placement_fields >> 42);
-            while destinations.not_zero() {
-                let to = destinations.trailing_zeros();
-                destinations.flip_bit(to);
-                action_list.push(Action::Set(to, PieceType::XPentomino, 10));
-            }
+            action_list.append_actions(
+                &mut ((three_right >> 20 & three_down)
+                    & (placement_fields
+                        | placement_fields >> 20
+                        | placement_fields >> 22
+                        | placement_fields >> 42)),
+                PieceType::XPentomino,
+                10,
+            )
         }
 
         if self.pieces_left[PieceType::LTromino as usize][self.current_player as usize] {
-            for shape_index in 11..15 {
-                let mut destinations = match shape_index {
-                    11 => {
-                        (two_up & two_right) >> 21
-                            & (placement_fields | placement_fields >> 21 | placement_fields >> 22)
-                    }
-                    12 => {
-                        (two_down & two_right)
-                            & (placement_fields | placement_fields >> 1 | placement_fields >> 21)
-                    }
-                    13 => {
-                        (two_down >> 1 & two_right)
-                            & (placement_fields | placement_fields >> 1 | placement_fields >> 22)
-                    }
-                    _ => {
-                        (two_down >> 1 & two_right >> 21)
-                            & (placement_fields >> 1
-                                | placement_fields >> 21
-                                | placement_fields >> 22)
-                    }
-                };
-                while destinations.not_zero() {
-                    let to = destinations.trailing_zeros();
-                    destinations.flip_bit(to);
-                    action_list.push(Action::Set(to, PieceType::LTromino, shape_index));
-                }
-            }
+            action_list.append_actions(
+                &mut ((two_up & two_right) >> 21
+                    & (placement_fields | placement_fields >> 21 | placement_fields >> 22)),
+                PieceType::LTromino,
+                11,
+            );
+            action_list.append_actions(
+                &mut ((two_down & two_right)
+                    & (placement_fields | placement_fields >> 1 | placement_fields >> 21)),
+                PieceType::LTromino,
+                12,
+            );
+            action_list.append_actions(
+                &mut ((two_down >> 1 & two_right)
+                    & (placement_fields | placement_fields >> 1 | placement_fields >> 22)),
+                PieceType::LTromino,
+                13,
+            );
+            action_list.append_actions(
+                &mut ((two_down >> 1 & two_right >> 21)
+                    & (placement_fields >> 1 | placement_fields >> 21 | placement_fields >> 22)),
+                PieceType::LTromino,
+                14,
+            );
         }
 
         if self.pieces_left[PieceType::LPentomino as usize][self.current_player as usize] {
-            for shape_index in 23..31 {
-                let mut destinations = match shape_index {
-                    23 => {
-                        (four_right & legal_fields >> 24)
-                            & (placement_fields | placement_fields >> 3 | placement_fields >> 24)
-                    }
-                    24 => {
-                        (four_right & two_down)
-                            & (placement_fields | placement_fields >> 3 | placement_fields >> 21)
-                    }
-                    25 => {
-                        (legal_fields & four_right >> 21)
-                            & (placement_fields | placement_fields >> 21 | placement_fields >> 24)
-                    }
-                    26 => {
-                        (four_left & two_up) >> 24
-                            & (placement_fields >> 3
-                                | placement_fields >> 21
-                                | placement_fields >> 24)
-                    }
-                    27 => {
-                        (two_right & four_down)
-                            & (placement_fields | placement_fields >> 1 | placement_fields >> 63)
-                    }
-                    28 => {
-                        (four_down & legal_fields >> 64)
-                            & (placement_fields | placement_fields >> 63 | placement_fields >> 64)
-                    }
-                    29 => {
-                        (two_right & four_down >> 1)
-                            & (placement_fields | placement_fields >> 1 | placement_fields >> 64)
-                    }
-                    _ => {
-                        (four_up & two_left) >> 64
-                            & (placement_fields >> 1
-                                | placement_fields >> 63
-                                | placement_fields >> 64)
-                    }
-                };
-                while destinations.not_zero() {
-                    let to = destinations.trailing_zeros();
-                    destinations.flip_bit(to);
-                    action_list.push(Action::Set(to, PieceType::LPentomino, shape_index));
-                }
-            }
+            action_list.append_actions(
+                &mut ((four_right & legal_fields >> 24)
+                    & (placement_fields | placement_fields >> 3 | placement_fields >> 24)),
+                PieceType::LPentomino,
+                23,
+            );
+            action_list.append_actions(
+                &mut ((four_right & two_down)
+                    & (placement_fields | placement_fields >> 3 | placement_fields >> 21)),
+                PieceType::LPentomino,
+                24,
+            );
+            action_list.append_actions(
+                &mut ((legal_fields & four_right >> 21)
+                    & (placement_fields | placement_fields >> 21 | placement_fields >> 24)),
+                PieceType::LPentomino,
+                25,
+            );
+            action_list.append_actions(
+                &mut ((four_left & two_up) >> 24
+                    & (placement_fields >> 3 | placement_fields >> 21 | placement_fields >> 24)),
+                PieceType::LPentomino,
+                26,
+            );
+            action_list.append_actions(
+                &mut ((two_right & four_down)
+                    & (placement_fields | placement_fields >> 1 | placement_fields >> 63)),
+                PieceType::LPentomino,
+                27,
+            );
+            action_list.append_actions(
+                &mut ((four_down & legal_fields >> 64)
+                    & (placement_fields | placement_fields >> 63 | placement_fields >> 64)),
+                PieceType::LPentomino,
+                28,
+            );
+            action_list.append_actions(
+                &mut ((two_right & four_down >> 1)
+                    & (placement_fields | placement_fields >> 1 | placement_fields >> 64)),
+                PieceType::LPentomino,
+                29,
+            );
+            action_list.append_actions(
+                &mut ((four_up & two_left) >> 64
+                    & (placement_fields >> 1 | placement_fields >> 63 | placement_fields >> 64)),
+                PieceType::LPentomino,
+                30,
+            );
         }
 
         if self.pieces_left[PieceType::TPentomino as usize][self.current_player as usize] {
-            for shape_index in 31..35 {
-                let mut destinations = match shape_index {
-                    31 => {
-                        (three_right & three_down >> 1)
-                            & (placement_fields | placement_fields >> 2 | placement_fields >> 43)
-                    }
-                    32 => {
-                        (two_left & two_right & three_up) >> 43
-                            & (placement_fields >> 1
-                                | placement_fields >> 42
-                                | placement_fields >> 44)
-                    }
-                    33 => {
-                        (three_down & three_right >> 21)
-                            & (placement_fields | placement_fields >> 23 | placement_fields >> 42)
-                    }
-                    _ => {
-                        (three_left & two_up & two_down) >> 23
-                            & (placement_fields >> 2
-                                | placement_fields >> 21
-                                | placement_fields >> 44)
-                    }
-                };
-                while destinations.not_zero() {
-                    let to = destinations.trailing_zeros();
-                    destinations.flip_bit(to);
-                    action_list.push(Action::Set(to, PieceType::TPentomino, shape_index));
-                }
-            }
+            action_list.append_actions(
+                &mut ((three_right & three_down >> 1)
+                    & (placement_fields | placement_fields >> 2 | placement_fields >> 43)),
+                PieceType::TPentomino,
+                31,
+            );
+            action_list.append_actions(
+                &mut ((two_left & two_right & three_up) >> 43
+                    & (placement_fields >> 1 | placement_fields >> 42 | placement_fields >> 44)),
+                PieceType::TPentomino,
+                32,
+            );
+            action_list.append_actions(
+                &mut ((three_down & three_right >> 21)
+                    & (placement_fields | placement_fields >> 23 | placement_fields >> 42)),
+                PieceType::TPentomino,
+                33,
+            );
+            action_list.append_actions(
+                &mut ((three_left & two_up & two_down) >> 23
+                    & (placement_fields >> 2 | placement_fields >> 21 | placement_fields >> 44)),
+                PieceType::TPentomino,
+                34,
+            );
         }
 
         if self.pieces_left[PieceType::ZPentomino as usize][self.current_player as usize] {
-            for shape_index in 43..47 {
-                let mut destinations = match shape_index {
-                    43 => {
-                        (legal_fields & (three_left & two_down) >> 23)
-                            & (placement_fields
-                                | placement_fields >> 21
-                                | placement_fields >> 23
-                                | placement_fields >> 44)
-                    }
-                    44 => {
-                        ((legal_fields & (three_right & two_down) >> 19)
-                            & (placement_fields
-                                | placement_fields >> 19
-                                | placement_fields >> 21
-                                | placement_fields >> 40))
-                            >> 2
-                    }
-                    45 => {
-                        (legal_fields >> 2 & (three_up & two_left) >> 43)
-                            & (placement_fields >> 1
-                                | placement_fields >> 2
-                                | placement_fields >> 42
-                                | placement_fields >> 43)
-                    }
-                    _ => {
-                        (two_right & (two_right & three_up) >> 43)
-                            & (placement_fields
-                                | placement_fields >> 1
-                                | placement_fields >> 43
-                                | placement_fields >> 44)
-                    }
-                };
-                while destinations.not_zero() {
-                    let to = destinations.trailing_zeros();
-                    destinations.flip_bit(to);
-                    action_list.push(Action::Set(to, PieceType::ZPentomino, shape_index));
-                }
-            }
+            action_list.append_actions(
+                &mut ((legal_fields & (three_left & two_down) >> 23)
+                    & (placement_fields
+                        | placement_fields >> 21
+                        | placement_fields >> 23
+                        | placement_fields >> 44)),
+                PieceType::ZPentomino,
+                43,
+            );
+            action_list.append_actions(
+                &mut (((legal_fields & (three_right & two_down) >> 19)
+                    & (placement_fields
+                        | placement_fields >> 19
+                        | placement_fields >> 21
+                        | placement_fields >> 40))
+                    >> 2),
+                PieceType::ZPentomino,
+                44,
+            );
+            action_list.append_actions(
+                &mut ((legal_fields >> 2 & (three_up & two_left) >> 43)
+                    & (placement_fields >> 1
+                        | placement_fields >> 2
+                        | placement_fields >> 42
+                        | placement_fields >> 43)),
+                PieceType::ZPentomino,
+                45,
+            );
+            action_list.append_actions(
+                &mut ((two_right & (two_right & three_up) >> 43)
+                    & (placement_fields
+                        | placement_fields >> 1
+                        | placement_fields >> 43
+                        | placement_fields >> 44)),
+                PieceType::ZPentomino,
+                46,
+            );
         }
 
         if self.pieces_left[PieceType::UPentomino as usize][self.current_player as usize] {
-            for shape_index in 47..51 {
-                let mut destinations = match shape_index {
-                    47 => {
-                        (three_right & two_down & legal_fields >> 23)
-                            & (placement_fields
-                                | placement_fields >> 2
-                                | placement_fields >> 21
-                                | placement_fields >> 23)
-                    }
-                    48 => {
-                        (legal_fields & (three_left & two_up) >> 23)
-                            & (placement_fields
-                                | placement_fields >> 2
-                                | placement_fields >> 21
-                                | placement_fields >> 23)
-                    }
-                    49 => {
-                        (three_down & two_right & legal_fields >> 43)
-                            & (placement_fields
-                                | placement_fields >> 1
-                                | placement_fields >> 42
-                                | placement_fields >> 43)
-                    }
-                    _ => {
-                        (two_right & (two_left & three_up) >> 43)
-                            & (placement_fields
-                                | placement_fields >> 1
-                                | placement_fields >> 42
-                                | placement_fields >> 43)
-                    }
-                };
-                while destinations.not_zero() {
-                    let to = destinations.trailing_zeros();
-                    destinations.flip_bit(to);
-                    action_list.push(Action::Set(to, PieceType::UPentomino, shape_index));
-                }
-            }
+            action_list.append_actions(
+                &mut ((three_right & two_down & legal_fields >> 23)
+                    & (placement_fields
+                        | placement_fields >> 2
+                        | placement_fields >> 21
+                        | placement_fields >> 23)),
+                PieceType::UPentomino,
+                47,
+            );
+            action_list.append_actions(
+                &mut ((legal_fields & (three_left & two_up) >> 23)
+                    & (placement_fields
+                        | placement_fields >> 2
+                        | placement_fields >> 21
+                        | placement_fields >> 23)),
+                PieceType::UPentomino,
+                48,
+            );
+            action_list.append_actions(
+                &mut ((three_down & two_right & legal_fields >> 43)
+                    & (placement_fields
+                        | placement_fields >> 1
+                        | placement_fields >> 42
+                        | placement_fields >> 43)),
+                PieceType::UPentomino,
+                49,
+            );
+            action_list.append_actions(
+                &mut ((two_right & (two_left & three_up) >> 43)
+                    & (placement_fields
+                        | placement_fields >> 1
+                        | placement_fields >> 42
+                        | placement_fields >> 43)),
+                PieceType::UPentomino,
+                50,
+            );
         }
 
         if self.pieces_left[PieceType::FPentomino as usize][self.current_player as usize] {
-            for shape_index in 51..59 {
-                let mut destinations = match shape_index {
-                    51 => {
-                        ((three_up & two_left) >> 43 & legal_fields >> 23)
-                            & (placement_fields >> 1
-                                | placement_fields >> 23
-                                | placement_fields >> 42
-                                | placement_fields >> 43)
-                    }
-                    52 => {
-                        (legal_fields >> 21 & (three_up & two_right) >> 43)
-                            & (placement_fields >> 1
-                                | placement_fields >> 21
-                                | placement_fields >> 43
-                                | placement_fields >> 44)
-                    }
-                    53 => {
-                        (((three_down & two_right) & legal_fields >> 20)
-                            & (placement_fields
-                                | placement_fields >> 1
-                                | placement_fields >> 20
-                                | placement_fields >> 42))
-                            >> 1
-                    }
-                    54 => {
-                        ((three_down & two_left) >> 1 & legal_fields >> 23)
-                            & (placement_fields
-                                | placement_fields >> 1
-                                | placement_fields >> 23
-                                | placement_fields >> 43)
-                    }
-                    55 => {
-                        ((three_left & two_up) >> 23 & legal_fields >> 43)
-                            & (placement_fields >> 2
-                                | placement_fields >> 21
-                                | placement_fields >> 23
-                                | placement_fields >> 43)
-                    }
-                    56 => {
-                        ((three_right & two_up) >> 21 & legal_fields >> 43)
-                            & (placement_fields
-                                | placement_fields >> 21
-                                | placement_fields >> 23
-                                | placement_fields >> 43)
-                    }
-                    57 => {
-                        ((legal_fields & (three_left & two_down) >> 22)
-                            & (placement_fields
-                                | placement_fields >> 20
-                                | placement_fields >> 22
-                                | placement_fields >> 43))
-                            >> 1
-                    }
-                    _ => {
-                        ((legal_fields & (three_right & two_down) >> 20)
-                            & (placement_fields
-                                | placement_fields >> 20
-                                | placement_fields >> 22
-                                | placement_fields >> 41))
-                            >> 1
-                    }
-                };
-                while destinations.not_zero() {
-                    let to = destinations.trailing_zeros();
-                    destinations.flip_bit(to);
-                    action_list.push(Action::Set(to, PieceType::FPentomino, shape_index));
-                }
-            }
+            action_list.append_actions(
+                &mut (((three_up & two_left) >> 43 & legal_fields >> 23)
+                    & (placement_fields >> 1
+                        | placement_fields >> 23
+                        | placement_fields >> 42
+                        | placement_fields >> 43)),
+                PieceType::FPentomino,
+                51,
+            );
+            action_list.append_actions(
+                &mut ((legal_fields >> 21 & (three_up & two_right) >> 43)
+                    & (placement_fields >> 1
+                        | placement_fields >> 21
+                        | placement_fields >> 43
+                        | placement_fields >> 44)),
+                PieceType::FPentomino,
+                52,
+            );
+            action_list.append_actions(
+                &mut ((((three_down & two_right) & legal_fields >> 20)
+                    & (placement_fields
+                        | placement_fields >> 1
+                        | placement_fields >> 20
+                        | placement_fields >> 42))
+                    >> 1),
+                PieceType::FPentomino,
+                53,
+            );
+            action_list.append_actions(
+                &mut (((three_down & two_left) >> 1 & legal_fields >> 23)
+                    & (placement_fields
+                        | placement_fields >> 1
+                        | placement_fields >> 23
+                        | placement_fields >> 43)),
+                PieceType::FPentomino,
+                54,
+            );
+            action_list.append_actions(
+                &mut (((three_left & two_up) >> 23 & legal_fields >> 43)
+                    & (placement_fields >> 2
+                        | placement_fields >> 21
+                        | placement_fields >> 23
+                        | placement_fields >> 43)),
+                PieceType::FPentomino,
+                55,
+            );
+            action_list.append_actions(
+                &mut (((three_right & two_up) >> 21 & legal_fields >> 43)
+                    & (placement_fields
+                        | placement_fields >> 21
+                        | placement_fields >> 23
+                        | placement_fields >> 43)),
+                PieceType::FPentomino,
+                56,
+            );
+            action_list.append_actions(
+                &mut (((legal_fields & (three_left & two_down) >> 22)
+                    & (placement_fields
+                        | placement_fields >> 20
+                        | placement_fields >> 22
+                        | placement_fields >> 43))
+                    >> 1),
+                PieceType::FPentomino,
+                57,
+            );
+            action_list.append_actions(
+                &mut (((legal_fields & (three_right & two_down) >> 20)
+                    & (placement_fields
+                        | placement_fields >> 20
+                        | placement_fields >> 22
+                        | placement_fields >> 41))
+                    >> 1),
+                PieceType::FPentomino,
+                58,
+            );
         }
 
         if self.pieces_left[PieceType::WPentomino as usize][self.current_player as usize] {
-            for shape_index in 59..63 {
-                let mut destinations = match shape_index {
-                    59 => {
-                        (two_down & (two_up & two_right) >> 43)
-                            & (placement_fields
-                                | placement_fields >> 21
-                                | placement_fields >> 22
-                                | placement_fields >> 43
-                                | placement_fields >> 44)
-                    }
-                    60 => {
-                        ((two_up & two_left) >> 23 & two_right >> 42)
-                            & (placement_fields >> 2
-                                | placement_fields >> 22
-                                | placement_fields >> 23
-                                | placement_fields >> 42
-                                | placement_fields >> 43)
-                    }
-                    61 => {
-                        (two_right & (two_down & two_left) >> 23)
-                            & (placement_fields
-                                | placement_fields >> 1
-                                | placement_fields >> 22
-                                | placement_fields >> 23
-                                | placement_fields >> 44)
-                    }
-                    _ => {
-                        ((two_right & (two_right & two_down) >> 20)
-                            & (placement_fields
-                                | placement_fields >> 1
-                                | placement_fields >> 20
-                                | placement_fields >> 21
-                                | placement_fields >> 41))
-                            >> 1
-                    }
-                };
-                while destinations.not_zero() {
-                    let to = destinations.trailing_zeros();
-                    destinations.flip_bit(to);
-                    action_list.push(Action::Set(to, PieceType::WPentomino, shape_index));
-                }
-            }
+            action_list.append_actions(
+                &mut ((two_down & (two_up & two_right) >> 43)
+                    & (placement_fields
+                        | placement_fields >> 21
+                        | placement_fields >> 22
+                        | placement_fields >> 43
+                        | placement_fields >> 44)),
+                PieceType::WPentomino,
+                59,
+            );
+            action_list.append_actions(
+                &mut (((two_up & two_left) >> 23 & two_right >> 42)
+                    & (placement_fields >> 2
+                        | placement_fields >> 22
+                        | placement_fields >> 23
+                        | placement_fields >> 42
+                        | placement_fields >> 43)),
+                PieceType::WPentomino,
+                60,
+            );
+            action_list.append_actions(
+                &mut ((two_right & (two_down & two_left) >> 23)
+                    & (placement_fields
+                        | placement_fields >> 1
+                        | placement_fields >> 22
+                        | placement_fields >> 23
+                        | placement_fields >> 44)),
+                PieceType::WPentomino,
+                61,
+            );
+            action_list.append_actions(
+                &mut (((two_right & (two_right & two_down) >> 20)
+                    & (placement_fields
+                        | placement_fields >> 1
+                        | placement_fields >> 20
+                        | placement_fields >> 21
+                        | placement_fields >> 41))
+                    >> 1),
+                PieceType::WPentomino,
+                62,
+            );
         }
 
         if self.pieces_left[PieceType::NPentomino as usize][self.current_player as usize] {
-            for shape_index in 63..71 {
-                let mut destinations = match shape_index {
-                    63 => {
-                        ((three_down & two_down >> 41)
-                            & (placement_fields
-                                | placement_fields >> 41
-                                | placement_fields >> 42
-                                | placement_fields >> 62))
-                            >> 1
-                    }
-                    64 => {
-                        (three_down & two_down >> 43)
-                            & (placement_fields
-                                | placement_fields >> 42
-                                | placement_fields >> 43
-                                | placement_fields >> 64)
-                    }
-                    65 => {
-                        ((two_down & three_down >> 20)
-                            & (placement_fields
-                                | placement_fields >> 20
-                                | placement_fields >> 21
-                                | placement_fields >> 62))
-                            >> 1
-                    }
-                    66 => {
-                        (two_down & three_down >> 22)
-                            & (placement_fields
-                                | placement_fields >> 21
-                                | placement_fields >> 22
-                                | placement_fields >> 64)
-                    }
-                    67 => {
-                        ((two_right & three_right >> 19)
-                            & (placement_fields
-                                | placement_fields >> 1
-                                | placement_fields >> 19
-                                | placement_fields >> 21))
-                            >> 2
-                    }
-                    68 => {
-                        (three_right & two_right >> 23)
-                            & (placement_fields
-                                | placement_fields >> 2
-                                | placement_fields >> 23
-                                | placement_fields >> 24)
-                    }
-                    69 => {
-                        (two_right & three_right >> 22)
-                            & (placement_fields
-                                | placement_fields >> 1
-                                | placement_fields >> 22
-                                | placement_fields >> 24)
-                    }
-                    _ => {
-                        ((three_right & two_right >> 20)
-                            & (placement_fields
-                                | placement_fields >> 2
-                                | placement_fields >> 20
-                                | placement_fields >> 21))
-                            >> 1
-                    }
-                };
-                while destinations.not_zero() {
-                    let to = destinations.trailing_zeros();
-                    destinations.flip_bit(to);
-                    action_list.push(Action::Set(to, PieceType::NPentomino, shape_index));
-                }
-            }
+            action_list.append_actions(
+                &mut (((three_down & two_down >> 41)
+                    & (placement_fields
+                        | placement_fields >> 41
+                        | placement_fields >> 42
+                        | placement_fields >> 62))
+                    >> 1),
+                PieceType::NPentomino,
+                63,
+            );
+            action_list.append_actions(
+                &mut ((three_down & two_down >> 43)
+                    & (placement_fields
+                        | placement_fields >> 42
+                        | placement_fields >> 43
+                        | placement_fields >> 64)),
+                PieceType::NPentomino,
+                64,
+            );
+            action_list.append_actions(
+                &mut (((two_down & three_down >> 20)
+                    & (placement_fields
+                        | placement_fields >> 20
+                        | placement_fields >> 21
+                        | placement_fields >> 62))
+                    >> 1),
+                PieceType::NPentomino,
+                65,
+            );
+            action_list.append_actions(
+                &mut ((two_down & three_down >> 22)
+                    & (placement_fields
+                        | placement_fields >> 21
+                        | placement_fields >> 22
+                        | placement_fields >> 64)),
+                PieceType::NPentomino,
+                66,
+            );
+            action_list.append_actions(
+                &mut (((two_right & three_right >> 19)
+                    & (placement_fields
+                        | placement_fields >> 1
+                        | placement_fields >> 19
+                        | placement_fields >> 21))
+                    >> 2),
+                PieceType::NPentomino,
+                67,
+            );
+            action_list.append_actions(
+                &mut ((three_right & two_right >> 23)
+                    & (placement_fields
+                        | placement_fields >> 2
+                        | placement_fields >> 23
+                        | placement_fields >> 24)),
+                PieceType::NPentomino,
+                68,
+            );
+            action_list.append_actions(
+                &mut ((two_right & three_right >> 22)
+                    & (placement_fields
+                        | placement_fields >> 1
+                        | placement_fields >> 22
+                        | placement_fields >> 24)),
+                PieceType::NPentomino,
+                69,
+            );
+            action_list.append_actions(
+                &mut (((three_right & two_right >> 20)
+                    & (placement_fields
+                        | placement_fields >> 2
+                        | placement_fields >> 20
+                        | placement_fields >> 21))
+                    >> 1),
+                PieceType::NPentomino,
+                70,
+            );
         }
 
         if self.pieces_left[PieceType::VPentomino as usize][self.current_player as usize] {
-            for shape_index in 71..75 {
-                let mut destinations = match shape_index {
-                    71 => {
-                        (three_right & three_down)
-                            & (placement_fields | placement_fields >> 2 | placement_fields >> 42)
-                    }
-                    72 => {
-                        (three_up & three_left) >> 44
-                            & (placement_fields >> 2
-                                | placement_fields >> 42
-                                | placement_fields >> 44)
-                    }
-                    73 => {
-                        (three_right & three_down >> 2)
-                            & (placement_fields | placement_fields >> 2 | placement_fields >> 44)
-                    }
-                    _ => {
-                        (three_down & three_right >> 42)
-                            & (placement_fields | placement_fields >> 42 | placement_fields >> 44)
-                    }
-                };
-                while destinations.not_zero() {
-                    let to = destinations.trailing_zeros();
-                    destinations.flip_bit(to);
-                    action_list.push(Action::Set(to, PieceType::VPentomino, shape_index));
-                }
-            }
+            action_list.append_actions(
+                &mut ((three_right & three_down)
+                    & (placement_fields | placement_fields >> 2 | placement_fields >> 42)),
+                PieceType::VPentomino,
+                71,
+            );
+            action_list.append_actions(
+                &mut ((three_up & three_left) >> 44
+                    & (placement_fields >> 2 | placement_fields >> 42 | placement_fields >> 44)),
+                PieceType::VPentomino,
+                72,
+            );
+            action_list.append_actions(
+                &mut ((three_right & three_down >> 2)
+                    & (placement_fields | placement_fields >> 2 | placement_fields >> 44)),
+                PieceType::VPentomino,
+                73,
+            );
+            action_list.append_actions(
+                &mut ((three_down & three_right >> 42)
+                    & (placement_fields | placement_fields >> 42 | placement_fields >> 44)),
+                PieceType::VPentomino,
+                74,
+            );
         }
 
         if self.pieces_left[PieceType::YPentomino as usize][self.current_player as usize] {
-            for shape_index in 83..91 {
-                let mut destinations = match shape_index {
-                    83 => {
-                        (four_down & legal_fields >> 22)
-                            & (placement_fields | placement_fields >> 22 | placement_fields >> 63)
-                    }
-                    84 => {
-                        (four_down & legal_fields >> 43)
-                            & (placement_fields | placement_fields >> 43 | placement_fields >> 63)
-                    }
-                    85 => {
-                        ((four_down & legal_fields >> 41)
-                            & (placement_fields | placement_fields >> 41 | placement_fields >> 63))
-                            >> 1
-                    }
-                    86 => {
-                        ((four_down & legal_fields >> 20)
-                            & (placement_fields | placement_fields >> 20 | placement_fields >> 63))
-                            >> 1
-                    }
-                    87 => {
-                        (four_right & legal_fields >> 23)
-                            & (placement_fields | placement_fields >> 3 | placement_fields >> 23)
-                    }
-                    88 => {
-                        (four_right & legal_fields >> 22)
-                            & (placement_fields | placement_fields >> 3 | placement_fields >> 22)
-                    }
-                    89 => {
-                        (two_up & two_right & three_left) >> 23
-                            & (placement_fields >> 2
-                                | placement_fields >> 21
-                                | placement_fields >> 24)
-                    }
-                    _ => {
-                        ((legal_fields & four_right >> 20)
-                            & (placement_fields | placement_fields >> 20 | placement_fields >> 23))
-                            >> 1
-                    }
-                };
-                while destinations.not_zero() {
-                    let to = destinations.trailing_zeros();
-                    destinations.flip_bit(to);
-                    action_list.push(Action::Set(to, PieceType::YPentomino, shape_index));
-                }
-            }
+            action_list.append_actions(
+                &mut ((four_down & legal_fields >> 22)
+                    & (placement_fields | placement_fields >> 22 | placement_fields >> 63)),
+                PieceType::YPentomino,
+                83,
+            );
+            action_list.append_actions(
+                &mut ((four_down & legal_fields >> 43)
+                    & (placement_fields | placement_fields >> 43 | placement_fields >> 63)),
+                PieceType::YPentomino,
+                84,
+            );
+            action_list.append_actions(
+                &mut (((four_down & legal_fields >> 41)
+                    & (placement_fields | placement_fields >> 41 | placement_fields >> 63))
+                    >> 1),
+                PieceType::YPentomino,
+                85,
+            );
+            action_list.append_actions(
+                &mut (((four_down & legal_fields >> 20)
+                    & (placement_fields | placement_fields >> 20 | placement_fields >> 63))
+                    >> 1),
+                PieceType::YPentomino,
+                86,
+            );
+            action_list.append_actions(
+                &mut ((four_right & legal_fields >> 23)
+                    & (placement_fields | placement_fields >> 3 | placement_fields >> 23)),
+                PieceType::YPentomino,
+                87,
+            );
+            action_list.append_actions(
+                &mut ((four_right & legal_fields >> 22)
+                    & (placement_fields | placement_fields >> 3 | placement_fields >> 22)),
+                PieceType::YPentomino,
+                88,
+            );
+            action_list.append_actions(
+                &mut ((two_up & two_right & three_left) >> 23
+                    & (placement_fields >> 2 | placement_fields >> 21 | placement_fields >> 24)),
+                PieceType::YPentomino,
+                89,
+            );
+            action_list.append_actions(
+                &mut (((legal_fields & four_right >> 20)
+                    & (placement_fields | placement_fields >> 20 | placement_fields >> 23))
+                    >> 1),
+                PieceType::YPentomino,
+                90,
+            );
         }
 
         if self.pieces_left[PieceType::TTetromino as usize][self.current_player as usize] {
-            for shape_index in 35..39 {
-                let mut destinations = match shape_index {
-                    35 => {
-                        (three_right & legal_fields >> 22)
-                            & (placement_fields | placement_fields >> 2 | placement_fields >> 22)
-                    }
-                    36 => {
-                        (two_up & two_right & two_left) >> 22
-                            & (placement_fields >> 1
-                                | placement_fields >> 21
-                                | placement_fields >> 23)
-                    }
-                    37 => {
-                        (three_down & legal_fields >> 22)
-                            & (placement_fields | placement_fields >> 22 | placement_fields >> 42)
-                    }
-                    _ => {
-                        (two_up & two_down & two_left) >> 22
-                            & (placement_fields >> 1
-                                | placement_fields >> 21
-                                | placement_fields >> 43)
-                    }
-                };
-                while destinations.not_zero() {
-                    let to = destinations.trailing_zeros();
-                    destinations.flip_bit(to);
-                    action_list.push(Action::Set(to, PieceType::TTetromino, shape_index));
-                }
-            }
+            action_list.append_actions(
+                &mut ((three_right & legal_fields >> 22)
+                    & (placement_fields | placement_fields >> 2 | placement_fields >> 22)),
+                PieceType::TTetromino,
+                35,
+            );
+            action_list.append_actions(
+                &mut ((two_up & two_right & two_left) >> 22
+                    & (placement_fields >> 1 | placement_fields >> 21 | placement_fields >> 23)),
+                PieceType::TTetromino,
+                36,
+            );
+            action_list.append_actions(
+                &mut ((three_down & legal_fields >> 22)
+                    & (placement_fields | placement_fields >> 22 | placement_fields >> 42)),
+                PieceType::TTetromino,
+                37,
+            );
+            action_list.append_actions(
+                &mut ((two_up & two_down & two_left) >> 22
+                    & (placement_fields >> 1 | placement_fields >> 21 | placement_fields >> 43)),
+                PieceType::TTetromino,
+                38,
+            );
         }
 
         {
             let square = two_right & two_right >> 21;
             if self.pieces_left[PieceType::OTetromino as usize][self.current_player as usize] {
-                let mut destinations = square
-                    & (placement_fields
-                        | placement_fields >> 1
-                        | placement_fields >> 21
-                        | placement_fields >> 22);
-                while destinations.not_zero() {
-                    let to = destinations.trailing_zeros();
-                    destinations.flip_bit(to);
-                    action_list.push(Action::Set(to, PieceType::OTetromino, 9));
-                }
+                action_list.append_actions(
+                    &mut (square
+                        & (placement_fields
+                            | placement_fields >> 1
+                            | placement_fields >> 21
+                            | placement_fields >> 22)),
+                    PieceType::OTetromino,
+                    9,
+                )
             }
 
             if self.pieces_left[PieceType::PPentomino as usize][self.current_player as usize] {
-                for shape_index in 75..83 {
-                    let mut destinations = match shape_index {
-                        75 => {
-                            (square & legal_fields >> 42)
-                                & (placement_fields
-                                    | placement_fields >> 1
-                                    | placement_fields >> 22
-                                    | placement_fields >> 42)
-                        }
-                        76 => {
-                            (square & legal_fields >> 43)
-                                & (placement_fields
-                                    | placement_fields >> 1
-                                    | placement_fields >> 21
-                                    | placement_fields >> 43)
-                        }
-                        77 => {
-                            (square & legal_fields >> 23)
-                                & (placement_fields
-                                    | placement_fields >> 1
-                                    | placement_fields >> 21
-                                    | placement_fields >> 23)
-                        }
-                        78 => {
-                            (square & legal_fields >> 2)
-                                & (placement_fields
-                                    | placement_fields >> 2
-                                    | placement_fields >> 21
-                                    | placement_fields >> 22)
-                        }
-                        79 => {
-                            (square >> 1 & legal_fields)
-                                & (placement_fields
-                                    | placement_fields >> 2
-                                    | placement_fields >> 22
-                                    | placement_fields >> 23)
-                        }
-                        80 => {
-                            ((square & legal_fields >> 20)
-                                & (placement_fields
-                                    | placement_fields >> 1
-                                    | placement_fields >> 20
-                                    | placement_fields >> 22))
-                                >> 1
-                        }
-                        81 => {
-                            ((legal_fields & square >> 20)
-                                & (placement_fields
-                                    | placement_fields >> 20
-                                    | placement_fields >> 41
-                                    | placement_fields >> 42))
-                                >> 1
-                        }
-                        _ => {
-                            (legal_fields & square >> 21)
-                                & (placement_fields
-                                    | placement_fields >> 22
-                                    | placement_fields >> 42
-                                    | placement_fields >> 43)
-                        }
-                    };
-                    while destinations.not_zero() {
-                        let to = destinations.trailing_zeros();
-                        destinations.flip_bit(to);
-                        action_list.push(Action::Set(to, PieceType::PPentomino, shape_index));
-                    }
-                }
+                action_list.append_actions(
+                    &mut ((square & legal_fields >> 42)
+                        & (placement_fields
+                            | placement_fields >> 1
+                            | placement_fields >> 22
+                            | placement_fields >> 42)),
+                    PieceType::PPentomino,
+                    75,
+                );
+                action_list.append_actions(
+                    &mut ((square & legal_fields >> 43)
+                        & (placement_fields
+                            | placement_fields >> 1
+                            | placement_fields >> 21
+                            | placement_fields >> 43)),
+                    PieceType::PPentomino,
+                    76,
+                );
+                action_list.append_actions(
+                    &mut ((square & legal_fields >> 23)
+                        & (placement_fields
+                            | placement_fields >> 1
+                            | placement_fields >> 21
+                            | placement_fields >> 23)),
+                    PieceType::PPentomino,
+                    77,
+                );
+                action_list.append_actions(
+                    &mut ((square & legal_fields >> 2)
+                        & (placement_fields
+                            | placement_fields >> 2
+                            | placement_fields >> 21
+                            | placement_fields >> 22)),
+                    PieceType::PPentomino,
+                    78,
+                );
+                action_list.append_actions(
+                    &mut ((square >> 1 & legal_fields)
+                        & (placement_fields
+                            | placement_fields >> 2
+                            | placement_fields >> 22
+                            | placement_fields >> 23)),
+                    PieceType::PPentomino,
+                    79,
+                );
+                action_list.append_actions(
+                    &mut (((square & legal_fields >> 20)
+                        & (placement_fields
+                            | placement_fields >> 1
+                            | placement_fields >> 20
+                            | placement_fields >> 22))
+                        >> 1),
+                    PieceType::PPentomino,
+                    80,
+                );
+                action_list.append_actions(
+                    &mut (((legal_fields & square >> 20)
+                        & (placement_fields
+                            | placement_fields >> 20
+                            | placement_fields >> 41
+                            | placement_fields >> 42))
+                        >> 1),
+                    PieceType::PPentomino,
+                    81,
+                );
+                action_list.append_actions(
+                    &mut ((legal_fields & square >> 21)
+                        & (placement_fields
+                            | placement_fields >> 22
+                            | placement_fields >> 42
+                            | placement_fields >> 43)),
+                    PieceType::PPentomino,
+                    82,
+                );
             }
         }
 
         if self.pieces_left[PieceType::ZTetromino as usize][self.current_player as usize] {
-            for shape_index in 39..43 {
-                let mut destinations = match shape_index {
-                    39 => {
-                        ((two_right & two_right >> 20)
-                            & (placement_fields
-                                | placement_fields >> 1
-                                | placement_fields >> 20
-                                | placement_fields >> 21))
-                            >> 1
-                    }
-                    40 => {
-                        (two_right & two_right >> 22)
-                            & (placement_fields
-                                | placement_fields >> 1
-                                | placement_fields >> 22
-                                | placement_fields >> 23)
-                    }
-                    41 => {
-                        ((two_down & two_down >> 20)
-                            & (placement_fields
-                                | placement_fields >> 20
-                                | placement_fields >> 21
-                                | placement_fields >> 41))
-                            >> 1
-                    }
-                    _ => {
-                        (two_down & two_down >> 22)
-                            & (placement_fields
-                                | placement_fields >> 21
-                                | placement_fields >> 22
-                                | placement_fields >> 43)
-                    }
-                };
-                while destinations.not_zero() {
-                    let to = destinations.trailing_zeros();
-                    destinations.flip_bit(to);
-                    action_list.push(Action::Set(to, PieceType::ZTetromino, shape_index));
-                }
-            }
+            action_list.append_actions(
+                &mut (((two_right & two_right >> 20)
+                    & (placement_fields
+                        | placement_fields >> 1
+                        | placement_fields >> 20
+                        | placement_fields >> 21))
+                    >> 1),
+                PieceType::ZTetromino,
+                39,
+            );
+            action_list.append_actions(
+                &mut ((two_right & two_right >> 22)
+                    & (placement_fields
+                        | placement_fields >> 1
+                        | placement_fields >> 22
+                        | placement_fields >> 23)),
+                PieceType::ZTetromino,
+                40,
+            );
+            action_list.append_actions(
+                &mut (((two_down & two_down >> 20)
+                    & (placement_fields
+                        | placement_fields >> 20
+                        | placement_fields >> 21
+                        | placement_fields >> 41))
+                    >> 1),
+                PieceType::ZTetromino,
+                41,
+            );
+            action_list.append_actions(
+                &mut ((two_down & two_down >> 22)
+                    & (placement_fields
+                        | placement_fields >> 21
+                        | placement_fields >> 22
+                        | placement_fields >> 43)),
+                PieceType::ZTetromino,
+                42,
+            );
         }
 
         if self.pieces_left[PieceType::LTetromino as usize][self.current_player as usize] {
-            for shape_index in 15..23 {
-                let mut destinations = match shape_index {
-                    15 => {
-                        (three_down & two_right)
-                            & (placement_fields | placement_fields >> 1 | placement_fields >> 42)
-                    }
-                    16 => {
-                        (two_right & three_down >> 1)
-                            & (placement_fields | placement_fields >> 1 | placement_fields >> 43)
-                    }
-                    17 => {
-                        ((three_down & two_right >> 41)
-                            & (placement_fields | placement_fields >> 41 | placement_fields >> 42))
-                            >> 1
-                    }
-                    18 => {
-                        (three_down & two_right >> 42)
-                            & (placement_fields | placement_fields >> 42 | placement_fields >> 43)
-                    }
-                    19 => {
-                        (legal_fields & three_right >> 21)
-                            & (placement_fields | placement_fields >> 21 | placement_fields >> 23)
-                    }
-                    20 => {
-                        (three_right & legal_fields >> 21)
-                            & (placement_fields | placement_fields >> 2 | placement_fields >> 21)
-                    }
-                    21 => {
-                        (three_right & legal_fields >> 23)
-                            & (placement_fields | placement_fields >> 2 | placement_fields >> 23)
-                    }
-                    _ => {
-                        (two_up & three_left) >> 23
-                            & (placement_fields >> 2
-                                | placement_fields >> 21
-                                | placement_fields >> 23)
-                    }
-                };
-                while destinations.not_zero() {
-                    let to = destinations.trailing_zeros();
-                    destinations.flip_bit(to);
-                    action_list.push(Action::Set(to, PieceType::LTetromino, shape_index));
-                }
-            }
+            action_list.append_actions(
+                &mut ((three_down & two_right)
+                    & (placement_fields | placement_fields >> 1 | placement_fields >> 42)),
+                PieceType::LTetromino,
+                15,
+            );
+            action_list.append_actions(
+                &mut ((two_right & three_down >> 1)
+                    & (placement_fields | placement_fields >> 1 | placement_fields >> 43)),
+                PieceType::LTetromino,
+                16,
+            );
+            action_list.append_actions(
+                &mut (((three_down & two_right >> 41)
+                    & (placement_fields | placement_fields >> 41 | placement_fields >> 42))
+                    >> 1),
+                PieceType::LTetromino,
+                17,
+            );
+            action_list.append_actions(
+                &mut ((three_down & two_right >> 42)
+                    & (placement_fields | placement_fields >> 42 | placement_fields >> 43)),
+                PieceType::LTetromino,
+                18,
+            );
+            action_list.append_actions(
+                &mut ((legal_fields & three_right >> 21)
+                    & (placement_fields | placement_fields >> 21 | placement_fields >> 23)),
+                PieceType::LTetromino,
+                19,
+            );
+            action_list.append_actions(
+                &mut ((three_right & legal_fields >> 21)
+                    & (placement_fields | placement_fields >> 2 | placement_fields >> 21)),
+                PieceType::LTetromino,
+                20,
+            );
+            action_list.append_actions(
+                &mut ((three_right & legal_fields >> 23)
+                    & (placement_fields | placement_fields >> 2 | placement_fields >> 23)),
+                PieceType::LTetromino,
+                21,
+            );
+            action_list.append_actions(
+                &mut ((two_up & three_left) >> 23
+                    & (placement_fields >> 2 | placement_fields >> 21 | placement_fields >> 23)),
+                PieceType::LTetromino,
+                22,
+            );
         }
 
         if self.pieces_left[PieceType::Monomino as usize][self.current_player as usize] {
-            while placement_fields.not_zero() {
-                let to = placement_fields.trailing_zeros();
-                placement_fields.flip_bit(to);
-                action_list.push(Action::Set(to, PieceType::Monomino, 0));
-            }
+            action_list.append_actions(&mut placement_fields, PieceType::Monomino, 0);
         }
 
-        if self.ply / 4 == 0 {
+        if self.ply < 4 {
             let mut idx = 0;
             for i in 0..action_list.size {
                 if let Action::Set(_, piece_type, _) = action_list[i] {
@@ -957,7 +954,7 @@ impl GameState {
 
     #[inline(always)]
     pub fn is_game_over(&self) -> bool {
-        self.skipped == 15 || self.ply / 4 == 26 // the game is over after round 25 or when all players skipped
+        self.skipped == 0b1111 || self.ply > 100 // the game is over when all players skipped or after round 25 / ply 100
     }
 
     pub fn game_result(&self) -> i16 {
