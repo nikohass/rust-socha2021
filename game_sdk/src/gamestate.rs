@@ -117,6 +117,8 @@ impl GameState {
                 if !is_valid {
                     println!("{}", action.to_string());
                     println!("{}", piece.to_string());
+                    println!("{}", action.visualize());
+                    println!("{}", self);
                 }
                 is_valid
             }
@@ -250,11 +252,12 @@ impl GameState {
 
         if self.pieces_left[PieceType::XPentomino as usize][self.current_color as usize] {
             action_list.append_actions(
-                &mut ((three_right >> 20 & three_down)
+                &mut (((three_right >> 20 & three_down)
                     & (placement_fields
                         | placement_fields >> 20
                         | placement_fields >> 22
-                        | placement_fields >> 42)),
+                        | placement_fields >> 42))
+                    >> 1),
                 10,
             )
         }

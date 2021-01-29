@@ -57,21 +57,8 @@ impl Action {
         let to = left + top * 21;
         // determine shape_index
         for shape_index in 0..91 {
-            if Bitboard::with_piece(
-                match shape_index {
-                    10 => to + 1, // X-Pentomino
-                    _ => to,
-                },
-                shape_index,
-            ) == board
-            {
-                return Action::Set(
-                    match shape_index {
-                        10 => to + 1, // X-Pentomino
-                        _ => to,
-                    },
-                    shape_index,
-                );
+            if Bitboard::with_piece(to, shape_index) == board {
+                return Action::Set(to, shape_index);
             }
         }
         println!(

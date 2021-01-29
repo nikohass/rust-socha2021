@@ -29,7 +29,7 @@ pub const PIECE_SHAPES: [u128; 91] = [
     31,                         // I-Pentomino horizontal
     19342822337210501698682881, // I-Pentomino vertical
     6291459,                    // O-Tetromino
-    4398053851137,              // X-Pentomino
+    8796107702274,              // X-Pentomino
     6291457,                    // L-Tromino
     2097155,
     4194307,
