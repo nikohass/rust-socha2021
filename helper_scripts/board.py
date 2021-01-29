@@ -32,14 +32,14 @@ def main():
                 return
         if pygame.mouse.get_pressed()[0]:
             x, y = pygame.mouse.get_pos()
-            idx = int(x / 20) + int(y / 20) * 21
+            idx = x // 20 + y // 20 * 21
             if not idx in ones:
                 ones.append(idx)
             to_bitboard(ones)
 
         if pygame.mouse.get_pressed()[2]:
             x, y = pygame.mouse.get_pos()
-            idx = int(x / 20) + int(y / 20) * 21
+            idx = x // 20 + y // 20 * 21
             if idx in ones:
                 ones.remove(idx)
             to_bitboard(ones)

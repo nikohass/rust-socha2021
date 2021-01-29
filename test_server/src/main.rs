@@ -50,7 +50,7 @@ pub fn print_stats(client1: &Client, client2: &Client) {
     println!("{}", line);
 }
 
-fn wait_for_action(client: &mut Client) -> Action {
+fn wait_for_action(client: &mut Client, automated_test: bool) -> Action {
     let mut stdin = BufReader::new(&mut client.output);
     let mut new_line = String::new();
     let start_time = Instant::now();
@@ -60,9 +60,13 @@ fn wait_for_action(client: &mut Client) -> Action {
             new_line = (&new_line[8..]).to_string();
             break;
         }
+        if !new_line.is_empty() && !automated_test {
+            new_line.pop();
+            println!("{}", new_line);
+        }
         new_line = String::new();
-        if start_time.elapsed().as_secs() > 20 {
-            panic!("Test client not responding");
+        if start_time.elapsed().as_secs() > 120 {
+            panic!("Client not responding");
         }
     }
     new_line.pop(); // remove \n
@@ -91,10 +95,10 @@ fn run_game(
 
         let action = if team_one {
             request_action(&state, client1);
-            wait_for_action(client1)
+            wait_for_action(client1, automated_test)
         } else {
             request_action(&state, client2);
-            wait_for_action(client2)
+            wait_for_action(client2, automated_test)
         };
 
         let mut valid = false;

@@ -1,29 +1,17 @@
-use super::bitboard::Bitboard;
-use super::color::Color;
-use super::constants::PIECE_ORIENTATIONS;
-use super::piece_type::{PieceType, PIECE_TYPES};
+use super::{Bitboard, Color, PieceType, PIECE_ORIENTATIONS};
 use std::fmt::{Display, Formatter, Result};
 
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub enum Action {
     Skip,
-    Set(u16, PieceType, usize),
+    Set(u16, usize),
 }
 
 impl Action {
     pub fn serialize(&self) -> String {
         match self {
             Action::Skip => "Skip".to_string(),
-            Action::Set(to, piece_type, shape_index) => {
-                let mut piece_index: usize = 0;
-                for (i, pt) in PIECE_TYPES.iter().enumerate() {
-                    if pt == piece_type {
-                        piece_index = i;
-                        break;
-                    }
-                }
-                format!("{} {} {}", to, piece_index, shape_index)
-            }
+            Action::Set(to, shape_index) => format!("{} {}", to, shape_index),
         }
     }
 
@@ -33,10 +21,17 @@ impl Action {
         }
         let mut entries: Vec<&str> = string.split(' ').collect();
         let to = entries.remove(0).parse::<u16>().unwrap();
-        let piece_index = entries.remove(0).parse::<usize>().unwrap();
-        let piece_type = PIECE_TYPES[piece_index];
         let shape_index = entries.remove(0).parse::<usize>().unwrap();
-        Action::Set(to, piece_type, shape_index)
+        Action::Set(to, shape_index)
+    }
+
+    pub fn visualize(&self) -> String {
+        let board = if let Action::Set(to, shape_index) = *self {
+            Bitboard::with_piece(to, shape_index)
+        } else {
+            Bitboard::empty()
+        };
+        format!("{}\n{}", self.to_string(), board)
     }
 
     pub fn from_bitboard(board: Bitboard) -> Action {
@@ -60,7 +55,7 @@ impl Action {
             }
         }
         let to = left + top * 21;
-        // determine new shape_index
+        // determine shape_index
         for shape_index in 0..91 {
             if Bitboard::with_piece(
                 match shape_index {
@@ -70,7 +65,13 @@ impl Action {
                 shape_index,
             ) == board
             {
-                return Action::Set(to, PieceType::from_shape_index(shape_index), shape_index);
+                return Action::Set(
+                    match shape_index {
+                        10 => to + 1, // X-Pentomino
+                        _ => to,
+                    },
+                    shape_index,
+                );
             }
         }
         println!(
@@ -83,7 +84,8 @@ impl Action {
     pub fn to_xml(&self, color: Color) -> String {
         match self {
             Action::Skip => "<data class=\"sc.plugin2021.SkipMove\"/>".to_string(),
-            Action::Set(to, piece_type, shape_index) => {
+            Action::Set(to, shape_index) => {
+                let piece_type = PieceType::from_shape_index(*shape_index);
                 let (r, flipped) = PIECE_ORIENTATIONS[*shape_index];
                 let rotation = match r {
                     0 => "NONE".to_string(),
@@ -94,7 +96,7 @@ impl Action {
                 };
 
                 let mut to = *to;
-                if *piece_type == PieceType::XPentomino {
+                if piece_type == PieceType::XPentomino {
                     to -= 1;
                 }
                 let x = to % 21;
@@ -127,7 +129,8 @@ impl Action {
     pub fn to_short_name(&self) -> String {
         match self {
             Action::Skip => "Skip".to_string(),
-            Action::Set(to, piece_type, shape_index) => {
+            Action::Set(to, shape_index) => {
+                let piece_type = PieceType::from_shape_index(*shape_index);
                 format!("{} {} to {}", piece_type.to_short_name(), shape_index, to)
             }
         }
@@ -141,9 +144,9 @@ impl Display for Action {
             "{}",
             match self {
                 Action::Skip => "Skip".to_string(),
-                Action::Set(to, piece_type, shape_index) => format!(
+                Action::Set(to, shape_index) => format!(
                     "Set {} to {} (X={} Y={} Shape={})",
-                    piece_type.to_string(),
+                    PieceType::from_shape_index(*shape_index).to_string(),
                     to,
                     to % 21,
                     (to - (to % 21)) / 21,

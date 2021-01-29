@@ -1,7 +1,8 @@
 use game_sdk::{
-    Action, Bitboard, GameState, EVALUATION_CACHE_HASH, EVALUATION_CACHE_PLY_HASH,
+    Action, GameState, EVALUATION_CACHE_HASH, EVALUATION_CACHE_PLY_HASH,
     EVALUATION_CACHE_START_PIECE_TYPE_HASH,
 };
+use player::neural_network::Rotation;
 use std::fs::{File, OpenOptions};
 use std::io::prelude::*;
 use std::io::{BufRead, BufReader};
@@ -35,62 +36,42 @@ impl EvaluationCache {
             let hash = entries[0].parse::<u128>().unwrap();
             let index = (hash % size as u128) as usize;
             cache.hashes[index] = hash;
-            cache.actions[index] =
-                Action::deserialize(format!("{} {} {}", entries[1], entries[2], entries[3]));
-            cache.plies[index] = entries[4].parse::<u8>().unwrap();
-            cache.depth[index] = entries[5].parse::<u8>().unwrap();
+            cache.actions[index] = Action::deserialize(format!("{} {}", entries[1], entries[2]));
+            cache.plies[index] = entries[3].parse::<u8>().unwrap();
+            cache.depth[index] = entries[4].parse::<u8>().unwrap();
         }
         cache
     }
 
     pub fn lookup(&self, state: &GameState) -> Option<Action> {
-        let (hash, mirror, start_corner) = u128_hash(state);
+        let rotation = Rotation::from_state(&state);
+        let mut rotated_state = state.clone();
+        rotation.rotate_state(&mut rotated_state);
+
+        let hash = u128_hash(&rotated_state);
         let index = (hash % self.size as u128) as usize;
         let action = self.actions[index];
-        if self.hashes[index] != hash {
+
+        if self.hashes[index] != hash || action == Action::Skip {
             None
         } else {
-            match action {
-                Action::Skip => None,
-                Action::Set(to, _, shape_index) => {
-                    let mut action_board = Bitboard::with_piece(to, shape_index);
-                    if mirror {
-                        action_board = action_board.mirror_diagonal();
-                    }
-                    match start_corner {
-                        1 => action_board = action_board.mirror(),
-                        2 => action_board = action_board.flip(),
-                        3 => action_board = action_board.rotate_left().rotate_left(),
-                        _ => {}
-                    }
-                    Some(Action::from_bitboard(action_board))
-                }
-            }
+            Some(rotation.rotate_action(action))
         }
     }
 
     pub fn insert(&mut self, state: &GameState, action: &Action, depth: u8) {
-        match action {
-            Action::Skip => {}
-            Action::Set(to, _, shape_index) => {
-                let (hash, mirror, start_corner) = u128_hash(state);
-                let index = (hash % self.size as u128) as usize;
-                let mut action_board = Bitboard::with_piece(*to, *shape_index);
-                match start_corner {
-                    1 => action_board = action_board.mirror(),
-                    2 => action_board = action_board.flip(),
-                    3 => action_board = action_board.rotate_left().rotate_left(),
-                    _ => {}
-                }
-                if mirror {
-                    action_board = action_board.mirror_diagonal();
-                }
-                if self.should_replace(index, depth, state.ply) {
-                    self.hashes[index] = hash;
-                    self.actions[index] = Action::from_bitboard(action_board);
-                    self.plies[index] = state.ply;
-                    self.depth[index] = depth;
-                }
+        if *action != Action::Skip {
+            let rotation = Rotation::from_state(&state);
+            let mut rotated_state = state.clone();
+            rotation.rotate_state(&mut rotated_state);
+            let hash = u128_hash(&rotated_state);
+            let index = (hash % self.size as u128) as usize;
+
+            if self.should_replace(index, depth, state.ply) {
+                self.hashes[index] = hash;
+                self.actions[index] = rotation.rotate_action(*action);
+                self.plies[index] = state.ply;
+                self.depth[index] = depth;
             }
         }
     }
@@ -145,61 +126,12 @@ impl EvaluationCache {
     }
 }
 
-fn normalize_board(board: [Bitboard; 4]) -> ([Bitboard; 4], bool, usize) {
-    let start_corner = if board[0].check_bit(0) {
-        0
-    } else if board[0].check_bit(19) {
-        1
-    } else if board[0].check_bit(399) {
-        2
-    } else {
-        3
-    };
-    let mut new_board = board;
-    match start_corner {
-        1 => {
-            for b in &mut new_board {
-                *b = b.mirror();
-            }
-        }
-        2 => {
-            for b in &mut new_board {
-                *b = b.flip();
-            }
-        }
-        3 => {
-            for b in &mut new_board {
-                *b = b.rotate_left().rotate_left();
-            }
-        }
-        _ => {}
-    }
-
-    let mut mirror = false;
-    let check: [(u16, u16); 4] = [(1, 21), (2, 42), (23, 43), (24, 64)];
-    for (x, y) in check.iter() {
-        let a = new_board[0].check_bit(*x);
-        let b = new_board[0].check_bit(*y);
-        if a && !b {
-            mirror = true;
-            break;
-        } else if !a && b {
-            break;
-        }
-    }
-    if mirror {
-        for b in &mut new_board {
-            *b = b.mirror_diagonal();
-        }
-    }
-    (new_board, mirror, start_corner)
-}
-
-fn u128_hash(state: &GameState) -> (u128, bool, usize) {
+fn u128_hash(state: &GameState) -> u128 {
     let mut hash = EVALUATION_CACHE_PLY_HASH[state.ply as usize]
         ^ EVALUATION_CACHE_START_PIECE_TYPE_HASH[state.start_piece_type as usize];
-    let (board, mirror, start_corner) = normalize_board(state.board);
-    for (board_index, board) in board.iter().enumerate() {
+    //let (board, mirror, start_corner) = normalize_board(state.board);
+
+    for (board_index, board) in state.board.iter().enumerate() {
         let mut board_copy = *board;
         while board_copy.not_zero() {
             let bit_index = board_copy.trailing_zeros();
@@ -207,5 +139,5 @@ fn u128_hash(state: &GameState) -> (u128, bool, usize) {
             hash ^= EVALUATION_CACHE_HASH[bit_index as usize][board_index];
         }
     }
-    (hash, mirror, start_corner)
+    hash
 }

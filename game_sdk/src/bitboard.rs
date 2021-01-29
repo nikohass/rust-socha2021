@@ -1,4 +1,5 @@
 use super::constants::{COLUMN_MASK, PIECE_SHAPES, ROW_MASK, VALID_FIELDS};
+use super::Action;
 use std::fmt::{Display, Formatter, Result};
 use std::ops::{
     BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Not, Shl, ShlAssign, Shr,
@@ -14,7 +15,7 @@ pub struct Bitboard {
 }
 
 impl Bitboard {
-    pub fn new() -> Bitboard {
+    pub fn empty() -> Bitboard {
         Bitboard {
             one: 0,
             two: 0,
@@ -129,7 +130,7 @@ impl Bitboard {
     }
 
     pub fn flip(&self) -> Bitboard {
-        let mut board = Bitboard::new();
+        let mut board = Bitboard::empty();
         for row in 0..20 {
             board |= (self.r_shift_save(21 * row) & ROW_MASK).l_shift_save((19 - row) * 21);
         }
@@ -137,7 +138,7 @@ impl Bitboard {
     }
 
     pub fn mirror(&self) -> Bitboard {
-        let mut board = Bitboard::new();
+        let mut board = Bitboard::empty();
         for col in 0..20 {
             board |= (self.r_shift_save(col) & COLUMN_MASK).l_shift_save(19 - col);
         }
@@ -145,7 +146,7 @@ impl Bitboard {
     }
 
     pub fn mirror_diagonal(&self) -> Bitboard {
-        let mut board = Bitboard::new();
+        let mut board = Bitboard::empty();
         for x in 0..20 {
             for y in 0..20 {
                 if self.check_bit((x + y * 21) as u16) {
@@ -190,6 +191,20 @@ impl Bitboard {
     #[inline(always)]
     pub fn diagonal_neighbours(&self) -> Bitboard {
         ((*self << 22) | (*self >> 22) | (*self >> 20) | (*self << 20)) & VALID_FIELDS
+    }
+
+    pub fn get_pieces(&self) -> Vec<Action> {
+        let mut board = *self;
+        let mut actions: Vec<Action> = Vec::with_capacity(21);
+        while board.not_zero() {
+            let mut piece_board = Bitboard::bit(board.trailing_zeros());
+            for _ in 0..5 {
+                piece_board |= piece_board.neighbours() & board;
+            }
+            board ^= piece_board;
+            actions.push(Action::from_bitboard(piece_board));
+        }
+        actions
     }
 }
 
@@ -333,7 +348,7 @@ impl Display for Bitboard {
                 let bit = Bitboard::bit(x + y * 21);
                 if bit & *self == bit {
                     if x < 20 && y < 20 {
-                        string.push_str("🟩");
+                        string.push_str("🟧");
                     } else {
                         string.push_str("🟥");
                     }
@@ -344,11 +359,5 @@ impl Display for Bitboard {
             string.push_str(&format!("{}\n", y));
         }
         write!(f, "{}", string)
-    }
-}
-
-impl Default for Bitboard {
-    fn default() -> Bitboard {
-        Self::new()
     }
 }

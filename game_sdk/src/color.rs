@@ -12,9 +12,9 @@ pub enum Color {
 impl Color {
     pub fn next(self) -> Color {
         match self {
-            Color::RED => Color::GREEN,
             Color::BLUE => Color::YELLOW,
             Color::YELLOW => Color::RED,
+            Color::RED => Color::GREEN,
             Color::GREEN => Color::BLUE,
         }
     }
@@ -22,10 +22,21 @@ impl Color {
     pub fn previous(self) -> Color {
         match self {
             Color::BLUE => Color::GREEN,
-            Color::YELLOW => Color::BLUE,
             Color::GREEN => Color::RED,
             Color::RED => Color::YELLOW,
+            Color::YELLOW => Color::BLUE,
         }
+    }
+
+    #[inline(always)]
+    pub fn team_f32(&self) -> f32 {
+        // returns 1.0 for team one and -1.0 for team two
+        f32::from_bits(0x3F800000 | ((*self as u32 & 1) << 31))
+    }
+
+    #[inline(always)]
+    pub fn team_i16(&self) -> i16 {
+        ((*self as i16 & 0b1) << 1) - 1
     }
 }
 
@@ -35,9 +46,9 @@ impl Display for Color {
             f,
             "{}",
             match self {
-                Color::RED => "RED (Team ONE)".to_string(),
                 Color::BLUE => "BLUE (Team ONE)".to_string(),
                 Color::YELLOW => "YELLOW (Team TWO)".to_string(),
+                Color::RED => "RED (Team ONE)".to_string(),
                 Color::GREEN => "GREEN (Team TWO)".to_string(),
             }
         )

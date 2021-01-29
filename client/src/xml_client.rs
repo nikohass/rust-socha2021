@@ -28,7 +28,7 @@ impl XMLClient {
     }
 
     pub fn run(&mut self) {
-        println!("Connecting to {}:{}...", self.host, self.port);
+        print!("Connecting to {}:{}... ", self.host, self.port);
         let stream = TcpStream::connect(&format!("{}:{}", self.host, self.port))
             .expect("Could not connect to server");
         println!("Connected");
@@ -57,8 +57,9 @@ impl XMLClient {
                     let data_class = node.get_attribute("class").unwrap_or(invalid).to_string();
                     match data_class.as_str() {
                         "memento" => {
-                            println!("Recieved memento");
+                            println!("Recieved memento: ");
                             node.as_memento(&mut self.state);
+                            println!("    fen: {}", self.state.to_fen());
                         }
                         "welcomeMessage" => {
                             println!("Recieved welcome message");
@@ -66,7 +67,7 @@ impl XMLClient {
                         "sc.framework.plugins.protocol.MoveRequest" => {
                             println!("Recieved move request");
                             let action = self.searcher.search_action(&self.state);
-                            let xml_move = action.to_xml(self.state.current_player);
+                            let xml_move = action.to_xml(self.state.current_color);
                             println!("Sending: {}", action);
                             XMLClient::write_to(
                                 stream,

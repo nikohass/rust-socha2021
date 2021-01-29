@@ -2,7 +2,8 @@ use argparse::{ArgumentParser, Store};
 use game_sdk::{Action, GameState};
 mod evaluation_cache;
 use evaluation_cache::EvaluationCache;
-use player::search::{random_action, Searcher};
+use player::mcts::MCTS;
+use player::search::random_action;
 use rand::{rngs::SmallRng, RngCore, SeedableRng};
 use std::fs::OpenOptions;
 use std::io::prelude::*;
@@ -20,7 +21,7 @@ impl EvaluatedState {
         }
     }
 
-    pub fn evaluate(&mut self, searcher: &mut Searcher) -> Action {
+    pub fn evaluate(&mut self, searcher: &mut MCTS) -> Action {
         self.best_action = searcher.search_action(&self.state);
         self.best_action
     }
@@ -35,13 +36,13 @@ impl EvaluatedState {
 
 fn generate_evaluated_states(path: &str) {
     let mut rng = SmallRng::from_entropy();
-    let mut searcher = Searcher::new(9500);
-    searcher.dont_cancel = true;
     let mut cache = EvaluationCache::from_file("cache.txt", 100_000_000);
     let mut last_saved = 0;
+    let mut mcts = MCTS::new(10_000);
+
     loop {
         let mut state = GameState::new();
-        while !state.is_game_over() && state.ply < 20 {
+        while !state.is_game_over() {
             let mut evaluated_state = EvaluatedState::from_state(state.clone());
             let mut cache_action = Action::Skip;
             let mut cache_hit = false;
@@ -53,33 +54,33 @@ fn generate_evaluated_states(path: &str) {
             }
 
             let next_action = if !cache_hit {
-                let next_action = evaluated_state.evaluate(&mut searcher);
-                cache.insert(&state, &next_action, searcher.depth_reached);
+                let next_action = evaluated_state.evaluate(&mut mcts);
+                if next_action != Action::Skip {
+                    save(&evaluated_state, path);
+                    cache.insert(&state, &next_action, 0);
+                }
                 next_action
             } else {
                 println!("Found action in cache");
                 cache_action
             };
 
-            if rng.next_u64() as usize % 100 < 90 {
-                println!("Searched action");
-                state.do_action(next_action);
-            } else {
+            if rng.next_u64() as usize % 100 > 95 && cache_hit {
                 println!("Random action");
                 state.do_action(random_action(&state));
+            } else {
+                println!("Searched action");
+                state.do_action(next_action);
             }
-
             println!("{}", state);
-            if evaluated_state.best_action != Action::Skip && !cache_hit {
-                save(&evaluated_state, path);
-                if last_saved > 30 {
-                    cache.merge("cache.txt");
-                    println!("Saved cache");
-                    last_saved = 0;
-                    cache = EvaluationCache::from_file("cache.txt", 100_000_000);
-                }
-                last_saved += 1;
+
+            if last_saved > 30 {
+                cache.merge("cache.txt");
+                println!("Saved cache");
+                last_saved = 0;
+                cache = EvaluationCache::from_file("cache.txt", 100_000_000);
             }
+            last_saved += 1;
         }
     }
 }
@@ -97,7 +98,7 @@ fn save(evaluated_state: &EvaluatedState, path: &str) {
 }
 
 fn main() {
-    let mut path = "dataset.txt".to_string();
+    let mut path = "datasets/dataset.txt".to_string();
     {
         let mut parser = ArgumentParser::new();
         parser

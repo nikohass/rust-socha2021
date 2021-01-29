@@ -30,10 +30,10 @@ def main():
         if pygame.mouse.get_pressed()[0]:
             x, y = pygame.mouse.get_pos()
             if first:
-                start = int(x / 20) + int(y / 20) * 21 - 1
-                end = int(x / 20) + int(y / 20) * 21 + 1
+                start = x // 20 + y // 20 * 21 - 1
+                end = x // 20 + y // 20 * 21 + 1
             else:
-                end = int(x / 20) + int(y / 20) * 21 + 1
+                end = x // 20 + y // 20 * 21 + 1
                 shift = end - start - 2
                 pygame.display.set_caption((">> " if shift > 0 else "<< ") + str(abs(shift)))
             first = not first

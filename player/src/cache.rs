@@ -24,7 +24,7 @@ impl TranspositionTable {
 pub struct TranspositionTableEntry {
     pub action: Action,
     pub score: i16,
-    pub depth: u8,
+    pub ply: u8,
     pub depth_left: u8,
     pub alpha: bool,
     pub beta: bool,
@@ -41,7 +41,7 @@ impl TranspositionTableEntry {
         TranspositionTableEntry {
             action: Action::Skip,
             score: 0,
-            depth: 0,
+            ply: 0,
             depth_left: std::u8::MAX,
             alpha: false,
             beta: false,

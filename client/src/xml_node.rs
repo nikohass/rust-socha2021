@@ -1,9 +1,7 @@
-use game_sdk::{Bitboard, Color, GameState, PieceType};
-use std::collections::HashMap;
-use std::collections::VecDeque;
+use game_sdk::{Action, Bitboard, GameState, PieceType};
+use std::collections::{HashMap, VecDeque};
 use std::io::BufReader;
 use std::net::TcpStream;
-use std::vec::Vec;
 use xml::reader::{EventReader, XmlEvent};
 
 #[derive(Debug)]
@@ -23,6 +21,7 @@ impl XMLNode {
             childs: Vec::new(),
         }
     }
+
     pub fn read_from(xml_parser: &mut EventReader<BufReader<&TcpStream>>) -> XMLNode {
         let mut node_stack: VecDeque<XMLNode> = VecDeque::new();
         let mut has_received_first = false;
@@ -86,100 +85,14 @@ impl XMLNode {
     }
 
     pub fn update_state(&self, state: &mut GameState) {
-        // update board
-        {
-            let mut new_board = [Bitboard::new(); 4];
-            let vec = &self
-                .get_child("board")
-                .expect("Error while reading board")
-                .get_children();
-            for field in vec.iter() {
-                let x = field
-                    .get_attribute("x")
-                    .expect("Error while reading x")
-                    .parse::<u16>()
-                    .expect("Error while parsing x");
-                let y = field
-                    .get_attribute("y")
-                    .expect("Error while reading y")
-                    .parse::<u16>()
-                    .expect("Error while parsing y");
-                let to = x + y * 21;
+        // get the current ply
+        let new_ply = self
+            .get_attribute("turn")
+            .expect("Error while reading turn")
+            .parse::<u8>()
+            .expect("Error while parsing turn");
 
-                let board_index = match field
-                    .get_attribute("content")
-                    .expect("Error while reading field content")
-                    .as_ref()
-                {
-                    "BLUE" => 0,
-                    "YELLOW" => 1,
-                    "RED" => 2,
-                    _ => 3,
-                };
-                new_board[board_index].flip_bit(to);
-            }
-            state.board = new_board;
-        }
-
-        // update pieces left
-        {
-            let mut pieces_left = [[false; 4]; 21];
-            for (c, child_name) in ["blueShapes", "yellowShapes", "redShapes", "greenShapes"]
-                .iter()
-                .enumerate()
-                .take(4)
-            {
-                let child = &self
-                    .get_child(child_name)
-                    .expect("Error while reading undeployedPieceShapes");
-                for piece_type in child.get_children().iter() {
-                    let index = match piece_type.data.as_ref() {
-                        "MONO" => 0,
-                        "DOMINO" => 1,
-                        "TRIO_I" => 2,
-                        "TRIO_L" => 3,
-                        "TETRO_I" => 4,
-                        "TETRO_L" => 5,
-                        "TETRO_T" => 6,
-                        "TETRO_O" => 7,
-                        "TETRO_Z" => 8,
-                        "PENTO_R" => 9,
-                        "PENTO_I" => 10,
-                        "PENTO_L" => 11,
-                        "PENTO_S" => 12,
-                        "PENTO_P" => 13,
-                        "PENTO_T" => 14,
-                        "PENTO_U" => 15,
-                        "PENTO_V" => 16,
-                        "PENTO_W" => 17,
-                        "PENTO_X" => 18,
-                        "PENTO_Y" => 19,
-                        "PENTO_Z" => 20,
-                        _ => panic!("Invalid piece name"),
-                    };
-                    pieces_left[index][c] = true;
-                }
-            }
-            state.pieces_left = pieces_left;
-        }
-
-        // update current player and ply
-        {
-            state.ply = self
-                .get_attribute("turn")
-                .expect("Error while reading turn")
-                .parse::<u8>()
-                .expect("Error while parsing turn");
-
-            state.current_player = match state.ply % 4 {
-                0 => Color::BLUE,
-                1 => Color::YELLOW,
-                2 => Color::RED,
-                _ => Color::GREEN,
-            };
-        }
-
-        if state.ply == 0 {
+        if new_ply == 0 {
             // update start piece type
             state.start_piece_type = match self
                 .get_attribute("startPiece")
@@ -199,17 +112,60 @@ impl XMLNode {
                 "PENTO_Y" => PieceType::YPentomino,
                 _ => panic!("Unknown start piece"),
             };
-            println!("Start piece type is {}", state.start_piece_type.to_string());
+            println!(
+                "    Start piece type: {}",
+                state.start_piece_type.to_string()
+            );
+            return;
         }
 
-        println!(
-            "Updated state: ply {}, player {} ",
-            state.ply,
-            state.current_player.to_string(),
-        );
+        if state.ply == new_ply {
+            println!("    (State did not change since last memento)");
+            return;
+        }
 
-        if !state.check_integrity() {
-            println!("Integrity check failed!");
+        // get current board
+        let mut new_board = [Bitboard::empty(); 4];
+        let vec = &self
+            .get_child("board")
+            .expect("Error while reading board")
+            .get_children();
+        for field in vec.iter() {
+            let x = field
+                .get_attribute("x")
+                .expect("Error while reading x")
+                .parse::<u16>()
+                .expect("Error while parsing x");
+            let y = field
+                .get_attribute("y")
+                .expect("Error while reading y")
+                .parse::<u16>()
+                .expect("Error while parsing y");
+            let to = x + y * 21;
+
+            let board_index = match field
+                .get_attribute("content")
+                .expect("Error while reading field content")
+                .as_ref()
+            {
+                "BLUE" => 0,
+                "YELLOW" => 1,
+                "RED" => 2,
+                _ => 3,
+            };
+            new_board[board_index].flip_bit(to);
+        }
+
+        // find the actions that lead to the new state and update the GameState
+        loop {
+            let last_board = state.board[state.current_color as usize];
+            let changed_fields = new_board[state.current_color as usize] & !last_board;
+            let action = Action::from_bitboard(changed_fields);
+            println!("    {}: {}", state.current_color, action);
+            state.do_action(action);
+            if state.ply == new_ply {
+                break;
+            }
         }
     }
 

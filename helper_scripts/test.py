@@ -26,6 +26,7 @@ class TestServer(Thread):
 
     def run(self):
         cmd = f"{self.test_server_path} --one {self.client1} --two {self.client2}"
+        print(cmd)
         for argument in self.args:
             cmd += " " + argument
 
@@ -50,19 +51,8 @@ class TestServer(Thread):
     def __repr__(self):
         return str(self)
 
-def calculate_LOS(wins, draws, losses):
-    def erf(x):
-        x = abs(x)
-        t = 1.0 / (1.0 + 0.3275911 * x)
-        y = 1.0 - (((((1.061405429 * t - 1.453152027) * t) + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * math.exp(-x*x)
-        return y
-    return 0.5 + 0.5 * erf((wins - losses) / (2.0 * (wins + draws + losses) ** 0.5))
-
 def get_stats(results):
-    average_score = 0
-    wins = 0
-    losses = 0
-    draws = 0
+    wins = draws = losses = average_score = 0
     for result in results:
         average_score += result
         if result > 0:
@@ -72,23 +62,24 @@ def get_stats(results):
         else:
             losses += 1
     average_score = round(average_score / len(results), 2) if len(results) > 0 else None
-    LOS = round(calculate_LOS(wins, draws, losses), 2) if len(results) > 0 else None
-    return average_score, wins, draws, losses, LOS
+    return average_score, wins, draws, losses
 
-def run_tests(client1, client2, servers=3, t=200):
+def run_tests(client1, client2, servers=3, t=1900, games=10_000):
+    if games < servers:
+        servers = games
     results = []
     threads = [TestServer(client1, client2, results, f"--time {t}") for _ in range(servers)]
     for thread in threads:
         thread.start()
 
+    print(f"{len(threads)} test servers running")
     last_len = None
     while True:
         if len(results) != last_len:
             last_len = len(results)
-            average_score, wins, draws, losses, LOS = get_stats(results)
-            print(f"games: {len(results)} average score: {average_score} wins: {wins} draws: {draws} losses: {losses} LOS: {LOS}")
-
-            if len(results) > 30 and LOS > 0.95:
+            average_score, wins, draws, losses = get_stats(results)
+            print(f"games: {len(results)} average score: {average_score} wins: {wins} draws: {draws} losses: {losses}")
+            if len(results) > games:
                 if wins > losses:
                     print(client1, end=" is the better client\n")
                 else:
@@ -99,19 +90,24 @@ def run_tests(client1, client2, servers=3, t=200):
     for thread in threads:
         thread.stop = True
 
-client1 = sys.argv[1].strip()
-client2 = sys.argv[2].strip()
-t = 1900
-servers = 3
-if len(sys.argv) > 3:
-    t = int(sys.argv[3].strip())
-if len(sys.argv) > 4:
-    servers = int(sys.argv[4].strip())
-print(f"Client1: {client1}\nClient2: {client2}\ntime/action: {t}\ntest servers: {servers}")
+    return get_stats(results)
 
-run_tests(
-    PATH + "/target/release/" + client1,
-    PATH + "/target/release/" + client2,
-    servers=servers,
-    t=t
-)
+if __name__ == "__main__":
+    client1 = sys.argv[1].strip()
+    client2 = sys.argv[2].strip()
+    t = 1900
+    servers = 3
+    if len(sys.argv) > 3:
+        t = int(sys.argv[3].strip())
+    if len(sys.argv) > 4:
+        servers = int(sys.argv[4].strip())
+        if servers > 3:
+            input(f"Start {servers} testservers?")
+    print(f"client1: {client1}\nclient2: {client2}\ntime/action: {t}\ntest servers: {servers}")
+
+    run_tests(
+        PATH + "/target/release/" + client1,
+        PATH + "/target/release/" + client2,
+        servers=servers,
+        t=t,
+    )

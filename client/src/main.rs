@@ -10,8 +10,9 @@ fn main() {
     let mut host = "localhost".to_string();
     let mut port = "13050".to_string();
     let mut reservation = "".to_string();
-    let mut time: u128 = 1900;
+    let mut time: u128 = 1980;
     let mut test = false;
+    let mut weights_file: String = "weights".to_string();
 
     {
         let mut parser = ArgumentParser::new();
@@ -34,17 +35,24 @@ fn main() {
             Store,
             "Run the test client insetead of the xml client.",
         );
+        parser.refer(&mut weights_file).add_option(
+            &["-w", "--wfile"],
+            Store,
+            "File to load neural network weights from",
+        );
         parser.parse_args_or_exit();
     }
 
-    println!("{}:{}{} {}ms {}", host, port, reservation, time, test);
-    let searcher = Searcher::new(time);
+    println!(
+        "Server: {}:{}\nReservation: \"{}\"\nTime/Action: {}ms\nTest: {}\nweights: \"{}\"",
+        host, port, reservation, time, test, weights_file
+    );
+    let searcher = Searcher::new(time, &weights_file);
 
     if test {
         run_test_client(searcher);
     } else {
         let mut client = XMLClient::new(host, port, reservation, searcher);
         client.run();
-        println!("bye");
     }
 }

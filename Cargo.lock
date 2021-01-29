@@ -67,6 +67,7 @@ name = "perft"
 version = "0.1.0"
 dependencies = [
  "game_sdk",
+ "rand",
 ]
 
 [[package]]
@@ -74,6 +75,16 @@ name = "player"
 version = "0.1.0"
 dependencies = [
  "game_sdk",
+ "rand",
+]
+
+[[package]]
+name = "playground"
+version = "0.1.0"
+dependencies = [
+ "argparse",
+ "game_sdk",
+ "player",
  "rand",
 ]
 

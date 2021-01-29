@@ -41,14 +41,14 @@ const DEFAULT_PARAMS: EvaluationParameters = EvaluationParameters {
     . . . . . . . . . . . . . . . . . . . .
     */
     occupied_fields_factor: 25.,
-    placement_fields_factor: 8.,
+    placement_fields_factor: 11.,
     blocked_factor: 2.5,
     valuable_fields_factor: 7.5,
-    proximity_factor: 30.,
+    proximity_factor: 15.,
 };
 
 pub fn static_evaluation(state: &GameState) -> i16 {
-    let team = (state.current_player as i16 & 0b1) * 2 - 1;
+    let team = state.current_color.team_i16();
     if state.is_game_over() {
         return MATE_SCORE - state.game_result() * team;
     }

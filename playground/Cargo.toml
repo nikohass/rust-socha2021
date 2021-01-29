@@ -1,5 +1,5 @@
 [package]
-name = "perft"
+name = "playground"
 version = "0.1.0"
 authors = ["Niko Haß <nikohass571@gmail.com>"]
 edition = "2018"
@@ -7,5 +7,7 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-game_sdk = { path = "../game_sdk"}
 rand = { version = "0.7.3", features = ["small_rng"] }
+game_sdk = { path = "../game_sdk"}
+player = {path = "../player"}
+argparse = "0.2.2"
