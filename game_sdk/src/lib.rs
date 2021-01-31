@@ -158,3 +158,9 @@ mod tests {
         }
     }
 }
+
+pub trait Player {
+    fn on_move_request(&mut self, state: &GameState) -> Action;
+
+    fn on_reset(&mut self) {}
+}

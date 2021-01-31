@@ -229,19 +229,14 @@ impl NeuralNetwork {
         &self,
         principal_variation: &mut ActionList,
         state: &GameState,
-        n: usize,
-    ) {
+    ) -> (Action, f32) {
         let mut state = state.clone();
         for i in 0..principal_variation.size {
             state.do_action(principal_variation[i]);
         }
-        for _ in 0..n {
-            let (action, _) = self.pick_action(&state);
-            principal_variation.push(action);
-            if n > 1 {
-                state.do_action(principal_variation[principal_variation.size - 1])
-            }
-        }
+        let (action, confidence) = self.pick_action(&state);
+        principal_variation.push(action);
+        (action, confidence)
     }
 }
 

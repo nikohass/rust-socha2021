@@ -1,10 +1,11 @@
 use argparse::{ArgumentParser, Store};
+mod test_client;
 mod xml_client;
 mod xml_node;
-use player::search::Searcher;
-use xml_client::XMLClient;
-mod test_client;
+use player::search::Searcher as Player;
+//use player::mcts::MCTS as Player;
 use test_client::run_test_client;
+use xml_client::XMLClient;
 
 fn main() {
     let mut host = "localhost".to_string();
@@ -47,12 +48,12 @@ fn main() {
         "Server: {}:{}\nReservation: \"{}\"\nTime/Action: {}ms\nTest: {}\nweights: \"{}\"",
         host, port, reservation, time, test, weights_file
     );
-    let searcher = Searcher::new(time, &weights_file);
-
+    let player = Box::new(Player::new(time, &weights_file));
+    //let player = Box::new(Player::new(time));
     if test {
-        run_test_client(searcher);
+        run_test_client(player);
     } else {
-        let mut client = XMLClient::new(host, port, reservation, searcher);
+        let mut client = XMLClient::new(host, port, reservation, player);
         client.run();
     }
 }

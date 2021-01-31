@@ -81,14 +81,8 @@ impl Action {
                     3 => "LEFT".to_string(),
                     _ => panic!("Invalid rotation"),
                 };
-
-                let mut to = *to;
-                if piece_type == PieceType::XPentomino {
-                    to -= 1;
-                }
-                let x = to % 21;
-                let y = (to - x) / 21;
-
+                let x = *to % 21;
+                let y = (*to - x) / 21;
                 let mut xml =
                     "  <data class=\"sc.plugin2021.SetMove\">\n    <piece color=\"".to_string();
                 xml.push_str(match color {

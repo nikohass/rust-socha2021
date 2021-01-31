@@ -1,7 +1,7 @@
 use super::cache::{EvaluationCache, TranspositionTable};
 use super::neural_network::NeuralNetwork;
 use super::principal_variation_search::principal_variation_search;
-use game_sdk::{Action, ActionList, ActionListStack, GameState};
+use game_sdk::{Action, ActionList, ActionListStack, GameState, Player};
 use rand::{rngs::SmallRng, RngCore, SeedableRng};
 use std::time::Instant;
 
@@ -22,7 +22,6 @@ pub fn random_action(state: &GameState) -> Action {
 
 pub struct Searcher {
     pub nodes_searched: u64,
-    pub depth_reached: u8,
     pub root_ply: u8,
     pub stop: bool,
     pub action_list_stack: ActionListStack,
@@ -33,9 +32,6 @@ pub struct Searcher {
     pub start_time: Instant,
     pub time_limit: u128,
     pub neural_network: Option<NeuralNetwork>,
-    // options for dataset generation
-    pub max_search_depth: usize,
-    pub dont_cancel: bool,
 }
 
 impl Searcher {
@@ -49,7 +45,6 @@ impl Searcher {
         };
         Searcher {
             nodes_searched: 0,
-            depth_reached: 0,
             root_ply: 0,
             stop: false,
             action_list_stack: ActionListStack::with_size(MAX_SEARCH_DEPTH),
@@ -60,57 +55,40 @@ impl Searcher {
             start_time: Instant::now(),
             neural_network,
             time_limit,
-            max_search_depth: MAX_SEARCH_DEPTH,
-            dont_cancel: false,
         }
     }
 
     pub fn search_action(&mut self, state: &GameState) -> Action {
         println!("Searching action using PV-Search");
+        println!("Depth    Time   Score     Nodes PV-prediction   Conf     Nodes/s PV");
         let mut state = state.clone();
-        //state.hash = 0;
         self.nodes_searched = 0;
         self.root_ply = state.ply;
         self.start_time = Instant::now();
         self.stop = false;
         self.principal_variation.clear();
-        self.time_limit = if self.dont_cancel {
-            100_000_000u128
-        } else {
-            self.time_limit
-        };
 
-        /*if state.ply < 12 {
-            if let Some(neural_network) = &self.neural_network {
-                let (action, conf) = neural_network.pick_action(&state);
-                println!(
-                    "NeuralNetwork: {} Confidence: {} time: {}ms",
-                    action.to_string(),
-                    conf,
-                    self.start_time.elapsed().as_millis(),
-                );
-                return action;
-            }
-        }*/
-
-        println!("Depth    Time   Score     Nodes     Nodes/s PV");
         let mut score = -MAX_SCORE;
         let mut best_action = Action::Skip;
         let mut last_principal_variation_size: usize = 0;
-        for depth in 1..=self.max_search_depth {
+        for depth in 1..=MAX_SEARCH_DEPTH {
             let depth_start_time = Instant::now();
-            if let Some(neural_network) = &self.neural_network {
-                neural_network.append_principal_variation(&mut self.principal_variation, &state, 1);
-            }
+            let (nn_action, confidence) = if let Some(neural_network) = &self.neural_network {
+                neural_network.append_principal_variation(&mut self.principal_variation, &state)
+            } else {
+                (Action::Skip, std::f32::NEG_INFINITY)
+            };
             let current_score =
                 principal_variation_search(self, &mut state, -MAX_SCORE, MAX_SCORE, 0, depth);
             let time = self.start_time.elapsed().as_millis();
             print!(
-                "{:5} {:5}ms {:7} {:9} {:11.1} ",
+                "{:5} {:5}ms {:7} {:9} {:12} {:7.3} {:11.1} ",
                 depth,
                 time,
                 current_score,
                 self.nodes_searched,
+                nn_action.to_short_name(),
+                confidence,
                 (self.nodes_searched as f64) / (time as f64) * 1000.
             );
             if self.stop {
@@ -118,7 +96,6 @@ impl Searcher {
                 break;
             }
             score = current_score;
-            self.depth_reached = depth as u8;
             self.principal_variation = self.pv_table[0].clone();
             best_action = self.principal_variation[0];
 
@@ -129,9 +106,6 @@ impl Searcher {
             last_principal_variation_size = self.principal_variation.size;
             println!("{}", format_principal_variation(&self.principal_variation));
 
-            if self.dont_cancel && time > self.time_limit {
-                break;
-            }
             if depth_start_time.elapsed().as_millis() > (self.time_limit - time) / 2 {
                 break;
             }
@@ -150,8 +124,17 @@ impl Searcher {
     pub fn reset(&mut self) {
         self.transposition_table = TranspositionTable::with_size(TT_SIZE);
         self.evaluation_cache = EvaluationCache::with_size(EVAL_CACHE_SIZE);
-        self.depth_reached = 0;
         self.nodes_searched = 0;
+    }
+}
+
+impl Player for Searcher {
+    fn on_move_request(&mut self, state: &GameState) -> Action {
+        self.search_action(state)
+    }
+
+    fn on_reset(&mut self) {
+        self.reset();
     }
 }
 

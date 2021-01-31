@@ -1,6 +1,6 @@
 use super::{
-    Action, ActionList, Bitboard, Color, PieceType, FIELD_HASH, PIECE_HASH, PIECE_TYPES, PLY_HASH,
-    START_FIELDS, VALID_FIELDS,
+    Action, ActionList, Bitboard, Color, PieceType, FIELD_HASH, PENTOMINO_SHAPES, PIECE_HASH,
+    PIECE_TYPES, PLY_HASH, START_FIELDS, VALID_FIELDS,
 };
 use rand::{rngs::SmallRng, RngCore};
 use std::fmt::{Display, Formatter, Result};
@@ -917,19 +917,15 @@ impl GameState {
         let square = two_right & two_right >> 21;
 
         for _ in 0..5 {
-            let to = random_field(&mut placement_fields.clone(), rng);
+            let to = random_field(&mut placement_fields.clone(), rng); // select a random placement field
             let mut shape_index = if pentomino_only {
-                rng.next_u32() % 68 + 23
+                PENTOMINO_SHAPES[(rng.next_u64() % 63) as usize]
             } else {
-                rng.next_u32() % 91
+                (rng.next_u32() % 91) as usize
             };
             if self.ply < 4 {
                 while PieceType::from_shape_index(shape_index as usize) != self.start_piece_type {
-                    shape_index = if pentomino_only {
-                        rng.next_u32() % 68 + 23
-                    } else {
-                        rng.next_u32() % 91
-                    };
+                    shape_index = PENTOMINO_SHAPES[(rng.next_u64() % 63) as usize]
                 }
             }
             if !self.pieces_left[PieceType::from_shape_index(shape_index as usize) as usize]
@@ -1008,11 +1004,12 @@ impl GameState {
                     }
                 }
                 10 => {
-                    let mut destinations = (three_right >> 20 & three_down)
+                    let mut destinations = ((three_right >> 20 & three_down)
                         & (placement_fields
                             | placement_fields >> 20
                             | placement_fields >> 22
-                            | placement_fields >> 42);
+                            | placement_fields >> 42))
+                        >> 1;
                     if destinations.not_zero() {
                         return Action::Set(random_field(&mut destinations, rng), 10);
                     }

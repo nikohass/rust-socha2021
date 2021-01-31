@@ -2,8 +2,8 @@ use argparse::{ArgumentParser, Store};
 use game_sdk::{Action, GameState};
 mod evaluation_cache;
 use evaluation_cache::EvaluationCache;
-use player::mcts::MCTS;
-use player::search::random_action;
+//use player::mcts::MCTS;
+use player::search::{random_action, Searcher};
 use rand::{rngs::SmallRng, RngCore, SeedableRng};
 use std::fs::OpenOptions;
 use std::io::prelude::*;
@@ -21,7 +21,7 @@ impl EvaluatedState {
         }
     }
 
-    pub fn evaluate(&mut self, searcher: &mut MCTS) -> Action {
+    pub fn evaluate(&mut self, searcher: &mut Searcher) -> Action {
         self.best_action = searcher.search_action(&self.state);
         self.best_action
     }
@@ -38,11 +38,13 @@ fn generate_evaluated_states(path: &str) {
     let mut rng = SmallRng::from_entropy();
     let mut cache = EvaluationCache::from_file("cache.txt", 100_000_000);
     let mut last_saved = 0;
-    let mut mcts = MCTS::new(10_000);
+    let mut searcher = Searcher::new(2_000, "weights");
 
     loop {
         let mut state = GameState::new();
-        while !state.is_game_over() {
+        println!("{}", state.start_piece_type);
+        while !state.is_game_over() && state.ply < 30 {
+            println!("{}", state.to_fen());
             let mut evaluated_state = EvaluatedState::from_state(state.clone());
             let mut cache_action = Action::Skip;
             let mut cache_hit = false;
@@ -54,9 +56,10 @@ fn generate_evaluated_states(path: &str) {
             }
 
             let next_action = if !cache_hit {
-                let next_action = evaluated_state.evaluate(&mut mcts);
+                let next_action = evaluated_state.evaluate(&mut searcher);
                 if next_action != Action::Skip {
                     save(&evaluated_state, path);
+                    last_saved += 1;
                     cache.insert(&state, &next_action, 0);
                 }
                 next_action
@@ -74,13 +77,12 @@ fn generate_evaluated_states(path: &str) {
             }
             println!("{}", state);
 
-            if last_saved > 30 {
+            if last_saved > 100 {
                 cache.merge("cache.txt");
                 println!("Saved cache");
                 last_saved = 0;
                 cache = EvaluationCache::from_file("cache.txt", 100_000_000);
             }
-            last_saved += 1;
         }
     }
 }

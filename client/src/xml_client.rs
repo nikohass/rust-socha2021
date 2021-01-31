@@ -1,10 +1,9 @@
-use game_sdk::GameState;
+use game_sdk::{GameState, Player};
+extern crate xml;
+use super::xml_node::XMLNode;
 use std::io::{prelude::Write, BufReader, BufWriter};
 use std::net::TcpStream;
-extern crate xml;
-use self::xml::reader::*;
-use super::xml_node::XMLNode;
-use player::search::Searcher;
+use xml::reader::*;
 
 pub struct XMLClient {
     state: GameState,
@@ -12,18 +11,23 @@ pub struct XMLClient {
     port: String,
     reservation: String,
     room_id: Option<String>,
-    searcher: Searcher,
+    player: Box<dyn Player>,
 }
 
 impl XMLClient {
-    pub fn new(host: String, port: String, reservation: String, searcher: Searcher) -> XMLClient {
+    pub fn new(
+        host: String,
+        port: String,
+        reservation: String,
+        player: Box<dyn Player>,
+    ) -> XMLClient {
         XMLClient {
             state: GameState::default(),
             host,
             port,
             reservation,
             room_id: None,
-            searcher,
+            player,
         }
     }
 
@@ -66,7 +70,7 @@ impl XMLClient {
                         }
                         "sc.framework.plugins.protocol.MoveRequest" => {
                             println!("Recieved move request");
-                            let action = self.searcher.search_action(&self.state);
+                            let action = self.player.on_move_request(&self.state);
                             let xml_move = action.to_xml(self.state.current_color);
                             println!("Sending: {}", action);
                             XMLClient::write_to(

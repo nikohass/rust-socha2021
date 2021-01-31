@@ -1,5 +1,5 @@
 use super::search::format_principal_variation;
-use game_sdk::{Action, ActionList, GameState};
+use game_sdk::{Action, ActionList, GameState, Player};
 use rand::{rngs::SmallRng, SeedableRng};
 use std::time::Instant;
 
@@ -8,13 +8,10 @@ const C_BASE: f32 = 7000.;
 const C_FACTOR: f32 = 0.0;
 
 pub fn rollout(state: &GameState, rng: &mut SmallRng) -> f32 {
-    let mut state = state.clone();
-
     let mut result = 0;
+    let mut state = state.clone();
     while !state.is_game_over() {
         let random_action = state.get_random_possible_action(rng, state.ply < 16);
-        //state.get_possible_actions(action_list);
-        //let random_action = action_list[rng.next_u64() as usize % action_list.size];
         state.do_action(random_action);
         result = state.game_result();
         if (state.skipped & 0b101 == 0b101 && result < 0)
@@ -23,7 +20,6 @@ pub fn rollout(state: &GameState, rng: &mut SmallRng) -> f32 {
             break;
         }
     }
-    //result = state.game_result();
     match result.cmp(&0) {
         std::cmp::Ordering::Greater => 1.,
         std::cmp::Ordering::Less => 0.,
@@ -130,9 +126,9 @@ impl Node {
         let delta;
         if self.children.is_empty() {
             if !state.is_game_over() {
-                if self.n as usize % 20 == 1 {
-                    self.expand(state, action_list);
-                }
+                //if self.n as usize % 20 == 1 {
+                self.expand(state, action_list);
+                //}
                 delta = -rollout(&state, rng) * state.current_color.team_f32();
             } else if self.n == 0. {
                 let result = -state.game_result() * state.current_color.team_i16();
@@ -175,11 +171,11 @@ pub struct MCTS {
 }
 
 impl MCTS {
-    pub fn new(time_limit: i64) -> Self {
+    pub fn new(time_limit: u128) -> Self {
         Self {
             root_node: Node::empty(),
             root_state: GameState::new(),
-            time_limit,
+            time_limit: time_limit as i64,
         }
     }
 
@@ -251,10 +247,11 @@ impl MCTS {
         println!("{}", action.visualize());
         panic!("MCTS selected {}. This actions is invalid.", action);
     }
+}
 
-    pub fn reset(&mut self) {
-        self.root_node = Node::empty();
-        self.root_state = GameState::new();
+impl Player for MCTS {
+    fn on_move_request(&mut self, state: &GameState) -> Action {
+        self.search_action(state)
     }
 }
 
