@@ -10,23 +10,22 @@ os.chdir(PATH)
 TEST_SERVER_PATH = PATH + "/target/release/test_server.exe"
 
 class TestServer(Thread):
-    def __init__(self, client1, client2, results, *args, test_server_path=TEST_SERVER_PATH):
+    def __init__(self, client1, client2, *args):
         Thread.__init__(self)
         self.daemon = True
         self.client1 = client1
         self.client2 = client2
-        self.test_server_path = test_server_path
-        self.args = args + ("-a true",)
+        self.args = args + ("--games 1000000",)
         self.stop = False
-        self.results = results
+        self.result = None
+        self.updated = False
         if not os.path.exists(self.client1):
             raise Exception(f"wrong path for client 1: {self.client1}")
         if not os.path.exists(self.client2):
             raise Exception(f"wrong path for client 2: {self.client2}")
 
     def run(self):
-        cmd = f"{self.test_server_path} --one {self.client1} --two {self.client2}"
-        print(cmd)
+        cmd = f"{TEST_SERVER_PATH} --one {self.client1} --two {self.client2}"
         for argument in self.args:
             cmd += " " + argument
 
@@ -36,12 +35,13 @@ class TestServer(Thread):
             line = p.stdout.readline()
             if line != b"":
                 try:
-                    self.results.append(int(line.decode("utf-8") .strip()))
+                    self.result = [int(entry) for entry in line.decode("utf-8").strip().split()]
+                    self.updated = True
                 except Exception as e:
                     print(e)
                     print(line)
                     self.stop = True
-            if self.stop or line == b"bye":
+            if self.stop:
                 p.terminate()
                 break
 
@@ -51,46 +51,29 @@ class TestServer(Thread):
     def __repr__(self):
         return str(self)
 
-def get_stats(results):
-    wins = draws = losses = average_score = 0
-    for result in results:
-        average_score += result
-        if result > 0:
-            wins += 1
-        elif result == 0:
-            draws += 1
-        else:
-            losses += 1
-    average_score = round(average_score / len(results), 2) if len(results) > 0 else None
-    return average_score, wins, draws, losses
+def print_stats(threads):
+    stats = [sum([thread.result[i] for thread in threads if thread.result != None]) for i in range(5)]
+    one, draws, two, games, sum_results = tuple(stats)
+    print(f"Games: {games} Result: {one} {draws} {two} Average result: {round(sum_results / games, 2)}")
+    return games
 
-def run_tests(client1, client2, servers=3, t=1900, games=10_000):
+def run_tests(client1, client2, servers=3, t=1900, games=300):
     if games < servers:
         servers = games
-    results = []
-    threads = [TestServer(client1, client2, results, f"--time {t}") for _ in range(servers)]
+    threads = [TestServer(client1, client2, f"--time {t}") for _ in range(servers)]
     for thread in threads:
         thread.start()
 
-    print(f"{len(threads)} test servers running")
-    last_len = None
     while True:
-        if len(results) != last_len:
-            last_len = len(results)
-            average_score, wins, draws, losses = get_stats(results)
-            print(f"games: {len(results)} average score: {average_score} wins: {wins} draws: {draws} losses: {losses}")
-            if len(results) > games:
-                if wins > losses:
-                    print(client1, end=" is the better client\n")
-                else:
-                    print(client2, end=" is the better client\n")
+        if any([thread.updated for thread in threads]):
+            if print_stats(threads) > games:
                 break
-        time.sleep(1)
+            for thread in threads:
+                thread.updated = False
+        time.sleep(0.1)
 
     for thread in threads:
         thread.stop = True
-
-    return get_stats(results)
 
 if __name__ == "__main__":
     client1 = sys.argv[1].strip()
