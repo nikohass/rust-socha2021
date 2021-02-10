@@ -1,3 +1,4 @@
+use super::float_stuff::{ln, sqrt};
 use super::search::format_principal_variation;
 use game_sdk::{Action, ActionList, GameState, Player};
 use rand::{rngs::SmallRng, SeedableRng};
@@ -76,14 +77,14 @@ impl Node {
 
     fn get_uct_value(&self, parent_n: f32, c: f32) -> f32 {
         if self.n > 0. {
-            (self.q / self.n) + c * (parent_n.ln() / self.n).sqrt()
+            (self.q / self.n) + c * sqrt(ln(parent_n) / self.n)
         } else {
             std::f32::INFINITY
         }
     }
 
     fn child_with_max_uct_value(&mut self) -> &mut Node {
-        let c_adjusted = C + C_FACTOR * ((1. + self.n + C_BASE) / C_BASE).ln();
+        let c_adjusted = C + C_FACTOR * ln((1. + self.n + C_BASE) / C_BASE);
         let mut best_child = 0;
         let mut best_value = std::f32::NEG_INFINITY;
         for (i, child) in self.children.iter().enumerate() {

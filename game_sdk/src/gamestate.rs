@@ -169,9 +169,10 @@ impl GameState {
 
     pub fn get_possible_actions(&self, action_list: &mut ActionList) {
         action_list.clear();
-        //if self.skipped & 1 << self.current_color as u8 != 0 {
-        //    return;
-        //}
+        if self.skipped & 1 << self.current_color as u8 != 0 {
+            action_list.push(Action::Skip);
+            return;
+        }
         // fields of the current color
         let own_fields = self.board[self.current_color as usize];
         let other_fields =
@@ -888,7 +889,12 @@ impl GameState {
         }
     }
 
-    pub fn get_random_possible_action(&self, rng: &mut SmallRng, pentomino_only: bool, tries: usize) -> Action {
+    pub fn get_random_possible_action(
+        &self,
+        rng: &mut SmallRng,
+        pentomino_only: bool,
+        tries: usize,
+    ) -> Action {
         let own_fields = self.board[self.current_color as usize];
         let other_fields =
             (self.board[0] | self.board[1] | self.board[2] | self.board[3]) & !own_fields;
@@ -1838,9 +1844,9 @@ impl Display for GameState {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         let mut string = String::new();
 
-        string.push_str("╔");
+        string.push('╔');
         for _ in 0..40 {
-            string.push_str("═");
+            string.push('═');
         }
         string.push_str("╗\n");
 
@@ -1857,11 +1863,11 @@ impl Display for GameState {
         }
         string.push_str("║\n");
 
-        string.push_str("╠");
+        string.push('╠');
         for _ in 0..40 {
-            string.push_str("═");
+            string.push('═');
         }
-        string.push_str("╣");
+        string.push('╣');
 
         for y in 0..20 {
             string.push_str("\n║");
@@ -1869,24 +1875,24 @@ impl Display for GameState {
                 let field = x + y * 21;
                 let bit = Bitboard::bit(field);
                 if self.board[0] & bit == bit {
-                    string.push_str("🟦");
+                    string.push('🟦');
                 } else if self.board[1] & bit == bit {
-                    string.push_str("🟨");
+                    string.push('🟨');
                 } else if self.board[2] & bit == bit {
-                    string.push_str("🟥");
+                    string.push('🟥');
                 } else if self.board[3] & bit == bit {
-                    string.push_str("🟩");
+                    string.push('🟩');
                 } else {
                     string.push_str("▪️");
                 }
             }
-            string.push_str("║");
+            string.push('║');
         }
         string.push_str("\n╚");
         for _ in 0..40 {
-            string.push_str("═");
+            string.push('═');
         }
-        string.push_str("╝");
+        string.push('╝');
 
         write!(f, "{}", string)
     }

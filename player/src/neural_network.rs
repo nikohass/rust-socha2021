@@ -1,20 +1,12 @@
-use game_sdk::*;
+use super::float_stuff::{relu, sigmoid};
+use game_sdk::{Action, ActionList, Bitboard, GameState, Player};
 use std::fs::File;
 use std::io::Read;
 
 const INPUT_DIMS: usize = 1692;
 const OUTPUT_DIMS: usize = 400;
 
-#[inline(always)]
-fn sigmoid(x: f32) -> f32 {
-    1. / (1. + (-x).exp())
-}
-
-#[inline(always)]
-fn relu(x: f32) -> f32 {
-    f32::max(0., x)
-}
-
+#[derive(Clone)]
 pub struct Layer {
     input_size: usize,
     output_size: usize,
@@ -59,6 +51,7 @@ impl Layer {
     }
 }
 
+#[derive(Clone)]
 pub struct NeuralNetwork {
     layers: Vec<Layer>,
 }
@@ -371,5 +364,16 @@ impl Rotation {
             ),
             Action::Skip => action,
         }
+    }
+}
+
+impl Player for NeuralNetwork {
+    fn on_move_request(&mut self, state: &GameState) -> Action {
+        let (action, confidence) = self.pick_action(&state);
+        println!(
+            "Neural Network selected {} with a confidence of {}",
+            action, confidence
+        );
+        action
     }
 }

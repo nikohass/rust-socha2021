@@ -348,9 +348,9 @@ impl Display for Bitboard {
                 let bit = Bitboard::bit(x + y * 21);
                 if bit & *self == bit {
                     if x < 20 && y < 20 {
-                        string.push_str("🟧");
+                        string.push('🟧');
                     } else {
-                        string.push_str("🟥");
+                        string.push('🟥');
                     }
                 } else {
                     string.push_str(". ");

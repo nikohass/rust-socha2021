@@ -15,16 +15,6 @@ pub struct TestResult {
 }
 
 impl TestResult {
-    pub fn new() -> Self {
-        Self {
-            client_one_wins: 0,
-            draws: 0,
-            client_two_wins: 0,
-            games_played: 0,
-            sum_results: 0,
-        }
-    }
-
     pub fn add_game_result(&mut self, result: i16) {
         match result.cmp(&0) {
             std::cmp::Ordering::Greater => self.client_one_wins += 1,
@@ -33,6 +23,18 @@ impl TestResult {
         };
         self.sum_results += result as i64;
         self.games_played += 1;
+    }
+}
+
+impl Default for TestResult {
+    fn default() -> Self {
+        Self {
+            client_one_wins: 0,
+            draws: 0,
+            client_two_wins: 0,
+            games_played: 0,
+            sum_results: 0,
+        }
     }
 }
 
@@ -54,6 +56,7 @@ pub struct Client {
     pub input: ChildStdin,
     pub output: ChildStdout,
     pub path: String,
+    pub time: u64,
 }
 
 impl Client {
@@ -70,6 +73,7 @@ impl Client {
             input: process.stdin.take().unwrap(),
             output: process.stdout.take().unwrap(),
             path,
+            time,
         }
     }
 
@@ -91,7 +95,7 @@ impl Client {
                 println!("{}", new_line);
             }
             new_line = String::new();
-            if start_time.elapsed().as_secs() > 120 {
+            if start_time.elapsed().as_millis() > self.time as u128 + 500 {
                 panic!("Client not responding");
             }
         }
@@ -114,13 +118,12 @@ impl Client {
 }
 
 fn play_game(
-    state: &GameState,
+    state: &mut GameState,
     client_team_one: &mut Client,
     client_team_two: &mut Client,
     verbose: bool,
     r: f64,
 ) -> i16 {
-    let mut state = state.clone();
     let mut rng = SmallRng::from_entropy();
     let mut action_list = ActionList::default();
     while !state.is_game_over() {
@@ -196,7 +199,7 @@ fn main() {
 
     let mut client_one = Client::from_path(client_one_path, time);
     let mut client_two = Client::from_path(client_two_path, time);
-    let mut test_result = TestResult::new();
+    let mut test_result = TestResult::default();
     let state = GameState::new();
     std::thread::sleep(std::time::Duration::from_millis(1000)); // give the clients some time to initialize
 
