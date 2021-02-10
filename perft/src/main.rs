@@ -23,7 +23,7 @@ fn random_perft() {
     for _ in 0..10_000 {
         let mut state = GameState::new();
         while !state.is_game_over() {
-            let random_action = state.get_random_possible_action(&mut rng, state.ply < 12);
+            let random_action = state.get_random_possible_action(&mut rng, state.ply < 12, 10);
             state.do_action(random_action);
             if (state.skipped & 0b101 == 0b101 && state.game_result() < 0)
                 || (state.skipped & 0b1010 == 0b1010 && state.game_result() > 0)

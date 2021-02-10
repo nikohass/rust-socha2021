@@ -78,7 +78,7 @@ mod tests {
         for fen in TEST_FENS.iter() {
             let state = GameState::from_fen(fen.to_string());
             state.get_possible_actions(&mut action_list);
-            for index in 0..action_list.size {
+            for index in 0..action_list.size / 10 {
                 let action = action_list[index];
                 assert_eq!(action, Action::deserialize(action.serialize()));
             }
@@ -91,7 +91,7 @@ mod tests {
         for fen in TEST_FENS.iter() {
             let state = GameState::from_fen(fen.to_string());
             state.get_possible_actions(&mut action_list);
-            for index in 0..action_list.size {
+            for index in 0..action_list.size / 10 {
                 if let Action::Set(to, shape_index) = action_list[index] {
                     let action_board = Bitboard::with_piece(to, shape_index);
                     assert_eq!(action_list[index], Action::from_bitboard(action_board));
@@ -151,7 +151,7 @@ mod tests {
     }
 
     #[test]
-    fn check_integrity() {
+    fn test_check_integrity() {
         for fen in TEST_FENS.iter() {
             let state = GameState::from_fen(fen.to_string());
             assert!(state.check_integrity());

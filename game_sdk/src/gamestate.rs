@@ -11,7 +11,7 @@ pub struct GameState {
     pub board: [Bitboard; 4],
     pub current_color: Color,
     pub pieces_left: [[bool; 4]; 21],
-    pub monomino_placed_last: [bool; 4],
+    pub monomino_placed_last: u8,
     pub skipped: u64,
     pub start_piece_type: PieceType,
     pub hash: u64,
@@ -24,7 +24,7 @@ impl GameState {
             board: [Bitboard::empty(); 4],
             current_color: Color::BLUE,
             pieces_left: [[true; 4]; 21],
-            monomino_placed_last: [false; 4],
+            monomino_placed_last: 0,
             skipped: 0,
             start_piece_type: PieceType::random_pentomino(),
             hash: 0,
@@ -52,8 +52,11 @@ impl GameState {
                 );
                 self.pieces_left[piece_type as usize][self.current_color as usize] = false;
                 self.board[self.current_color as usize] ^= piece;
-                self.monomino_placed_last[self.current_color as usize] =
-                    piece_type == PieceType::Monomino;
+                if piece_type == PieceType::Monomino {
+                    self.monomino_placed_last |= 1 << self.current_color as usize;
+                } else {
+                    self.monomino_placed_last &= !(1 << self.current_color as usize);
+                }
             }
         };
         self.current_color = self.current_color.next();
@@ -166,6 +169,9 @@ impl GameState {
 
     pub fn get_possible_actions(&self, action_list: &mut ActionList) {
         action_list.clear();
+        //if self.skipped & 1 << self.current_color as u8 != 0 {
+        //    return;
+        //}
         // fields of the current color
         let own_fields = self.board[self.current_color as usize];
         let other_fields =
@@ -882,7 +888,7 @@ impl GameState {
         }
     }
 
-    pub fn get_random_possible_action(&self, rng: &mut SmallRng, pentomino_only: bool) -> Action {
+    pub fn get_random_possible_action(&self, rng: &mut SmallRng, pentomino_only: bool, tries: usize) -> Action {
         let own_fields = self.board[self.current_color as usize];
         let other_fields =
             (self.board[0] | self.board[1] | self.board[2] | self.board[3]) & !own_fields;
@@ -916,7 +922,7 @@ impl GameState {
 
         let square = two_right & two_right >> 21;
 
-        for _ in 0..5 {
+        for _ in 0..tries {
             let to = random_field(&mut placement_fields.clone(), rng); // select a random placement field
             let mut shape_index = if pentomino_only {
                 PENTOMINO_SHAPES[(rng.next_u64() % 63) as usize]
@@ -1738,7 +1744,7 @@ impl GameState {
             if *score == 89 {
                 *score += 15;
             }
-            if self.monomino_placed_last[color] {
+            if self.monomino_placed_last & (1 << color) != 0 {
                 *score += 5;
             }
         }
@@ -1746,11 +1752,8 @@ impl GameState {
     }
 
     pub fn to_fen(&self) -> String {
-        let mut data: u128 = 0;
+        let mut data = self.monomino_placed_last as u128;
         for color in 0..4 {
-            if self.monomino_placed_last[color as usize] {
-                data |= 1 << color;
-            }
             for piece_type in 0..21 {
                 if self.pieces_left[piece_type as usize][color as usize] {
                     data |= 1 << (piece_type + 21 * color + 4);
@@ -1805,8 +1808,8 @@ impl GameState {
             state.board[color].four = entries.remove(0).parse::<u128>().unwrap();
         }
         let data = entries.remove(0).parse::<u128>().unwrap();
+        state.monomino_placed_last = data as u8 & 0b1111;
         for color in 0..4 {
-            state.monomino_placed_last[color as usize] = (1 << color) & data != 0;
             for piece_type in 0..21 {
                 state.pieces_left[piece_type][color] =
                     data & 1 << (piece_type + 21 * color + 4) != 0;

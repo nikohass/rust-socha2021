@@ -2,8 +2,9 @@ use argparse::{ArgumentParser, Store};
 mod test_client;
 mod xml_client;
 mod xml_node;
-use player::search::Searcher as Player;
-//use player::mcts::MCTS as Player;
+use player::mcts::MCTS as Player;
+//use player::neural_network::NeuralNetwork as Player;
+//use player::search::Searcher as Player;
 use test_client::run_test_client;
 use xml_client::XMLClient;
 
@@ -45,11 +46,17 @@ fn main() {
     }
 
     println!(
-        "Server: {}:{}\nReservation: \"{}\"\nTime/Action: {}ms\nTest: {}\nweights: \"{}\"",
+        "Server: {}:{}\nReservation: \"{}\"\nTime/Action: {}ms\nTest: {}\nWeights: \"{}\"",
         host, port, reservation, time, test, weights_file
     );
-    let player = Box::new(Player::new(time, &weights_file));
-    //let player = Box::new(Player::new(time));
+
+    //let player = Box::new(Player::new(time, &weights_file)); // Principal Variation search
+
+    let player = Box::new(Player::new(time)); // Monte Carlo tree search
+
+    //let mut player = Box::new(Player::policy_network()); // Neural Network
+    //player.load_weights(&weights_file);
+
     if test {
         run_test_client(player);
     } else {

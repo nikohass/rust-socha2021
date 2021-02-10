@@ -3,15 +3,16 @@ use game_sdk::{Action, ActionList, GameState, Player};
 use rand::{rngs::SmallRng, SeedableRng};
 use std::time::Instant;
 
-const C: f32 = 1.5;
+const C: f32 = 0.0;
 const C_BASE: f32 = 7000.;
-const C_FACTOR: f32 = 0.0;
+const C_FACTOR: f32 = 35.5;
+const VISITS_BEFORE_EXPANSION: usize = 30;
 
 pub fn rollout(state: &GameState, rng: &mut SmallRng) -> f32 {
     let mut result = 0;
     let mut state = state.clone();
     while !state.is_game_over() {
-        let random_action = state.get_random_possible_action(rng, state.ply < 16);
+        let random_action = state.get_random_possible_action(rng, state.ply < 16, 30);
         state.do_action(random_action);
         result = state.game_result();
         if (state.skipped & 0b101 == 0b101 && result < 0)
@@ -53,10 +54,6 @@ impl Node {
     }
 
     pub fn best_child(&self) -> &Node {
-        if self.children.is_empty() {
-            println!("Node has no children");
-        }
-
         let mut best_child: usize = 0;
         let mut best_value = std::f32::NEG_INFINITY;
         for (i, child_node) in self.children.iter().enumerate() {
@@ -126,12 +123,12 @@ impl Node {
         let delta;
         if self.children.is_empty() {
             if !state.is_game_over() {
-                //if self.n as usize % 20 == 1 {
-                self.expand(state, action_list);
-                //}
+                if self.n as usize % VISITS_BEFORE_EXPANSION == 1 {
+                    self.expand(state, action_list);
+                }
                 delta = -rollout(&state, rng) * state.current_color.team_f32();
             } else if self.n == 0. {
-                let result = -state.game_result() * state.current_color.team_i16();
+                let result = state.game_result() * state.current_color.team_i16();
                 self.q = match result {
                     r if r > 0 => 1.,
                     r if r < 0 => 0.,
@@ -157,6 +154,9 @@ impl Node {
             return;
         }
         let child = self.best_child();
+        if child.n == 0. {
+            return;
+        }
         let action = child.action;
         action_list.push(action);
         state.do_action(action);
@@ -211,8 +211,8 @@ impl MCTS {
 
     pub fn search_action(&mut self, state: &GameState) -> Action {
         println!("Searching action using MCTS");
-        self.set_root(&state);
         let start_time = Instant::now();
+        self.set_root(&state);
         let mut rng = SmallRng::from_entropy();
         let mut principal_variation = ActionList::default();
         let mut iterations_per_ms = 0.1;
@@ -226,7 +226,7 @@ impl MCTS {
         loop {
             let time_left = self.time_limit - start_time.elapsed().as_millis() as i64;
             self.print_stats(&mut principal_variation, time_left);
-            if time_left < 30 {
+            if time_left < 80 {
                 break;
             }
             let to_search = ((time_left as f64 / 2.) * iterations_per_ms)

@@ -37,8 +37,7 @@ pub struct Searcher {
 impl Searcher {
     pub fn new(time_limit: u128, weights_file: &str) -> Searcher {
         let mut neural_network = NeuralNetwork::policy_network();
-        let successful = neural_network.load_weights(weights_file);
-        let neural_network = if successful {
+        let neural_network = if neural_network.load_weights(weights_file) {
             Some(neural_network)
         } else {
             None
@@ -49,7 +48,7 @@ impl Searcher {
             stop: false,
             action_list_stack: ActionListStack::with_size(MAX_SEARCH_DEPTH),
             principal_variation: ActionList::default(),
-            pv_table: ActionListStack::with_size(MAX_SEARCH_DEPTH + 2),
+            pv_table: ActionListStack::with_size(MAX_SEARCH_DEPTH),
             transposition_table: TranspositionTable::with_size(TT_SIZE),
             evaluation_cache: EvaluationCache::with_size(EVAL_CACHE_SIZE),
             start_time: Instant::now(),
@@ -125,6 +124,8 @@ impl Searcher {
         self.transposition_table = TranspositionTable::with_size(TT_SIZE);
         self.evaluation_cache = EvaluationCache::with_size(EVAL_CACHE_SIZE);
         self.nodes_searched = 0;
+        self.root_ply = 0;
+        self.stop = false;
     }
 }
 

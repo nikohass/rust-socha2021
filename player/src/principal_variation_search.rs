@@ -21,16 +21,15 @@ pub fn principal_variation_search(
     }
 
     if depth_left == 0 || searcher.stop || state.is_game_over() {
-        // ca. 84%
         let evaluation_cache_entry = searcher.evaluation_cache.lookup(state.hash);
         if evaluation_cache_entry.hash == state.hash
             && evaluation_cache_entry.score != std::i16::MIN
         {
-            return evaluation_cache_entry.score; // ca. 23%
+            return evaluation_cache_entry.score;
         } else {
             let score = static_evaluation(state);
             searcher.evaluation_cache.insert(state.hash, score);
-            return score; // ca. 61%
+            return score;
         }
     }
 
@@ -44,7 +43,7 @@ pub fn principal_variation_search(
         }
     }
 
-    state.get_possible_actions(&mut searcher.action_list_stack[depth_left]); // ca. 16%
+    state.get_possible_actions(&mut searcher.action_list_stack[depth_left]);
 
     let mut ordering_index: usize = 0;
     if searcher.principal_variation.size > current_depth {
@@ -64,7 +63,6 @@ pub fn principal_variation_search(
         && transposition_table_entry.ply == state.ply
         && transposition_table_entry.hash == state.hash
     {
-        // 8%
         if !is_pv_node {
             if transposition_table_entry.alpha && transposition_table_entry.beta {
                 return transposition_table_entry.score;
