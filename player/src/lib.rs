@@ -48,8 +48,8 @@ pub mod float_stuff {
         let w = clipp as i32;
         let z = clipp - (w as f32) + offset;
         let v = ((1 << 23) as f32
-        * (clipp + 121.274_06_f32 + 27.728_02_f32 / (4.842_526_f32 - z) - 1.490_129_1_f32 * z))
-        as u32;
+            * (clipp + 121.274_06_f32 + 27.728_02_f32 / (4.842_526_f32 - z) - 1.490_129_1_f32 * z))
+            as u32;
         f32::from_bits(v)
     }
 

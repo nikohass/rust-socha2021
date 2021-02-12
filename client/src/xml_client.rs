@@ -3,6 +3,7 @@ extern crate xml;
 use super::xml_node::XMLNode;
 use std::io::{prelude::Write, BufReader, BufWriter};
 use std::net::TcpStream;
+use std::time::Instant;
 use xml::reader::*;
 
 pub struct XMLClient {
@@ -12,6 +13,7 @@ pub struct XMLClient {
     reservation: String,
     room_id: Option<String>,
     player: Box<dyn Player>,
+    opponent_time: Instant,
 }
 
 impl XMLClient {
@@ -28,6 +30,7 @@ impl XMLClient {
             reservation,
             room_id: None,
             player,
+            opponent_time: Instant::now(),
         }
     }
 
@@ -70,6 +73,12 @@ impl XMLClient {
                         }
                         "sc.framework.plugins.protocol.MoveRequest" => {
                             println!("Recieved move request");
+                            if self.state.ply > 1 {
+                                println!(
+                                    "Opponent took ca. {}ms to respond.",
+                                    self.opponent_time.elapsed().as_millis()
+                                );
+                            }
                             let action = self.player.on_move_request(&self.state);
                             let xml_move = action.to_xml(self.state.current_color);
                             println!("Sending: {}", action);
@@ -81,6 +90,7 @@ impl XMLClient {
                                     xml_move
                                 ),
                             );
+                            self.opponent_time = Instant::now();
                         }
                         "result" => {
                             println!("Recieved result");
@@ -102,6 +112,7 @@ impl XMLClient {
                                     _ => "The game ended because of a hard timeout.".to_string(),
                                 }
                             );
+                            println!("Result: {}", self.state.game_result());
                             return;
                         }
                         s => {
