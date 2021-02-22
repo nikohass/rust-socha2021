@@ -25,11 +25,6 @@ fn random_perft() {
         while !state.is_game_over() {
             let random_action = state.get_random_possible_action(&mut rng, state.ply < 12, 10);
             state.do_action(random_action);
-            if (state.skipped & 0b101 == 0b101 && state.game_result() < 0)
-                || (state.skipped & 0b1010 == 0b1010 && state.game_result() > 0)
-            {
-                break;
-            }
         }
     }
     let time_elapsed = start_time.elapsed().as_micros();
@@ -55,7 +50,7 @@ fn random_perft() {
 }
 
 fn test() {
-    let current_best: f64 = 24464367.;
+    let current_best: f64 = 26_734_010.;
     let depth = 3;
     let start_time = Instant::now();
     let mut action_list_stack = ActionListStack::with_size(depth + 1);
@@ -89,7 +84,7 @@ fn test() {
 }
 
 fn main() {
-    for _ in 0..15 {
+    for _ in 0..5 {
         test();
     }
     random_perft();

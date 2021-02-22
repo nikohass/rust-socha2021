@@ -36,10 +36,10 @@ pub fn principal_variation_search(
     if !is_pv_node && current_depth > 2 {
         if state.ply & 0b1 == 0 {
             if state.skipped & 0b101 == 0b101 && state.game_result() < 0 {
-                return MATE_SCORE;
+                return -MATE_SCORE;
             }
         } else if state.skipped & 0b1010 == 0b1010 && state.game_result() > 0 {
-            return MATE_SCORE;
+            return -MATE_SCORE;
         }
     }
 

@@ -6,13 +6,17 @@ pub struct TranspositionTable {
 }
 
 impl TranspositionTable {
-    pub fn with_size(entries: usize) -> TranspositionTable {
+    pub fn with_size(entries: usize) -> Self {
         let cache = vec![TranspositionTableEntry::empty(); entries];
-        TranspositionTable { cache, entries }
+        Self { cache, entries }
     }
 
     pub fn insert(&mut self, hash: u64, entry: TranspositionTableEntry) {
-        self.cache[hash as usize % self.entries] = entry;
+        let index = hash as usize % self.entries;
+        let current_entry = self.cache[index];
+        if entry.ply < current_entry.ply {
+            self.cache[index] = entry;
+        }
     }
 
     pub fn lookup(&self, hash: u64) -> TranspositionTableEntry {
@@ -37,8 +41,8 @@ impl TranspositionTableEntry {
         self.depth_left == std::u8::MAX
     }
 
-    pub fn empty() -> TranspositionTableEntry {
-        TranspositionTableEntry {
+    pub fn empty() -> Self {
+        Self {
             action: Action::Skip,
             score: 0,
             ply: 0,
@@ -79,8 +83,8 @@ pub struct EvaluationCacheEntry {
 }
 
 impl EvaluationCacheEntry {
-    pub fn empty() -> EvaluationCacheEntry {
-        EvaluationCacheEntry {
+    pub fn empty() -> Self {
+        Self {
             hash: 0,
             score: std::i16::MIN,
         }

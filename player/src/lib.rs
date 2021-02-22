@@ -5,16 +5,40 @@ pub mod neural_network;
 pub mod principal_variation_search;
 pub mod search;
 
-use game_sdk::{Action, GameState};
+pub mod simple_client {
+    use game_sdk::Player;
+    use game_sdk::{Action, ActionList, GameState};
+    use rand::{rngs::SmallRng, RngCore, SeedableRng};
 
-pub trait Player {
-    fn on_move_request(&mut self, state: &GameState) -> Action;
+    pub struct SimpleClient {
+        rng: SmallRng,
+        action_list: ActionList,
+    }
 
-    fn on_reset(&mut self) {}
+    impl SimpleClient {
+        pub fn get_action(&mut self, state: &GameState) -> Action {
+            state.get_possible_actions(&mut self.action_list);
+            self.action_list[self.rng.next_u64() as usize % self.action_list.size]
+        }
+    }
+
+    impl Player for SimpleClient {
+        fn on_move_request(&mut self, state: &GameState) -> Action {
+            self.get_action(state)
+        }
+    }
+
+    impl Default for SimpleClient {
+        fn default() -> Self {
+            Self {
+                rng: SmallRng::from_entropy(),
+                action_list: ActionList::default(),
+            }
+        }
+    }
 }
 
 // Some of the built-in float functions caused the client to crash on the Software-Challenge server
-// might be a cross-compiling issue
 pub mod float_stuff {
     #[inline(always)]
     pub fn sqrt(x: f32) -> f32 {

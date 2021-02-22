@@ -1,14 +1,21 @@
 use game_sdk::{Action, ActionList, GameState};
 use player::mcts::MCTS;
+//use player::simple_client::SimpleClient;
 use std::fs::OpenOptions;
 use std::io::prelude::*;
 
-fn save(states: &[GameState], actions: &mut ActionList, result: i16, values: &mut [f32; 100]) {
+fn save(
+    states: &[GameState],
+    actions: &mut ActionList,
+    result: i16,
+    values: &mut [f32; 100],
+    path: &str,
+) {
     let mut file = OpenOptions::new()
         .write(true)
         .append(true)
         .create(true)
-        .open("datasets/dataset.txt")
+        .open(path)
         .unwrap();
     for (i, state) in states.iter().enumerate() {
         let fen = format!(
@@ -24,8 +31,8 @@ fn save(states: &[GameState], actions: &mut ActionList, result: i16, values: &mu
     }
 }
 
-fn main() {
-    let mut mcts = MCTS::new(3100);
+pub fn generate_dataset() {
+    let mut mcts = MCTS::new(7100);
     let mut actions: ActionList = ActionList::default();
     let mut values: [f32; 100] = [0.; 100];
     let mut states: Vec<GameState> = Vec::with_capacity(100);
@@ -38,7 +45,7 @@ fn main() {
 
     loop {
         let mut state = GameState::new();
-        while !state.is_game_over() {
+        while !state.is_game_over() && state.ply < 60 {
             println!("{}", state.to_fen());
             let (action, value) = mcts.search_action(&state);
             if action == Action::Skip {
@@ -60,7 +67,13 @@ fn main() {
             _ => {}
         }
         sum_results += result as i64;
-        save(&states, &mut actions, state.game_result(), &mut values);
+        save(
+            &states,
+            &mut actions,
+            state.game_result(),
+            &mut values,
+            "datasets/dataset.txt",
+        );
         actions.clear();
         states.truncate(0);
 
@@ -76,4 +89,56 @@ fn main() {
             games_played - one_wins - draws
         );
     }
+}
+
+pub fn generate_opening_dataset() {
+    let mut mcts = MCTS::new(15_000);
+    let mut simple_client = MCTS::new(500); //SimpleClient::default();
+    let mut actions: ActionList = ActionList::default();
+    let mut values: [f32; 100] = [f32::NAN; 100];
+    let mut states: Vec<GameState> = Vec::with_capacity(100);
+    let mut states_searched: u64 = 0;
+    let mut games_played: usize = 0;
+
+    loop {
+        let mut state = GameState::new();
+        while !state.is_game_over() && state.ply < 24 {
+            println!("{}", state.to_fen());
+            if state.ply as usize & 0b1 == games_played & 0b1 {
+                let (action, _) = simple_client.search_action(&state);
+                //state.do_action(simple_client.search_action(&state));
+                state.do_action(action);
+                println!("{}", state);
+                continue;
+            }
+            let (action, _) = mcts.search_action(&state);
+            if action == Action::Skip {
+                state.do_action(Action::Skip);
+                continue;
+            }
+            states_searched += 1;
+            states.push(state.clone());
+            actions.push(action);
+            state.do_action(action);
+            println!("{}", state);
+        }
+        games_played += 1;
+        let result = std::i16::MAX;
+        save(
+            &states,
+            &mut actions,
+            result,
+            &mut values,
+            "datasets/openings.txt",
+        );
+        actions.clear();
+        states.truncate(0);
+
+        println!("Searched: {} ", states_searched,);
+    }
+}
+
+fn main() {
+    generate_dataset();
+    //generate_opening_dataset();
 }

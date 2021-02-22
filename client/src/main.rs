@@ -2,6 +2,7 @@ use argparse::{ArgumentParser, Store};
 mod test_client;
 mod xml_client;
 mod xml_node;
+//use player::simple_client::SimpleClient as Player;
 use player::mcts::MCTS as Player;
 //use player::neural_network::NeuralNetwork as Player;
 //use player::search::Searcher as Player;
@@ -14,7 +15,6 @@ fn main() {
     let mut reservation = "".to_string();
     let mut time: u128 = 1980;
     let mut test = false;
-    let mut weights_file: String = "weights".to_string();
 
     {
         let mut parser = ArgumentParser::new();
@@ -27,35 +27,29 @@ fn main() {
         parser
             .refer(&mut reservation)
             .add_option(&["-r", "--reservation"], Store, "Reservation");
-        parser.refer(&mut time).add_option(
-            &["-t", "--time"],
-            Store,
-            "Time per action in milliseconds",
-        );
+        parser
+            .refer(&mut time)
+            .add_option(&["-t", "--time"], Store, "Time/Action in ms");
         parser.refer(&mut test).add_option(
             &["-c", "--testclient"],
             Store,
-            "Run the test client insetead of the xml client.",
-        );
-        parser.refer(&mut weights_file).add_option(
-            &["-w", "--wfile"],
-            Store,
-            "File to load neural network weights from",
+            "Run the test client instead of the xml client.",
         );
         parser.parse_args_or_exit();
     }
 
     println!(
-        "Server: {}:{}\nReservation: \"{}\"\nTime/Action: {}ms\nTest: {}\nWeights: \"{}\"",
-        host, port, reservation, time, test, weights_file
+        "Server: {}:{}\nReservation: \"{}\"\nTime/Action: {}ms\nTest: {}",
+        host, port, reservation, time, test
     );
 
-    //let player = Box::new(Player::new(time, &weights_file)); // Principal Variation search
+    let player = Box::new(Player::new(time));
 
-    let player = Box::new(Player::new(time)); // Monte Carlo tree search
-
-    //let mut player = Box::new(Player::policy_network()); // Neural Network
-    //player.load_weights(&weights_file);
+    /*
+    //let player = Box::new(Player::default()); // SimpleClient
+    let player = Box::new(Player::new("weights")); // Neural Network
+    print!("{}", player);
+    */
 
     if test {
         run_test_client(player);

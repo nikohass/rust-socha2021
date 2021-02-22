@@ -1,13 +1,40 @@
 use super::float_stuff::{relu, sigmoid};
 use game_sdk::{Action, ActionList, Bitboard, GameState, Player};
+use std::fmt::{Display, Formatter, Result};
 use std::fs::File;
 use std::io::Read;
 
-const INPUT_DIMS: usize = 1692;
-const OUTPUT_DIMS: usize = 400;
+pub fn state_to_vector(state: &GameState) -> Vec<Vec<Vec<f32>>> {
+    let mut vector = vec![vec![vec![0.; 4]; 20]; 20];
+    let mut current_color = state.current_color;
+    for i in 0..4 {
+        let mut board = state.board[i];
+        while board.not_zero() {
+            let field_index = board.trailing_zeros();
+            board.flip_bit(field_index);
+            let x = field_index % 21;
+            let y = (field_index - x) / 21;
+            vector[x as usize][y as usize][current_color as usize] = 1.;
+        }
+        current_color = current_color.next();
+    }
+    vector
+}
 
-#[derive(Clone)]
-pub struct Layer {
+pub fn flatten(vector: &[Vec<Vec<f32>>]) -> Vec<f32> {
+    let size = vector.len() * vector[0].len() * vector[1].len();
+    let mut ret: Vec<f32> = Vec::with_capacity(size);
+    for i in vector.iter() {
+        for j in i.iter() {
+            for k in j.iter() {
+                ret.push(*k);
+            }
+        }
+    }
+    ret
+}
+
+pub struct DenseLayer {
     input_size: usize,
     output_size: usize,
     weights: Vec<Vec<f32>>,
@@ -15,11 +42,11 @@ pub struct Layer {
     sigmoid: bool,
 }
 
-impl Layer {
-    pub fn with_shape(input_size: usize, output_size: usize, sigmoid: bool) -> Layer {
+impl DenseLayer {
+    pub fn with_shape(input_size: usize, output_size: usize, sigmoid: bool) -> Self {
         let weights = vec![vec![0.; output_size]; input_size];
         let biases = vec![0.; output_size];
-        Layer {
+        Self {
             input_size,
             output_size,
             weights,
@@ -28,7 +55,15 @@ impl Layer {
         }
     }
 
-    pub fn feed_forward_relu(&self, input: &[f32]) -> Vec<f32> {
+    pub fn feed_forward(&self, input: &[f32]) -> Vec<f32> {
+        if self.sigmoid {
+            self.feed_forward_sigmoid(input)
+        } else {
+            self.feed_forward_relu(input)
+        }
+    }
+
+    fn feed_forward_relu(&self, input: &[f32]) -> Vec<f32> {
         let mut output: Vec<f32> = vec![0.; self.output_size];
         for (i, output_neuron) in output.iter_mut().enumerate() {
             for (j, input_neuron) in input.iter().enumerate() {
@@ -39,7 +74,7 @@ impl Layer {
         output
     }
 
-    pub fn feed_forward_sigmoid(&self, input: &[f32]) -> Vec<f32> {
+    fn feed_forward_sigmoid(&self, input: &[f32]) -> Vec<f32> {
         let mut output: Vec<f32> = vec![0.; self.output_size];
         for (i, output_neuron) in output.iter_mut().enumerate() {
             for (j, input_neuron) in input.iter().enumerate() {
@@ -49,106 +84,260 @@ impl Layer {
         }
         output
     }
+
+    fn load_weights(&mut self, bytes: &[u8], mut index: usize) -> usize {
+        for i in 0..self.weights.len() {
+            for j in 0..self.weights[i].len() {
+                self.weights[i][j] = f32::from_le_bytes([
+                    bytes[index],
+                    bytes[index + 1],
+                    bytes[index + 2],
+                    bytes[index + 3],
+                ]);
+                index += 4;
+            }
+        }
+        for i in 0..self.biases.len() {
+            self.biases[i] = f32::from_le_bytes([
+                bytes[index],
+                bytes[index + 1],
+                bytes[index + 2],
+                bytes[index + 3],
+            ]);
+            index += 4;
+        }
+        index
+    }
 }
 
-#[derive(Clone)]
+impl Display for DenseLayer {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        let shape = &format!("{:?}", (self.input_size, self.output_size));
+
+        write!(
+            f,
+            "Dense      | {:19} | {}",
+            shape,
+            if self.sigmoid { "sigmoid" } else { "relu" }
+        )
+    }
+}
+
+pub struct ConvolutionalLayer {
+    weights: Vec<Vec<Vec<Vec<f32>>>>,
+    biases: Vec<f32>,
+    kernel_size: usize,
+    channels: usize,
+    previous_layer_channels: usize,
+}
+
+impl ConvolutionalLayer {
+    pub fn with_shape(kernel_size: usize, channels: usize, previous_layer_channels: usize) -> Self {
+        let weights =
+            vec![vec![vec![vec![0.; channels]; previous_layer_channels]; kernel_size]; kernel_size];
+        let biases = vec![0.; channels];
+        Self {
+            weights,
+            biases,
+            kernel_size,
+            channels,
+            previous_layer_channels,
+        }
+    }
+
+    pub fn feed_forward(&self, input: Vec<Vec<Vec<f32>>>) -> Vec<Vec<Vec<f32>>> {
+        let input_shape = (input.len(), input[0].len());
+        let mut output = vec![vec![vec![0.; self.channels]; input_shape.0]; input_shape.1];
+        let offset = self.kernel_size / 2;
+        for channel_index in 0..self.channels {
+            for (x, out) in output.iter_mut().enumerate().take(input_shape.0) {
+                for (y, o) in out.iter_mut().enumerate().take(input_shape.1) {
+                    let mut value = 0.;
+                    for kx in 0..self.kernel_size {
+                        let mut x_ = kx + x;
+                        if x_ >= input_shape.0 + offset || x_ < offset {
+                            continue;
+                        } else {
+                            x_ -= offset;
+                        }
+                        for ky in 0..self.kernel_size {
+                            let mut y_ = ky + y;
+                            if y_ >= input_shape.0 + offset || y_ < offset {
+                                continue;
+                            } else {
+                                y_ -= offset;
+                            }
+                            for prev_channel_index in 0..self.previous_layer_channels {
+                                value += input[x_][y_][prev_channel_index]
+                                    * self.weights[kx][ky][prev_channel_index][channel_index];
+                            }
+                        }
+                        o[channel_index] = relu(value + self.biases[channel_index]);
+                    }
+                }
+            }
+        }
+        output
+    }
+
+    fn load_weights(&mut self, bytes: &[u8], mut index: usize) -> usize {
+        for i in 0..self.weights.len() {
+            for j in 0..self.weights[i].len() {
+                for k in 0..self.weights[i][j].len() {
+                    for l in 0..self.weights[i][j][k].len() {
+                        self.weights[i][j][k][l] = f32::from_le_bytes([
+                            bytes[index],
+                            bytes[index + 1],
+                            bytes[index + 2],
+                            bytes[index + 3],
+                        ]);
+                        index += 4;
+                    }
+                }
+            }
+        }
+        for i in 0..self.biases.len() {
+            self.biases[i] = f32::from_le_bytes([
+                bytes[index],
+                bytes[index + 1],
+                bytes[index + 2],
+                bytes[index + 3],
+            ]);
+            index += 4;
+        }
+        index
+    }
+}
+
+impl Display for ConvolutionalLayer {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        let shape = &format!(
+            "{:?}",
+            (
+                self.weights.len(),
+                self.weights[0].len(),
+                self.weights[0][0].len(),
+                self.weights[0][0][0].len()
+            )
+        );
+        write!(f, "Conv2D     | {:19} | relu", shape,)
+    }
+}
+
 pub struct NeuralNetwork {
-    layers: Vec<Layer>,
+    convolutional_layers: Vec<ConvolutionalLayer>,
+    dense_layers: Vec<DenseLayer>,
 }
 
 impl NeuralNetwork {
-    pub fn policy_network() -> NeuralNetwork {
-        let layers: Vec<Layer> = vec![
-            Layer::with_shape(INPUT_DIMS, INPUT_DIMS, false),
-            Layer::with_shape(INPUT_DIMS, 1024, false),
-            Layer::with_shape(1024, 1024, false),
-            Layer::with_shape(1024, 1024, false),
-            Layer::with_shape(1024, 1024, false),
-            Layer::with_shape(1024, 1024, false),
-            Layer::with_shape(1024, OUTPUT_DIMS, true),
-        ];
-        NeuralNetwork { layers }
+    pub fn new(weights_file: &str) -> Self {
+        let mut nn = Self::default();
+        nn.add_convolutional_layer(ConvolutionalLayer::with_shape(7, 128, 4));
+        nn.add_convolutional_layer(ConvolutionalLayer::with_shape(7, 64, 128));
+        nn.add_convolutional_layer(ConvolutionalLayer::with_shape(7, 64, 64));
+        nn.add_convolutional_layer(ConvolutionalLayer::with_shape(5, 64, 64));
+        nn.add_convolutional_layer(ConvolutionalLayer::with_shape(5, 64, 64));
+        nn.add_convolutional_layer(ConvolutionalLayer::with_shape(3, 32, 64));
+        nn.add_convolutional_layer(ConvolutionalLayer::with_shape(3, 4, 32));
+
+        nn.add_dense_layer(DenseLayer::with_shape(1600, 800, false));
+        nn.add_dense_layer(DenseLayer::with_shape(800, 400, true));
+
+        nn.load_weights(weights_file);
+        nn
+    }
+
+    pub fn feed_forward(&self, input: Vec<Vec<Vec<f32>>>) -> Vec<f32> {
+        let mut previous_layer_output = input;
+        for layer in self.convolutional_layers.iter() {
+            previous_layer_output = layer.feed_forward(previous_layer_output);
+        }
+        let mut previous_layer_output = flatten(&previous_layer_output);
+        for layer in self.dense_layers.iter() {
+            previous_layer_output = layer.feed_forward(&previous_layer_output);
+        }
+        previous_layer_output
+    }
+
+    pub fn add_convolutional_layer(&mut self, layer: ConvolutionalLayer) {
+        self.convolutional_layers.push(layer);
+    }
+
+    pub fn add_dense_layer(&mut self, layer: DenseLayer) {
+        self.dense_layers.push(layer);
     }
 
     pub fn load_weights(&mut self, weights_file: &str) -> bool {
         println!("loading weights from \"{}\"...", weights_file);
         let file = File::open(weights_file);
+        let mut index: usize = 0;
         let mut bytes = Vec::new();
         match file {
             Ok(mut file) => file.read_to_end(&mut bytes).unwrap(),
             Err(error) => {
-                println!("Unable to load weights file {}", error);
+                println!("Unable to load weights file: {}", error);
                 return false;
             }
         };
-        println!("bytes: {} parameters: {}", bytes.len(), bytes.len() / 4);
-        let mut byte_index: usize = 0;
-
-        println!("Layer index | input neurons | output neurons | parameters");
-        for layer_index in 0..self.layers.len() {
-            print!(
-                "{:11} | {:13} | {:14} |",
-                layer_index,
-                self.layers[layer_index].input_size,
-                self.layers[layer_index].output_size
-            );
-            for i in 0..self.layers[layer_index].weights.len() {
-                for j in 0..self.layers[layer_index].weights[i].len() {
-                    self.layers[layer_index].weights[i][j] = f32::from_le_bytes([
-                        bytes[byte_index],
-                        bytes[byte_index + 1],
-                        bytes[byte_index + 2],
-                        bytes[byte_index + 3],
-                    ]);
-                    byte_index += 4;
-                }
-            }
-            println!(
-                "{:10}",
-                self.layers[layer_index].biases.len()
-                    + self.layers[layer_index].input_size * self.layers[layer_index].output_size
-            );
-            for i in 0..self.layers[layer_index].biases.len() {
-                self.layers[layer_index].biases[i] = f32::from_le_bytes([
-                    bytes[byte_index],
-                    bytes[byte_index + 1],
-                    bytes[byte_index + 2],
-                    bytes[byte_index + 3],
-                ]);
-                byte_index += 4;
-            }
+        println!("Bytes: {} Parameters: {}", bytes.len(), bytes.len() / 4);
+        for layer in self.convolutional_layers.iter_mut() {
+            index = layer.load_weights(&bytes, index);
         }
-        println!("Network parameters have been loaded.");
-        if bytes.len() != byte_index {
+        for layer in self.dense_layers.iter_mut() {
+            index = layer.load_weights(&bytes, index);
+        }
+        if index != bytes.len() {
             println!("WARNING: The length of the weights file does not match the number of network parameters.");
+            false
+        } else {
+            println!("Weights loaded successfully");
+            true
         }
-        bytes.len() == byte_index
     }
+}
 
-    pub fn feed_forward(&self, input: &mut Vec<f32>) -> Vec<f32> {
-        let mut output: Vec<f32>;
-        for layer in self.layers.iter() {
-            output = if layer.sigmoid {
-                layer.feed_forward_sigmoid(&input)
-            } else {
-                layer.feed_forward_relu(&input)
-            };
-            *input = output;
+impl Display for NeuralNetwork {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        let mut string = "Layer Type | Shape               | Activation\n".to_string();
+        for _ in 0..50 {
+            string.push('=');
         }
-        input.to_vec()
-    }
+        string.push('\n');
+        for layer in self.convolutional_layers.iter() {
+            string.push_str(&layer.to_string());
+            string.push('\n');
+        }
+        string.push_str("Flatten    |                     |\n");
+        for layer in self.dense_layers.iter() {
+            string.push_str(&layer.to_string());
+            string.push('\n');
+        }
 
-    pub fn pick_action(&self, state: &GameState) -> (Action, f32) {
+        write!(f, "{}", string)
+    }
+}
+
+impl Default for NeuralNetwork {
+    fn default() -> Self {
+        Self {
+            convolutional_layers: Vec::new(),
+            dense_layers: Vec::new(),
+        }
+    }
+}
+
+impl Player for NeuralNetwork {
+    fn on_move_request(&mut self, state: &GameState) -> Action {
         let mut state = state.clone();
         let rotation = Rotation::from_state(&state);
         rotation.rotate_state(&mut state);
         let mut action_list = ActionList::default();
         state.get_possible_actions(&mut action_list);
         if action_list[0] == Action::Skip {
-            return (Action::Skip, std::f32::INFINITY);
+            return Action::Skip;
         }
-        let mut input_vector = state_to_vector(&state);
-        let output_vector = self.feed_forward(&mut input_vector);
+        let input_vector = state_to_vector(&state);
+        let output_vector = self.feed_forward(input_vector);
 
         let mut highest_confidence: f32 = 0.;
         let mut best_action: usize = 0;
@@ -169,116 +358,9 @@ impl NeuralNetwork {
                 best_action = index;
             }
         }
-
-        (
-            rotation.rotate_action(action_list[best_action]),
-            highest_confidence,
-        )
+        println!("Confidence: {}", highest_confidence);
+        rotation.rotate_action(action_list[best_action])
     }
-
-    pub fn sort_actions(&self, state: &GameState, action_list: &mut ActionList) -> Vec<f32> {
-        state.get_possible_actions(action_list);
-        let mut input_vector = state_to_vector(&state);
-        let output_vector = self.feed_forward(&mut input_vector);
-        let mut confidence_vec: Vec<f32> = vec![std::f32::NEG_INFINITY; action_list.size];
-
-        for index in 0..action_list.size {
-            let mut confidence: f32 = 0.;
-            if let Action::Set(to, shape_index) = action_list[index] {
-                let mut action_board = Bitboard::with_piece(to, shape_index);
-                while action_board.not_zero() {
-                    let bit_index = action_board.trailing_zeros();
-                    action_board.flip_bit(bit_index);
-                    let x = bit_index % 21;
-                    let y = (bit_index - x) / 21;
-                    confidence += output_vector[(x + y * 20) as usize];
-                }
-            }
-            confidence_vec[index] = confidence;
-        }
-
-        for i in 0..action_list.size {
-            let mut max_value = std::f32::NEG_INFINITY;
-            let mut next_best_action_index = 0;
-            for (j, conf) in confidence_vec
-                .iter()
-                .enumerate()
-                .take(action_list.size)
-                .skip(i)
-            {
-                if *conf > max_value {
-                    max_value = confidence_vec[j];
-                    next_best_action_index = j;
-                }
-            }
-
-            action_list.swap(i, next_best_action_index);
-            confidence_vec.swap(next_best_action_index, i);
-        }
-        confidence_vec
-    }
-
-    pub fn append_principal_variation(
-        &self,
-        principal_variation: &mut ActionList,
-        state: &GameState,
-    ) -> (Action, f32) {
-        let mut state = state.clone();
-        for i in 0..principal_variation.size {
-            state.do_action(principal_variation[i]);
-        }
-        let (action, confidence) = self.pick_action(&state);
-        principal_variation.push(action);
-        (action, confidence)
-    }
-}
-
-pub fn state_to_vector(state: &GameState) -> Vec<f32> {
-    let mut vector: Vec<f32> = vec![0.; INPUT_DIMS];
-    let mut index: usize = 0;
-    let mut color = state.current_color;
-    for _ in 0..4 {
-        for x in 0..20 {
-            for y in 0..20 {
-                if state.board[color as usize].check_bit(x + y * 21) {
-                    vector[index] = 1.;
-                }
-                index += 1;
-            }
-        }
-        color = color.next();
-    }
-
-    color = state.current_color;
-    for _ in 0..4 {
-        for i in 0..21 {
-            if state.pieces_left[i][color as usize] {
-                vector[index] = 1.;
-            }
-            index += 1;
-        }
-    }
-
-    let mut bit: u8 = 1;
-    for entry in vector.iter_mut().take(index + 8).skip(index) {
-        if state.ply & bit == bit {
-            *entry = 1.;
-        }
-        bit <<= 1;
-    }
-    vector
-}
-
-pub fn bitboard_to_vector(board: Bitboard) -> Vec<f32> {
-    let mut vector: Vec<f32> = vec![0.; 400];
-    for x in 0..20 {
-        for y in 0..20 {
-            if board.check_bit(x + y * 21) {
-                vector[(y + x * 20) as usize] = 1.;
-            }
-        }
-    }
-    vector
 }
 
 pub struct Rotation {
@@ -364,16 +446,5 @@ impl Rotation {
             ),
             Action::Skip => action,
         }
-    }
-}
-
-impl Player for NeuralNetwork {
-    fn on_move_request(&mut self, state: &GameState) -> Action {
-        let (action, confidence) = self.pick_action(&state);
-        println!(
-            "Neural Network selected {} with a confidence of {}",
-            action, confidence
-        );
-        action
     }
 }

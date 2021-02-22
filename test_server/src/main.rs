@@ -96,7 +96,7 @@ impl Client {
             }
             new_line = String::new();
             if start_time.elapsed().as_millis() > self.time as u128 + 500 {
-                panic!("Client not responding");
+                panic!("Client not responding {}", self.path);
             }
         }
         new_line.pop();

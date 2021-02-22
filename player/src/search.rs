@@ -1,24 +1,13 @@
 use super::cache::{EvaluationCache, TranspositionTable};
-use super::neural_network::NeuralNetwork;
 use super::principal_variation_search::principal_variation_search;
 use game_sdk::{Action, ActionList, ActionListStack, GameState, Player};
-use rand::{rngs::SmallRng, RngCore, SeedableRng};
 use std::time::Instant;
 
 pub const MAX_SEARCH_DEPTH: usize = 40;
 pub const MAX_SCORE: i16 = std::i16::MAX;
-pub const MATE_SCORE: i16 = -32_000;
+pub const MATE_SCORE: i16 = 32_000;
 pub const TT_SIZE: usize = 20_000_000;
 pub const EVAL_CACHE_SIZE: usize = 1_000_000;
-
-pub fn random_action(state: &GameState) -> Action {
-    let state = state.clone();
-    let mut rng = SmallRng::from_entropy();
-    let mut action_list = ActionList::default();
-    state.get_possible_actions(&mut action_list);
-    let rand = rng.next_u64() as usize % action_list.size;
-    action_list[rand]
-}
 
 pub struct Searcher {
     pub nodes_searched: u64,
@@ -31,17 +20,10 @@ pub struct Searcher {
     pub evaluation_cache: EvaluationCache,
     pub start_time: Instant,
     pub time_limit: u128,
-    pub neural_network: Option<NeuralNetwork>,
 }
 
 impl Searcher {
-    pub fn new(time_limit: u128, weights_file: &str) -> Searcher {
-        let mut neural_network = NeuralNetwork::policy_network();
-        let neural_network = if neural_network.load_weights(weights_file) {
-            Some(neural_network)
-        } else {
-            None
-        };
+    pub fn new(time_limit: u128) -> Searcher {
         Searcher {
             nodes_searched: 0,
             root_ply: 0,
@@ -52,14 +34,13 @@ impl Searcher {
             transposition_table: TranspositionTable::with_size(TT_SIZE),
             evaluation_cache: EvaluationCache::with_size(EVAL_CACHE_SIZE),
             start_time: Instant::now(),
-            neural_network,
             time_limit,
         }
     }
 
     pub fn search_action(&mut self, state: &GameState) -> Action {
         println!("Searching action using PV-Search");
-        println!("Depth    Time   Score     Nodes PV-prediction   Conf     Nodes/s PV");
+        println!("Depth    Time   Score     Nodes     Nodes/s PV");
         let mut state = state.clone();
         self.nodes_searched = 0;
         self.root_ply = state.ply;
@@ -72,22 +53,15 @@ impl Searcher {
         let mut last_principal_variation_size: usize = 0;
         for depth in 1..=MAX_SEARCH_DEPTH {
             let depth_start_time = Instant::now();
-            let (nn_action, confidence) = if let Some(neural_network) = &self.neural_network {
-                neural_network.append_principal_variation(&mut self.principal_variation, &state)
-            } else {
-                (Action::Skip, std::f32::NEG_INFINITY)
-            };
             let current_score =
                 principal_variation_search(self, &mut state, -MAX_SCORE, MAX_SCORE, 0, depth);
             let time = self.start_time.elapsed().as_millis();
             print!(
-                "{:5} {:5}ms {:7} {:9} {:12} {:7.3} {:11.1} ",
+                "{:5} {:5}ms {:7} {:9} {:11.1} ",
                 depth,
                 time,
                 current_score,
                 self.nodes_searched,
-                nn_action.to_short_name(),
-                confidence,
                 (self.nodes_searched as f64) / (time as f64) * 1000.
             );
             if self.stop {
@@ -100,6 +74,13 @@ impl Searcher {
 
             if self.principal_variation.size == last_principal_variation_size {
                 println!("\nReached the end of the search tree.");
+                if score >= MATE_SCORE {
+                    println!("Mate in {} (+{})", depth - 1, score - MATE_SCORE);
+                } else if score == 0 {
+                    println!("Draw in {}", depth - 1);
+                } else {
+                    println!("Mated in {} ({})", depth - 1, score + MATE_SCORE);
+                }
                 break;
             }
             last_principal_variation_size = self.principal_variation.size;
