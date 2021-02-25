@@ -1,5 +1,6 @@
 use super::constants::{COLUMN_MASK, PIECE_SHAPES, ROW_MASK, VALID_FIELDS};
 use super::Action;
+use rand::{rngs::SmallRng, RngCore};
 use std::fmt::{Display, Formatter, Result};
 use std::ops::{
     BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Not, Shl, ShlAssign, Shr,
@@ -7,49 +8,30 @@ use std::ops::{
 };
 
 #[derive(Debug, Copy, Clone, Eq)]
-pub struct Bitboard {
-    pub one: u128,
-    pub two: u128,
-    pub three: u128,
-    pub four: u128,
-}
+pub struct Bitboard(pub u128, pub u128, pub u128, pub u128);
 
 impl Bitboard {
-    pub fn empty() -> Bitboard {
-        Bitboard {
-            one: 0,
-            two: 0,
-            three: 0,
-            four: 0,
-        }
+    pub fn empty() -> Self {
+        Bitboard(0, 0, 0, 0)
     }
 
-    pub const fn from(one: u128, two: u128, three: u128, four: u128) -> Bitboard {
-        Bitboard {
-            one,
-            two,
-            three,
-            four,
-        }
+    pub const fn from(a: u128, b: u128, c: u128, d: u128) -> Bitboard {
+        Bitboard(a, b, c, d)
     }
 
     pub fn with_piece(to: u16, shape_index: usize) -> Bitboard {
-        if to == 0 {
-            Bitboard::from(0, 0, 0, PIECE_SHAPES[shape_index])
-        } else if to < 128 {
-            Bitboard::from(0, 0, 0, PIECE_SHAPES[shape_index]) << to as u8
-        } else if to == 128 {
-            Bitboard::from(0, 0, PIECE_SHAPES[shape_index], 0)
-        } else if to < 256 {
-            Bitboard::from(0, 0, PIECE_SHAPES[shape_index], 0) << (to - 128) as u8
-        } else if to == 256 {
-            Bitboard::from(0, PIECE_SHAPES[shape_index], 0, 0)
-        } else if to < 384 {
-            Bitboard::from(0, PIECE_SHAPES[shape_index], 0, 0) << (to - 256) as u8
-        } else if to == 384 {
-            Bitboard::from(PIECE_SHAPES[shape_index], 0, 0, 0)
+        let shape = PIECE_SHAPES[shape_index];
+        let shift = to as u8 & 0b1111111;
+        let board = match to >> 7 {
+            0 => Bitboard(0, 0, 0, shape),
+            1 => Bitboard(0, 0, shape, 0),
+            2 => Bitboard(0, shape, 0, 0),
+            _ => Bitboard(shape, 0, 0, 0),
+        };
+        if shift != 0 {
+            board << shift
         } else {
-            Bitboard::from(PIECE_SHAPES[shape_index], 0, 0, 0) << (to - 384) as u8
+            board
         }
     }
 
@@ -67,37 +49,37 @@ impl Bitboard {
 
     pub fn check_bit(&self, bit_idx: u16) -> bool {
         if bit_idx < 128 {
-            self.four & 1 << bit_idx != 0
+            self.3 & 1 << bit_idx != 0
         } else if bit_idx < 256 {
-            self.three & 1 << (bit_idx - 128) != 0
+            self.2 & 1 << (bit_idx - 128) != 0
         } else if bit_idx < 384 {
-            self.two & 1 << (bit_idx - 256) != 0
+            self.1 & 1 << (bit_idx - 256) != 0
         } else {
-            self.one & 1 << (bit_idx - 384) != 0
+            self.0 & 1 << (bit_idx - 384) != 0
         }
     }
 
     pub fn flip_bit(&mut self, bit_idx: u16) {
         if bit_idx < 128 {
-            self.four ^= 1 << bit_idx;
+            self.3 ^= 1 << bit_idx;
         } else if bit_idx < 256 {
-            self.three ^= 1 << (bit_idx - 128);
+            self.2 ^= 1 << (bit_idx - 128);
         } else if bit_idx < 384 {
-            self.two ^= 1 << (bit_idx - 256);
+            self.1 ^= 1 << (bit_idx - 256);
         } else {
-            self.one ^= 1 << (bit_idx - 384);
+            self.0 ^= 1 << (bit_idx - 384);
         }
     }
 
     pub fn trailing_zeros(&self) -> u16 {
-        if self.four != 0 {
-            self.four.trailing_zeros() as u16
-        } else if self.three != 0 {
-            self.three.trailing_zeros() as u16 + 128
-        } else if self.two != 0 {
-            self.two.trailing_zeros() as u16 + 256
-        } else if self.one != 0 {
-            self.one.trailing_zeros() as u16 + 384
+        if self.3 != 0 {
+            self.3.trailing_zeros() as u16
+        } else if self.2 != 0 {
+            self.2.trailing_zeros() as u16 + 128
+        } else if self.1 != 0 {
+            self.1.trailing_zeros() as u16 + 256
+        } else if self.0 != 0 {
+            self.0.trailing_zeros() as u16 + 384
         } else {
             512
         }
@@ -167,20 +149,17 @@ impl Bitboard {
 
     #[inline(always)]
     pub fn count_ones(&self) -> u32 {
-        self.one.count_ones()
-            + self.two.count_ones()
-            + self.three.count_ones()
-            + self.four.count_ones()
+        self.0.count_ones() + self.1.count_ones() + self.2.count_ones() + self.3.count_ones()
     }
 
     #[inline(always)]
     pub fn is_zero(&self) -> bool {
-        self.one == 0 && self.two == 0 && self.three == 0 && self.four == 0
+        self.0 == 0 && self.1 == 0 && self.2 == 0 && self.3 == 0
     }
 
     #[inline(always)]
     pub fn not_zero(&self) -> bool {
-        self.one != 0 || self.two != 0 || self.three != 0 || self.four != 0
+        self.0 != 0 || self.1 != 0 || self.2 != 0 || self.3 != 0
     }
 
     #[inline(always)]
@@ -206,27 +185,43 @@ impl Bitboard {
         }
         actions
     }
+
+    pub fn random_field(&mut self, rng: &mut SmallRng) -> u16 {
+        let n = self.count_ones() as usize;
+        if n < 2 {
+            return self.trailing_zeros();
+        }
+        let i = rng.next_u32() as usize % n;
+        for _ in 0..i {
+            self.flip_bit(self.trailing_zeros());
+        }
+        self.trailing_zeros()
+    }
+
+    pub fn to_fen(&self) -> String {
+        format!("{} {} {} {}", self.0, self.1, self.2, self.3)
+    }
 }
 
 impl BitXor for Bitboard {
     type Output = Self;
 
     fn bitxor(self, other: Self) -> Self::Output {
-        Bitboard {
-            one: self.one ^ other.one,
-            two: self.two ^ other.two,
-            three: self.three ^ other.three,
-            four: self.four ^ other.four,
-        }
+        Bitboard(
+            self.0 ^ other.0,
+            self.1 ^ other.1,
+            self.2 ^ other.2,
+            self.3 ^ other.3,
+        )
     }
 }
 
 impl BitXorAssign for Bitboard {
     fn bitxor_assign(&mut self, other: Self) {
-        self.one ^= other.one;
-        self.two ^= other.two;
-        self.three ^= other.three;
-        self.four ^= other.four;
+        self.0 ^= other.0;
+        self.1 ^= other.1;
+        self.2 ^= other.2;
+        self.3 ^= other.3;
     }
 }
 
@@ -234,21 +229,21 @@ impl BitAnd for Bitboard {
     type Output = Self;
 
     fn bitand(self, other: Self) -> Self::Output {
-        Bitboard {
-            one: self.one & other.one,
-            two: self.two & other.two,
-            three: self.three & other.three,
-            four: self.four & other.four,
-        }
+        Bitboard(
+            self.0 & other.0,
+            self.1 & other.1,
+            self.2 & other.2,
+            self.3 & other.3,
+        )
     }
 }
 
 impl BitAndAssign for Bitboard {
     fn bitand_assign(&mut self, other: Self) {
-        self.one &= other.one;
-        self.two &= other.two;
-        self.three &= other.three;
-        self.four &= other.four;
+        self.0 &= other.0;
+        self.1 &= other.1;
+        self.2 &= other.2;
+        self.3 &= other.3;
     }
 }
 
@@ -256,21 +251,21 @@ impl BitOr for Bitboard {
     type Output = Self;
 
     fn bitor(self, other: Self) -> Self::Output {
-        Bitboard {
-            one: self.one | other.one,
-            two: self.two | other.two,
-            three: self.three | other.three,
-            four: self.four | other.four,
-        }
+        Bitboard(
+            self.0 | other.0,
+            self.1 | other.1,
+            self.2 | other.2,
+            self.3 | other.3,
+        )
     }
 }
 
 impl BitOrAssign for Bitboard {
     fn bitor_assign(&mut self, other: Self) {
-        self.one |= other.one;
-        self.two |= other.two;
-        self.three |= other.three;
-        self.four |= other.four;
+        self.0 |= other.0;
+        self.1 |= other.1;
+        self.2 |= other.2;
+        self.3 |= other.3;
     }
 }
 
@@ -278,12 +273,7 @@ impl Not for Bitboard {
     type Output = Self;
 
     fn not(self) -> Self::Output {
-        Bitboard {
-            one: !self.one,
-            two: !self.two,
-            three: !self.three,
-            four: !self.four,
-        }
+        Bitboard(!self.0, !self.1, !self.2, !self.3)
     }
 }
 
@@ -291,21 +281,21 @@ impl Shl<u8> for Bitboard {
     type Output = Self;
 
     fn shl(self, n: u8) -> Self::Output {
-        Bitboard {
-            one: (self.one << n) | (self.two >> (128 - n)),
-            two: (self.two << n) | (self.three >> (128 - n)),
-            three: (self.three << n) | (self.four >> (128 - n)),
-            four: self.four << n,
-        }
+        Bitboard(
+            (self.0 << n) | (self.1 >> (128 - n)),
+            (self.1 << n) | (self.2 >> (128 - n)),
+            (self.2 << n) | (self.3 >> (128 - n)),
+            self.3 << n,
+        )
     }
 }
 
 impl ShlAssign<u8> for Bitboard {
     fn shl_assign(&mut self, n: u8) {
-        self.one = (self.one << n) | (self.two >> (128 - n));
-        self.two = (self.two << n) | (self.three >> (128 - n));
-        self.three = (self.three << n) | (self.four >> (128 - n));
-        self.four = self.four << n;
+        self.0 = (self.0 << n) | (self.1 >> (128 - n));
+        self.1 = (self.1 << n) | (self.2 >> (128 - n));
+        self.2 = (self.2 << n) | (self.3 >> (128 - n));
+        self.3 = self.3 << n;
     }
 }
 
@@ -313,30 +303,27 @@ impl Shr<u8> for Bitboard {
     type Output = Self;
 
     fn shr(self, n: u8) -> Self::Output {
-        Bitboard {
-            one: self.one >> n,
-            two: (self.two >> n) | (self.one << (128 - n)),
-            three: (self.three >> n) | (self.two << (128 - n)),
-            four: (self.four >> n) | self.three << (128 - n),
-        }
+        Bitboard(
+            self.0 >> n,
+            (self.1 >> n) | (self.0 << (128 - n)),
+            (self.2 >> n) | (self.1 << (128 - n)),
+            (self.3 >> n) | self.2 << (128 - n),
+        )
     }
 }
 
 impl ShrAssign<u8> for Bitboard {
     fn shr_assign(&mut self, n: u8) {
-        self.four = (self.four >> n) | self.three << (128 - n);
-        self.three = (self.three >> n) | (self.two << (128 - n));
-        self.two = (self.two >> n) | (self.one << (128 - n));
-        self.one >>= n;
+        self.3 = (self.3 >> n) | self.2 << (128 - n);
+        self.2 = (self.2 >> n) | (self.1 << (128 - n));
+        self.1 = (self.1 >> n) | (self.0 << (128 - n));
+        self.0 >>= n;
     }
 }
 
 impl PartialEq for Bitboard {
     fn eq(&self, other: &Self) -> bool {
-        self.one == other.one
-            && self.two == other.two
-            && self.three == other.three
-            && self.four == other.four
+        self.0 == other.0 && self.1 == other.1 && self.2 == other.2 && self.3 == other.3
     }
 }
 
@@ -345,8 +332,7 @@ impl Display for Bitboard {
         let mut string = "0 1 2 3 4 5 6 7 8 9 10        15    19\n".to_string();
         for y in 0..21 {
             for x in 0..21 {
-                let bit = Bitboard::bit(x + y * 21);
-                if bit & *self == bit {
+                if self.check_bit(x + y * 21) {
                     if x < 20 && y < 20 {
                         string.push('🟧');
                     } else {

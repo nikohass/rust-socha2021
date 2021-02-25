@@ -41,13 +41,11 @@ impl XMLClient {
         println!("Connected");
         XMLClient::write_to(&stream, "<protocol>");
 
-        let join_xml: String;
-        match self.reservation.as_str() {
-            "" => join_xml = "<join gameType=\"swc_2021_blokus\"/>".to_string(),
-            _ => join_xml = format!("<joinPrepared reservationCode=\"{}\" />", self.reservation),
-        }
-
-        println!("Sending join message: {}", join_xml);
+        let join_xml = match self.reservation.as_str() {
+            "" => "<join gameType=\"swc_2021_blokus\"/>".to_string(),
+            _ => format!("<joinPrepared reservationCode=\"{}\" />", self.reservation),
+        };
+        print!("Sending join message ");
         XMLClient::write_to(&stream, join_xml.as_str());
 
         self.handle_stream(&stream);
@@ -67,20 +65,22 @@ impl XMLClient {
                             println!("Recieved memento: ");
                             node.as_memento(&mut self.state);
                             println!("    fen: {}", self.state.to_fen());
+                            println!("    ply: {}", self.state.ply);
                         }
                         "welcomeMessage" => {
                             println!("Recieved welcome message");
                         }
                         "sc.framework.plugins.protocol.MoveRequest" => {
-                            println!("Recieved move request");
                             if self.state.ply > 1 {
                                 println!(
-                                    "Opponent took ca. {}ms to respond.",
+                                    "Recieved move request (Opponent took ca. {}ms to respond)",
                                     self.opponent_time.elapsed().as_millis()
                                 );
+                            } else {
+                                println!("Recieved move request");
                             }
                             let action = self.player.on_move_request(&self.state);
-                            let xml_move = action.to_xml(self.state.current_color);
+                            let xml_move = action.to_xml(self.state.get_current_color());
                             println!("Sending: {}", action);
                             XMLClient::write_to(
                                 stream,

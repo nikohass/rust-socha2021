@@ -1,27 +1,42 @@
 use super::float_stuff::{ln, sqrt};
 use super::search::format_principal_variation;
-use game_sdk::{Action, ActionList, GameState, Player};
+use game_sdk::{Action, ActionList, Bitboard, GameState, PieceType, Player};
 use rand::{rngs::SmallRng, SeedableRng};
 use std::time::Instant;
 
 const C: f32 = 0.0;
 const C_BASE: f32 = 7000.;
 const C_FACTOR: f32 = 38.5;
-const VISITS_BEFORE_EXPANSION: usize = 30;
+const VISITS_BEFORE_EXPANSION: usize = 40;
 
 pub fn rollout(state: &GameState, rng: &mut SmallRng) -> f32 {
-    let team = state.current_color.team_i16();
+    let team = state.get_team();
     let mut result = 0;
     let mut state = state.clone();
     while !state.is_game_over() {
-        let random_action = state.get_random_possible_action(rng, state.ply < 16, 30);
-        state.do_action(random_action);
-        result = state.game_result();
-        if (state.skipped & 0b101 == 0b101 && result < 0)
-            || (state.skipped & 0b1010 == 0b1010 && result > 0)
-        {
-            break;
-        }
+        let color_index = state.get_current_color() as usize;
+        match state.get_random_possible_action(rng, state.ply < 16, 40) {
+            Action::Skip => {
+                state.skipped |= 1 << color_index;
+                result = state.game_result();
+                if (state.has_team_one_skipped() && result < 0)
+                    || (state.hast_team_two_skipped() && result > 0)
+                {
+                    break;
+                }
+            }
+            Action::Set(to, shape_index) => {
+                let piece_type = PieceType::from_shape_index(shape_index);
+                state.pieces_left[piece_type as usize][color_index] = false;
+                state.board[color_index] ^= Bitboard::with_piece(to, shape_index);
+                if piece_type == PieceType::Monomino {
+                    state.monomino_placed_last |= 1 << color_index;
+                } else {
+                    state.monomino_placed_last &= !(1 << color_index);
+                }
+            }
+        };
+        state.ply += 1;
     }
     match result * team {
         r if r > 0 => 1.,
@@ -47,6 +62,7 @@ impl Node {
         }
     }
 
+    #[inline(always)]
     pub fn get_value(&self) -> f32 {
         if self.n > 0. {
             self.q / self.n
@@ -76,6 +92,7 @@ impl Node {
         }
     }
 
+    #[inline(always)]
     fn get_uct_value(&self, parent_n: f32, c: f32) -> f32 {
         if self.n > 0. {
             (self.q / self.n) + c * sqrt(ln(parent_n) / self.n)
@@ -98,6 +115,7 @@ impl Node {
         &mut self.children[best_child]
     }
 
+    #[inline(always)]
     fn backpropagate(&mut self, q: f32) {
         self.n += 1.;
         self.q += q;
@@ -130,7 +148,7 @@ impl Node {
                 }
                 delta = rollout(&state, rng);
             } else if self.n == 0. {
-                let result = state.game_result() * state.current_color.team_i16();
+                let result = state.game_result() * state.get_team();
                 self.q = match result {
                     r if r > 0 => 1.,
                     r if r < 0 => 0.,
@@ -179,17 +197,14 @@ impl MCTS {
     }
 
     fn set_root(&mut self, state: &GameState) {
-        self.root_state = state.clone();
-        self.root_node = Node::empty();
-        /*
         loop {
-            let last_board = self.root_state.board[self.root_state.current_color as usize];
-            let changed_fields = state.board[self.root_state.current_color as usize] & !last_board;
+            let last_board = self.root_state.board[self.root_state.get_current_color() as usize];
+            let changed_fields =
+                state.board[self.root_state.get_current_color() as usize] & !last_board;
             let action = Action::from_bitboard(changed_fields);
             let mut found = false;
             for (i, child) in self.root_node.children.iter().enumerate() {
                 if child.action == action {
-                    println!("Found child: {}", action);
                     self.root_state.do_action(action);
                     self.root_node = self.root_node.children.remove(i);
                     found = true;
@@ -197,16 +212,14 @@ impl MCTS {
                 }
             }
             if self.root_state.ply == state.ply {
-                println!("Reusing tree");
                 break;
             }
             if !found {
-                println!("Can't reuse tree");
                 self.root_state = state.clone();
                 self.root_node = Node::empty();
             }
         }
-        self.root_state = state.clone();*/
+        self.root_state = state.clone();
     }
 
     fn search_nodes(&mut self, n: usize, rng: &mut SmallRng) {
@@ -227,7 +240,7 @@ impl MCTS {
     }
 
     pub fn search_action(&mut self, state: &GameState) -> (Action, f32) {
-        println!("Searching action using MCTS");
+        println!("Searching action using MCTS. ({})", state.to_fen());
         let start_time = Instant::now();
         self.set_root(&state);
         let mut rng = SmallRng::from_entropy();

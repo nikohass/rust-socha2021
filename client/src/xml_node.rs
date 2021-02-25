@@ -112,15 +112,12 @@ impl XMLNode {
                 "PENTO_Y" => PieceType::YPentomino,
                 _ => panic!("Unknown start piece"),
             };
-            println!(
-                "    Start piece type: {}",
-                state.start_piece_type.to_string()
-            );
+            println!("    start piece: {}", state.start_piece_type.to_string());
             return;
         }
 
         if state.ply == new_ply {
-            println!("    (State did not change since last memento)");
+            println!("    State did not change since last memento");
             return;
         }
 
@@ -158,10 +155,19 @@ impl XMLNode {
 
         // find the actions that lead to the new state and update the GameState
         loop {
-            let last_board = state.board[state.current_color as usize];
-            let changed_fields = new_board[state.current_color as usize] & !last_board;
+            let last_board = state.board[state.get_current_color() as usize];
+            let changed_fields = new_board[state.get_current_color() as usize] & !last_board;
             let action = Action::from_bitboard(changed_fields);
-            println!("    {}: {}", state.current_color, action);
+            println!(
+                "{}: {}",
+                match state.get_current_color() {
+                    0 => "    BLUE".to_string(),
+                    1 => "    YELLOW".to_string(),
+                    2 => "    RED".to_string(),
+                    _ => "    GREEN".to_string(),
+                },
+                action
+            );
             state.do_action(action);
             if state.ply == new_ply {
                 break;

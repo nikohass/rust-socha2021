@@ -10,26 +10,45 @@ pub struct ActionList {
 }
 
 impl ActionList {
+    #[inline(always)]
     pub fn push(&mut self, action: Action) {
         self.actions[self.size] = action;
         self.size += 1;
     }
 
+    #[inline(always)]
     pub fn swap(&mut self, x: usize, y: usize) {
         let tmp = self[x];
         self.actions[x] = self[y];
         self.actions[y] = tmp;
     }
 
+    #[inline(always)]
     pub fn clear(&mut self) {
         self.size = 0;
     }
 
-    pub fn append_actions(&mut self, destinations: &mut Bitboard, shape_index: usize) {
-        while destinations.not_zero() {
-            let to = destinations.trailing_zeros();
-            destinations.flip_bit(to);
-            self.push(Action::Set(to, shape_index));
+    #[inline(always)]
+    pub fn append(&mut self, mut destinations: Bitboard, shape_index: usize) {
+        while destinations.0 != 0 {
+            let to = destinations.0.trailing_zeros();
+            destinations.0 ^= 1 << to;
+            self.push(Action::Set(to as u16 + 384, shape_index));
+        }
+        while destinations.1 != 0 {
+            let to = destinations.1.trailing_zeros();
+            destinations.1 ^= 1 << to;
+            self.push(Action::Set(to as u16 + 256, shape_index));
+        }
+        while destinations.2 != 0 {
+            let to = destinations.2.trailing_zeros();
+            destinations.2 ^= 1 << to;
+            self.push(Action::Set(to as u16 + 128, shape_index));
+        }
+        while destinations.3 != 0 {
+            let to = destinations.3.trailing_zeros();
+            destinations.3 ^= 1 << to;
+            self.push(Action::Set(to as u16, shape_index));
         }
     }
 }
@@ -37,7 +56,7 @@ impl ActionList {
 impl Default for ActionList {
     fn default() -> Self {
         let actions = unsafe { std::mem::MaybeUninit::uninit().assume_init() };
-        ActionList { actions, size: 0 }
+        Self { actions, size: 0 }
     }
 }
 
@@ -65,7 +84,7 @@ pub struct ActionListStack {
 
 impl ActionListStack {
     pub fn with_size(size: usize) -> Self {
-        ActionListStack {
+        Self {
             action_lists: vec![ActionList::default(); size],
         }
     }

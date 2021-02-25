@@ -3,7 +3,21 @@ import time
 import multiprocessing
 import os
 
-SERVER_ADDRESS = input("Server address: ")
+def get_server_address():
+    hostname = socket.gethostname()
+    ip = socket.gethostbyname(hostname)
+    print(hostname, ip)
+    address = input("Server Address: ")
+    if address == "":
+        return "localhost"
+    if not "." in address:
+        entries = ip.split(".")
+        for i in range(len(entries) - 1):
+            address = f"{entries[i]}.{address}"
+    print(address)
+    return address
+
+SERVER_ADDRESS = get_server_address()
 PORT = 30_000
 CORES = multiprocessing.cpu_count()
 THREADS = int(CORES * 0.75)
@@ -82,9 +96,9 @@ class Client:
         if response == "stop":
             return True
 
-c = Client()
 while True:
     try:
+        c = Client()
         if not c.request_task():
             print("Retry in 10s")
             time.sleep(10)
@@ -93,4 +107,3 @@ while True:
     except Exception as e:
         print(e)
         time.sleep(10)
-        c = Client()

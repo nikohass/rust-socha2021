@@ -1,4 +1,4 @@
-use super::{Bitboard, Color, PieceType, PIECE_ORIENTATIONS};
+use super::{Bitboard, PieceType, PIECE_ORIENTATIONS};
 use std::fmt::{Display, Formatter, Result};
 
 #[derive(Copy, Clone, PartialEq, Debug)]
@@ -68,7 +68,7 @@ impl Action {
         Action::Skip
     }
 
-    pub fn to_xml(&self, color: Color) -> String {
+    pub fn to_xml(&self, color: u8) -> String {
         match self {
             Action::Skip => "<data class=\"sc.plugin2021.SkipMove\"/>".to_string(),
             Action::Set(to, shape_index) => {
@@ -85,11 +85,12 @@ impl Action {
                 let y = (*to - x) / 21;
                 let mut xml =
                     "  <data class=\"sc.plugin2021.SetMove\">\n    <piece color=\"".to_string();
-                xml.push_str(match color {
-                    Color::RED => "RED\" ",
-                    Color::BLUE => "BLUE\" ",
-                    Color::YELLOW => "YELLOW\" ",
-                    Color::GREEN => "GREEN\" ",
+                xml.push_str(match color as u8 {
+                    0 => "BLUE\" ",
+                    1 => "YELLOW\" ",
+                    2 => "RED\" ",
+                    3 => "GREEN\" ",
+                    _ => panic!("Invalid color"),
                 });
                 xml.push_str(&format!(
                     "kind=\"{}\" rotation=\"{}\" isFlipped=\"",

@@ -51,7 +51,7 @@ const DEFAULT_PARAMS: EvaluationParameters = EvaluationParameters {
 };
 
 pub fn static_evaluation(state: &GameState) -> i16 {
-    let team = state.current_color.team_i16();
+    let team = state.get_team();
     if state.is_game_over() {
         let result = state.game_result();
         return -if result > 0 {

@@ -35,10 +35,10 @@ pub fn principal_variation_search(
 
     if !is_pv_node && current_depth > 2 {
         if state.ply & 0b1 == 0 {
-            if state.skipped & 0b101 == 0b101 && state.game_result() < 0 {
+            if state.has_team_one_skipped() && state.game_result() < 0 {
                 return -MATE_SCORE;
             }
-        } else if state.skipped & 0b1010 == 0b1010 && state.game_result() > 0 {
+        } else if state.hast_team_two_skipped() && state.game_result() > 0 {
             return -MATE_SCORE;
         }
     }
@@ -57,22 +57,22 @@ pub fn principal_variation_search(
         }
     }
 
-    let transposition_table_entry = searcher.transposition_table.lookup(state.hash);
-    if !transposition_table_entry.is_empty()
-        && transposition_table_entry.depth_left >= depth_left as u8
-        && transposition_table_entry.ply == state.ply
-        && transposition_table_entry.hash == state.hash
+    let tt_entry = searcher.transposition_table.lookup(state.hash);
+    if !tt_entry.is_empty()
+        && tt_entry.depth_left >= depth_left as u8
+        && tt_entry.ply == state.ply
+        && tt_entry.hash == state.hash
     {
         if !is_pv_node {
-            if transposition_table_entry.alpha && transposition_table_entry.beta {
-                return transposition_table_entry.score;
-            } else if transposition_table_entry.alpha {
-                alpha = transposition_table_entry.score;
-            } else if transposition_table_entry.beta {
-                beta = transposition_table_entry.score;
+            if tt_entry.alpha && tt_entry.beta {
+                return tt_entry.score;
+            } else if tt_entry.alpha {
+                alpha = tt_entry.score;
+            } else if tt_entry.beta {
+                beta = tt_entry.score;
             }
         }
-        let tt_action = transposition_table_entry.action;
+        let tt_action = tt_entry.action;
         for i in ordering_index..searcher.action_list_stack[depth_left].size {
             if tt_action == searcher.action_list_stack[depth_left][i] {
                 searcher.action_list_stack[depth_left].swap(ordering_index, i);

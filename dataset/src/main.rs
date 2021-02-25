@@ -23,7 +23,7 @@ fn save(
             state.to_fen(),
             actions[i].serialize(),
             values[i],
-            result * state.current_color.team_i16()
+            result * state.get_team()
         );
         if let Err(e) = writeln!(file, "{}", fen) {
             println!("Couldn't write to file: {}", e);

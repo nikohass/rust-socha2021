@@ -44,6 +44,8 @@ class ClientThread(Thread):
 
     def on_request(self, request):
         entries = request.split()
+        if len(entries) == 0:
+            return
         request_type = entries[0].lower()
         e = entries[1:]
         if request_type == "init":

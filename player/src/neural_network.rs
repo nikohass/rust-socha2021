@@ -6,7 +6,7 @@ use std::io::Read;
 
 pub fn state_to_vector(state: &GameState) -> Vec<Vec<Vec<f32>>> {
     let mut vector = vec![vec![vec![0.; 4]; 20]; 20];
-    let mut current_color = state.current_color;
+    let mut current_ply = state.ply as usize;
     for i in 0..4 {
         let mut board = state.board[i];
         while board.not_zero() {
@@ -14,9 +14,9 @@ pub fn state_to_vector(state: &GameState) -> Vec<Vec<Vec<f32>>> {
             board.flip_bit(field_index);
             let x = field_index % 21;
             let y = (field_index - x) / 21;
-            vector[x as usize][y as usize][current_color as usize] = 1.;
+            vector[x as usize][y as usize][current_ply & 0b11] = 1.;
         }
-        current_color = current_color.next();
+        current_ply += 1;
     }
     vector
 }
@@ -377,7 +377,7 @@ impl Rotation {
     }
 
     pub fn from_state(state: &GameState) -> Rotation {
-        let board = state.board[state.current_color as usize];
+        let board = state.board[state.get_current_color() as usize];
         let top_left_corner = if board.check_bit(0) {
             0
         } else if board.check_bit(19) {

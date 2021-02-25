@@ -161,7 +161,7 @@ fn main() {
     let mut games: u32 = 100;
     let mut verbose = false;
     let mut time: u64 = 1980;
-    let mut r: f64 = 0.05;
+    let mut r: f64 = 0.01;
 
     {
         let mut parser = ArgumentParser::new();
@@ -201,7 +201,7 @@ fn main() {
     let mut client_two = Client::from_path(client_two_path, time);
     let mut test_result = TestResult::default();
     let state = GameState::new();
-    std::thread::sleep(std::time::Duration::from_millis(1000)); // give the clients some time to initialize
+    std::thread::sleep(std::time::Duration::from_millis(1000));
 
     for _ in 0..games / 2 {
         test_result.add_game_result(play_game(

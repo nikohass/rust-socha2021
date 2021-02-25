@@ -39,7 +39,7 @@ impl Searcher {
     }
 
     pub fn search_action(&mut self, state: &GameState) -> Action {
-        println!("Searching action using PV-Search");
+        println!("Searching action using PV-Search. ({})", state.to_fen());
         println!("Depth    Time   Score     Nodes     Nodes/s PV");
         let mut state = state.clone();
         self.nodes_searched = 0;
