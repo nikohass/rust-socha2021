@@ -1,5 +1,9 @@
 #![allow(unused_imports)]
 use game_sdk::*;
+use player::mcts::MCTS;
+use player::neural_network::NeuralNetwork;
+use player::search::Searcher;
+use player::simple_client::SimpleClient;
 use std::time::Instant;
 
 fn main() {

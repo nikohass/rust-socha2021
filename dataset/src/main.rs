@@ -32,7 +32,7 @@ fn save(
 }
 
 pub fn generate_dataset() {
-    let mut mcts = MCTS::new(7100);
+    let mut mcts = MCTS::new(13100);
     let mut actions: ActionList = ActionList::default();
     let mut values: [f32; 100] = [0.; 100];
     let mut states: Vec<GameState> = Vec::with_capacity(100);
@@ -44,8 +44,8 @@ pub fn generate_dataset() {
     let mut draws: u64 = 0;
 
     loop {
-        let mut state = GameState::new();
-        while !state.is_game_over() && state.ply < 60 {
+        let mut state = GameState::random();
+        while !state.is_game_over() {
             println!("{}", state.to_fen());
             let (action, value) = mcts.search_action(&state);
             if action == Action::Skip {
@@ -101,7 +101,7 @@ pub fn generate_opening_dataset() {
     let mut games_played: usize = 0;
 
     loop {
-        let mut state = GameState::new();
+        let mut state = GameState::random();
         while !state.is_game_over() && state.ply < 24 {
             println!("{}", state.to_fen());
             if state.ply as usize & 0b1 == games_played & 0b1 {
@@ -133,12 +133,11 @@ pub fn generate_opening_dataset() {
         );
         actions.clear();
         states.truncate(0);
-
         println!("Searched: {} ", states_searched,);
     }
 }
 
 fn main() {
-    generate_dataset();
-    //generate_opening_dataset();
+    //generate_dataset();
+    generate_opening_dataset();
 }

@@ -17,7 +17,7 @@ pub struct GameState {
 }
 
 impl GameState {
-    pub fn new() -> GameState {
+    pub fn random() -> GameState {
         GameState {
             ply: 0,
             board: [Bitboard::empty(); 4],
@@ -61,7 +61,7 @@ impl GameState {
     }
 
     #[inline(always)]
-    pub fn hast_team_two_skipped(&self) -> bool {
+    pub fn has_team_two_skipped(&self) -> bool {
         self.skipped & 0b1010 == 0b1010
     }
 
@@ -73,12 +73,12 @@ impl GameState {
             Action::Skip => {
                 self.skipped = ((self.skipped & 0b1111) | self.skipped << 4) | (1 << color);
             }
-            Action::Set(to, shape_index) => {
-                let piece_type = PieceType::from_shape_index(shape_index);
-                self.hash ^= PIECE_HASH[shape_index][color];
+            Action::Set(to, shape) => {
+                let piece_type = PieceType::from_shape(shape);
+                self.hash ^= PIECE_HASH[shape][color];
                 self.hash ^= FIELD_HASH[to as usize][color];
                 self.pieces_left[piece_type as usize][color] = false;
-                self.board[color] ^= Bitboard::with_piece(to, shape_index);
+                self.board[color] ^= Bitboard::with_piece(to, shape);
                 if piece_type == PieceType::Monomino {
                     self.monomino_placed_last |= 1 << color;
                 } else {
@@ -94,16 +94,16 @@ impl GameState {
         self.ply -= 1;
         self.hash ^= PLY_HASH[self.ply as usize];
         let color = self.get_current_color() as usize;
-        if let Action::Set(to, shape_index) = action {
-            let piece_type = PieceType::from_shape_index(shape_index);
-            self.hash ^= PIECE_HASH[shape_index][color];
+        if let Action::Set(to, shape) = action {
+            let piece_type = PieceType::from_shape(shape);
+            self.hash ^= PIECE_HASH[shape][color];
             self.hash ^= FIELD_HASH[to as usize][color];
             debug_assert!(
                 !self.pieces_left[piece_type as usize][color],
                 "Can't remove piece that has not been placed."
             );
             self.pieces_left[piece_type as usize][color] = true;
-            self.board[color] ^= Bitboard::with_piece(to, shape_index);
+            self.board[color] ^= Bitboard::with_piece(to, shape);
         } else {
             self.skipped >>= 4;
         }
@@ -114,9 +114,9 @@ impl GameState {
         let color = self.get_current_color() as usize;
         match action {
             Action::Skip => true,
-            Action::Set(to, shape_index) => {
+            Action::Set(to, shape) => {
                 let mut is_valid = true;
-                let piece_type = PieceType::from_shape_index(*shape_index);
+                let piece_type = PieceType::from_shape(*shape);
                 if self.ply < 4 && piece_type != self.start_piece_type {
                     println!(
                         "Invalid piece type. Start piece type is {}",
@@ -128,7 +128,7 @@ impl GameState {
                     println!("Can't place piece that has already been placed.");
                     return false;
                 }
-                let piece = Bitboard::with_piece(*to, *shape_index);
+                let piece = Bitboard::with_piece(*to, *shape);
                 let own_fields = self.board[color];
                 let other_fields = self.get_occupied_fields() & !own_fields;
                 let legal_fields =
@@ -166,8 +166,8 @@ impl GameState {
             let pieces = self.board[color].get_pieces();
             let mut pieces_left: [bool; 21] = [true; 21];
             for piece in pieces.iter() {
-                if let Action::Set(_, shape_index) = piece {
-                    let piece_type = PieceType::from_shape_index(*shape_index);
+                if let Action::Set(_, shape) = piece {
+                    let piece_type = PieceType::from_shape(*shape);
                     pieces_left[piece_type as usize] = false;
                 }
             }
@@ -504,8 +504,8 @@ impl GameState {
         if self.ply < 4 {
             let mut idx = 0;
             for i in 0..al.size {
-                if let Action::Set(_, shape_index) = al[i] {
-                    let piece_type = PieceType::from_shape_index(shape_index);
+                if let Action::Set(_, shape) = al[i] {
+                    let piece_type = PieceType::from_shape(shape);
                     if piece_type == self.start_piece_type {
                         al.swap(idx, i);
                         idx += 1;
@@ -536,7 +536,7 @@ impl GameState {
             START_FIELDS & !other_fields
         };
 
-        if p.is_zero() {
+        if p.is_zero() || self.skipped & 1 << color != 0 {
             return Action::Skip;
         }
 
@@ -558,21 +558,21 @@ impl GameState {
         let sq = r2 & r2 >> 21;
 
         for _ in 0..tries {
-            let mut shape_index = if pentomino_only {
+            let mut shape = if pentomino_only {
                 PENTOMINO_SHAPES[(rng.next_u64() % 63) as usize]
             } else {
                 (rng.next_u32() % 91) as usize
             };
             if self.ply < 4 {
-                while PieceType::from_shape_index(shape_index as usize) != self.start_piece_type {
-                    shape_index = PENTOMINO_SHAPES[(rng.next_u64() % 63) as usize]
+                while PieceType::from_shape(shape as usize) != self.start_piece_type {
+                    shape = PENTOMINO_SHAPES[(rng.next_u64() % 63) as usize]
                 }
             }
-            if !self.pieces_left[PieceType::from_shape_index(shape_index as usize) as usize][color]
+            if !self.pieces_left[PieceType::from_shape(shape as usize) as usize][color]
             {
                 continue;
             }
-            let mut destinations = match shape_index {
+            let mut destinations = match shape {
                 0 => p,
                 1 => (r2 & p) | (l2 & p) >> 1,
                 2 => (d2 & p) | (u2 & p) >> 21,
@@ -675,7 +675,7 @@ impl GameState {
             };
             if destinations.not_zero() {
                 let destination = destinations.random_field(rng);
-                return Action::Set(destination, shape_index);
+                return Action::Set(destination, shape);
             }
         }
         Action::Skip
@@ -697,9 +697,9 @@ impl GameState {
         for (color, score) in scores.iter_mut().enumerate() {
             if *score == 89 {
                 *score += 15;
-            }
-            if self.monomino_placed_last & (1 << color) != 0 {
-                *score += 5;
+                if self.monomino_placed_last & (1 << color) != 0 {
+                    *score += 5;
+                }
             }
         }
         scores[0] + scores[2] - scores[1] - scores[3]
@@ -707,52 +707,50 @@ impl GameState {
 
     pub fn to_fen(&self) -> String {
         let mut data = self.monomino_placed_last as u128;
+        data |= (self.start_piece_type as u128) << 4;
+        data |= (self.ply as u128) << 9;
+        data |= (self.skipped as u128) << 17;
+        let mut pieces: u128 = 0;
         for color in 0..4 {
             for piece_type in 0..21 {
-                if self.pieces_left[piece_type as usize][color as usize] {
-                    data |= 1 << (piece_type + 21 * color + 4);
+                if !self.pieces_left[piece_type as usize][color as usize] {
+                    pieces |= 1 << (piece_type + color * 21);
                 }
-            }
-        }
-        for (start_piece_index, piece) in PIECE_TYPES.iter().enumerate() {
-            if *piece == self.start_piece_type {
-                data |= (start_piece_index as u128) << 110;
-                break;
             }
         }
         format!(
             "{} {} {} {} {} {}",
-            (self.ply as u128) | (self.skipped as u128) << 8,
+            data,
+            pieces,
             self.board[0].to_fen(),
             self.board[1].to_fen(),
             self.board[2].to_fen(),
             self.board[3].to_fen(),
-            data
         )
     }
 
     pub fn from_fen(string: String) -> GameState {
         let mut entries: Vec<&str> = string.split(' ').collect();
-        let mut state = GameState::new();
-        let first_entry = entries.remove(0).parse::<u128>().unwrap();
-        state.ply = (first_entry & 0b11111111) as u8;
-        state.skipped = (first_entry >> 8) as u64;
+        let mut state = GameState::default();
+        let data = entries.remove(0).parse::<u128>().unwrap();
+        state.monomino_placed_last = (data & 0b1111) as u8;
+        state.start_piece_type = PIECE_TYPES[(data >> 4 & 0b11111) as usize];
+        state.ply = (data >> 9 & 0b11111111) as u8;
+        state.skipped = (data >> 17) as u64;
+        let pieces = entries.remove(0).parse::<u128>().unwrap();
+        for color in 0..4 {
+            for piece_type in 0..21 {
+                if pieces & 1 << (piece_type + color * 21) != 0 {
+                    state.pieces_left[piece_type as usize][color as usize] = false;
+                }
+            }
+        }
         for color in 0..4 {
             state.board[color].0 = entries.remove(0).parse::<u128>().unwrap();
             state.board[color].1 = entries.remove(0).parse::<u128>().unwrap();
             state.board[color].2 = entries.remove(0).parse::<u128>().unwrap();
             state.board[color].3 = entries.remove(0).parse::<u128>().unwrap();
         }
-        let data = entries.remove(0).parse::<u128>().unwrap();
-        state.monomino_placed_last = data as u8 & 0b1111;
-        for color in 0..4 {
-            for piece_type in 0..21 {
-                state.pieces_left[piece_type][color] =
-                    data & 1 << (piece_type + 21 * color + 4) != 0;
-            }
-        }
-        let start_piece_index = data >> 110 & 0b11111;
-        state.start_piece_type = PIECE_TYPES[start_piece_index as usize];
         state
     }
 }
@@ -765,19 +763,22 @@ impl Display for GameState {
             string.push('═');
         }
         string.push_str("╗\n");
-
         let info = &format!(
             "║ {} Turn: {} Score: {}",
-            self.get_current_color(),
+            match self.get_current_color() {
+                0 => "🟦",
+                1 => "🟨",
+                2 => "🟥",
+                _ => "🟩"
+            },
             self.ply,
             self.game_result(),
         );
         string.push_str(info);
-        for _ in info.len()..43 {
+        for _ in info.len()..45 {
             string.push(' ');
         }
-        string.push_str("║\n");
-        string.push('╠');
+        string.push_str("║\n╠");
         for _ in 0..40 {
             string.push('═');
         }
@@ -786,14 +787,13 @@ impl Display for GameState {
             string.push_str("\n║");
             for x in 0..20 {
                 let field = x + y * 21;
-                let bit = Bitboard::bit(field);
-                if self.board[0] & bit == bit {
+                if self.board[0].check_bit(field) {
                     string.push('🟦');
-                } else if self.board[1] & bit == bit {
+                } else if self.board[1].check_bit(field) {
                     string.push('🟨');
-                } else if self.board[2] & bit == bit {
+                } else if self.board[2].check_bit(field) {
                     string.push('🟥');
-                } else if self.board[3] & bit == bit {
+                } else if self.board[3].check_bit(field) {
                     string.push('🟩');
                 } else {
                     string.push_str("▪️");
@@ -806,13 +806,20 @@ impl Display for GameState {
             string.push('═');
         }
         string.push('╝');
-
         write!(f, "{}", string)
     }
 }
 
 impl Default for GameState {
-    fn default() -> GameState {
-        Self::new()
+    fn default() -> Self {
+        Self {
+            ply: 0,
+            board: [Bitboard::empty(); 4],
+            pieces_left: [[true; 4]; 21],
+            monomino_placed_last: 0,
+            skipped: 0,
+            start_piece_type: PieceType::LPentomino,
+            hash: 0,
+        }
     }
 }

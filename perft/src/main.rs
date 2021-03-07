@@ -21,7 +21,7 @@ fn random_perft() {
     let mut rng = SmallRng::from_entropy();
 
     for _ in 0..10_000 {
-        let mut state = GameState::new();
+        let mut state = GameState::random();
         while !state.is_game_over() {
             let random_action = state.get_random_possible_action(&mut rng, state.ply < 12, 10);
             state.do_action(random_action);
@@ -36,7 +36,7 @@ fn random_perft() {
     let start_time = Instant::now();
     for _ in 0..10_000 {
         let mut action_list = ActionList::default();
-        let mut state = GameState::new();
+        let mut state = GameState::random();
         while !state.is_game_over() {
             state.get_possible_actions(&mut action_list);
             state.do_action(action_list[rng.next_u64() as usize % action_list.size]);

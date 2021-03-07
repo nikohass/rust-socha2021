@@ -13,7 +13,7 @@ pub struct EvaluationParameters {
 }
 
 const DEFAULT_PARAMS: EvaluationParameters = EvaluationParameters {
-    valuable_fields: Bitboard::from(
+    valuable_fields: Bitboard(
         4096,
         10966141185668210596808960154823295996,
         81778714517053366965726746058431544,

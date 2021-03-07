@@ -15,12 +15,8 @@ impl Bitboard {
         Bitboard(0, 0, 0, 0)
     }
 
-    pub const fn from(a: u128, b: u128, c: u128, d: u128) -> Bitboard {
-        Bitboard(a, b, c, d)
-    }
-
-    pub fn with_piece(to: u16, shape_index: usize) -> Bitboard {
-        let shape = PIECE_SHAPES[shape_index];
+    pub fn with_piece(to: u16, shape: usize) -> Bitboard {
+        let shape = PIECE_SHAPES[shape];
         let shift = to as u8 & 0b1111111;
         let board = match to >> 7 {
             0 => Bitboard(0, 0, 0, shape),
@@ -37,13 +33,13 @@ impl Bitboard {
 
     pub fn bit(bit_idx: u16) -> Bitboard {
         if bit_idx < 128 {
-            Bitboard::from(0, 0, 0, 1 << bit_idx)
+            Bitboard(0, 0, 0, 1 << bit_idx)
         } else if bit_idx < 256 {
-            Bitboard::from(0, 0, 1 << (bit_idx - 128), 0)
+            Bitboard(0, 0, 1 << (bit_idx - 128), 0)
         } else if bit_idx < 384 {
-            Bitboard::from(0, 1 << (bit_idx - 256), 0, 0)
+            Bitboard(0, 1 << (bit_idx - 256), 0, 0)
         } else {
-            Bitboard::from(1 << (bit_idx - 384), 0, 0, 0)
+            Bitboard(1 << (bit_idx - 384), 0, 0, 0)
         }
     }
 
@@ -191,8 +187,7 @@ impl Bitboard {
         if n < 2 {
             return self.trailing_zeros();
         }
-        let i = rng.next_u32() as usize % n;
-        for _ in 0..i {
+        for _ in 0..rng.next_u32() as usize % n {
             self.flip_bit(self.trailing_zeros());
         }
         self.trailing_zeros()

@@ -1,6 +1,5 @@
 use argparse::{ArgumentParser, Store};
 use game_sdk::{Action, ActionList, GameState};
-use rand::{rngs::SmallRng, RngCore, SeedableRng};
 use std::fmt::{Display, Formatter, Result};
 use std::io::{BufRead, BufReader, Write};
 use std::process::{ChildStdin, ChildStdout, Command, Stdio};
@@ -122,25 +121,15 @@ fn play_game(
     client_team_one: &mut Client,
     client_team_two: &mut Client,
     verbose: bool,
-    r: f64,
 ) -> i16 {
-    let mut rng = SmallRng::from_entropy();
     let mut action_list = ActionList::default();
     while !state.is_game_over() {
         state.get_possible_actions(&mut action_list);
-
         if action_list[0] == Action::Skip {
             state.do_action(Action::Skip);
             continue;
         }
 
-        // do a random action sometimes to avoid playing the same game over and over again
-        if rng.next_u64() < ((std::u64::MAX as f64) * r) as u64 {
-            state.do_action(action_list[rng.next_u64() as usize % action_list.size]);
-            continue;
-        }
-
-        // request an action from the current client
         let action = if state.ply & 0b1 == 0 {
             client_team_one.get_action(&state, verbose)
         } else {
@@ -161,7 +150,6 @@ fn main() {
     let mut games: u32 = 100;
     let mut verbose = false;
     let mut time: u64 = 1980;
-    let mut r: f64 = 0.01;
 
     {
         let mut parser = ArgumentParser::new();
@@ -182,11 +170,6 @@ fn main() {
         parser
             .refer(&mut time)
             .add_option(&["-t", "--time"], Store, "Time/Action in milliseconds");
-        parser.refer(&mut r).add_option(
-            &["-r", "--random"],
-            Store,
-            "Probability of a random action",
-        );
         parser.parse_args_or_exit();
     }
 
@@ -200,16 +183,15 @@ fn main() {
     let mut client_one = Client::from_path(client_one_path, time);
     let mut client_two = Client::from_path(client_two_path, time);
     let mut test_result = TestResult::default();
-    let state = GameState::new();
     std::thread::sleep(std::time::Duration::from_millis(1000));
 
     for _ in 0..games / 2 {
+        let state = GameState::random();
         test_result.add_game_result(play_game(
             &mut state.clone(),
             &mut client_one,
             &mut client_two,
             verbose,
-            r,
         ));
         println!("{}", test_result);
         test_result.add_game_result(-play_game(
@@ -217,7 +199,6 @@ fn main() {
             &mut client_two,
             &mut client_one,
             verbose,
-            r,
         ));
         println!("{}", test_result);
     }

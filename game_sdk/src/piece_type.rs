@@ -33,8 +33,8 @@ impl PieceType {
         START_PIECE_TYPES[rng.next_u64() as usize % 11]
     }
 
-    pub fn from_shape_index(shape_index: usize) -> PieceType {
-        match shape_index {
+    pub fn from_shape(shape: usize) -> PieceType {
+        match shape {
             0 => PieceType::Monomino,
             1 | 2 => PieceType::Domino,
             3 | 4 => PieceType::ITromino,

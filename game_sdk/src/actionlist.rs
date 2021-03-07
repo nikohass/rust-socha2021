@@ -1,4 +1,5 @@
 use super::{Action, Bitboard};
+use std::fmt::{Display, Formatter, Result};
 use std::ops::{Index, IndexMut};
 
 pub const MAX_ACTIONS: usize = 1300;
@@ -29,26 +30,26 @@ impl ActionList {
     }
 
     #[inline(always)]
-    pub fn append(&mut self, mut destinations: Bitboard, shape_index: usize) {
+    pub fn append(&mut self, mut destinations: Bitboard, shape: usize) {
         while destinations.0 != 0 {
             let to = destinations.0.trailing_zeros();
             destinations.0 ^= 1 << to;
-            self.push(Action::Set(to as u16 + 384, shape_index));
+            self.push(Action::Set(to as u16 + 384, shape));
         }
         while destinations.1 != 0 {
             let to = destinations.1.trailing_zeros();
             destinations.1 ^= 1 << to;
-            self.push(Action::Set(to as u16 + 256, shape_index));
+            self.push(Action::Set(to as u16 + 256, shape));
         }
         while destinations.2 != 0 {
             let to = destinations.2.trailing_zeros();
             destinations.2 ^= 1 << to;
-            self.push(Action::Set(to as u16 + 128, shape_index));
+            self.push(Action::Set(to as u16 + 128, shape));
         }
         while destinations.3 != 0 {
             let to = destinations.3.trailing_zeros();
             destinations.3 ^= 1 << to;
-            self.push(Action::Set(to as u16, shape_index));
+            self.push(Action::Set(to as u16, shape));
         }
     }
 }
@@ -57,6 +58,19 @@ impl Default for ActionList {
     fn default() -> Self {
         let actions = unsafe { std::mem::MaybeUninit::uninit().assume_init() };
         Self { actions, size: 0 }
+    }
+}
+
+impl Display for ActionList {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        let mut ret = String::new();
+        for i in 0..self.size {
+            if i != 0 {
+                ret.push_str(", ");
+            }
+            ret.push_str(&self[i].to_short_name());
+        }
+        write!(f, "{}", ret)
     }
 }
 

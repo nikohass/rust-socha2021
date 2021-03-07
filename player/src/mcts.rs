@@ -1,5 +1,4 @@
 use super::float_stuff::{ln, sqrt};
-use super::search::format_principal_variation;
 use game_sdk::{Action, ActionList, Bitboard, GameState, PieceType, Player};
 use rand::{rngs::SmallRng, SeedableRng};
 use std::time::Instant;
@@ -20,15 +19,15 @@ pub fn rollout(state: &GameState, rng: &mut SmallRng) -> f32 {
                 state.skipped |= 1 << color_index;
                 result = state.game_result();
                 if (state.has_team_one_skipped() && result < 0)
-                    || (state.hast_team_two_skipped() && result > 0)
+                    || (state.has_team_two_skipped() && result > 0)
                 {
                     break;
                 }
             }
-            Action::Set(to, shape_index) => {
-                let piece_type = PieceType::from_shape_index(shape_index);
+            Action::Set(to, shape) => {
+                let piece_type = PieceType::from_shape(shape);
                 state.pieces_left[piece_type as usize][color_index] = false;
-                state.board[color_index] ^= Bitboard::with_piece(to, shape_index);
+                state.board[color_index] ^= Bitboard::with_piece(to, shape);
                 if piece_type == PieceType::Monomino {
                     state.monomino_placed_last |= 1 << color_index;
                 } else {
@@ -71,6 +70,7 @@ impl Node {
         }
     }
 
+    #[inline(always)]
     pub fn best_child(&self) -> &Node {
         let mut best_child: usize = 0;
         let mut best_value = std::f32::NEG_INFINITY;
@@ -84,6 +84,7 @@ impl Node {
         &self.children[best_child]
     }
 
+    #[inline(always)]
     pub fn best_action(&self) -> Action {
         if self.children.is_empty() {
             Action::Skip
@@ -191,7 +192,7 @@ impl MCTS {
     pub fn new(time_limit: u128) -> Self {
         Self {
             root_node: Node::empty(),
-            root_state: GameState::new(),
+            root_state: GameState::default(),
             time_limit: time_limit as i64,
         }
     }
@@ -217,6 +218,7 @@ impl MCTS {
             if !found {
                 self.root_state = state.clone();
                 self.root_node = Node::empty();
+                break;
             }
         }
         self.root_state = state.clone();
@@ -235,12 +237,12 @@ impl MCTS {
             "{:6}ms {:6.2} {}",
             time_left,
             1. - self.root_node.get_value(),
-            format_principal_variation(&principal_variation)
+            principal_variation
         );
     }
 
     pub fn search_action(&mut self, state: &GameState) -> (Action, f32) {
-        println!("Searching action using MCTS. ({})", state.to_fen());
+        println!("Searching action using MCTS. Fen: {}", state.to_fen());
         let start_time = Instant::now();
         self.set_root(&state);
         let mut rng = SmallRng::from_entropy();
@@ -259,18 +261,26 @@ impl MCTS {
             principal_variation.clear();
             self.root_node
                 .principal_variation(&mut self.root_state.clone(), &mut principal_variation);
-            self.print_stats(&mut principal_variation, time_left);
+            if searched > 0 {
+                self.print_stats(&mut principal_variation, time_left);
+            }
             if time_left < 80 {
                 break;
             }
             let to_search = ((time_left as f64 / 2.) * iterations_per_ms)
                 .max(1.)
-                .min(500_000.) as usize;
+                .min(1_500_000.) as usize;
             self.search_nodes(to_search, &mut rng);
             searched += to_search;
             iterations_per_ms = searched as f64 / start_time.elapsed().as_millis() as f64;
         }
         self.print_stats(&mut principal_variation, 0);
+        println!(
+            "Search finished after {}ms. Value: {} PV: {}",
+            start_time.elapsed().as_millis(),
+            1. - self.root_node.get_value(),
+            principal_variation,
+        );
         (
             self.root_node.best_action(),
             1. - self.root_node.get_value(),

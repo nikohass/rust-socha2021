@@ -71,48 +71,10 @@ impl XMLClient {
                             println!("Recieved welcome message");
                         }
                         "sc.framework.plugins.protocol.MoveRequest" => {
-                            if self.state.ply > 1 {
-                                println!(
-                                    "Recieved move request (Opponent took ca. {}ms to respond)",
-                                    self.opponent_time.elapsed().as_millis()
-                                );
-                            } else {
-                                println!("Recieved move request");
-                            }
-                            let action = self.player.on_move_request(&self.state);
-                            let xml_move = action.to_xml(self.state.get_current_color());
-                            println!("Sending: {}", action);
-                            XMLClient::write_to(
-                                stream,
-                                &format!(
-                                    "<room roomId=\"{}\">\n{}\n</room>",
-                                    self.room_id.as_ref().expect("Error while reading room id"),
-                                    xml_move
-                                ),
-                            );
-                            self.opponent_time = Instant::now();
+                            self.handle_move_request(stream);
                         }
                         "result" => {
-                            println!("Recieved result");
-                            let score = node.get_child("score").expect("Unable to read score");
-                            println!(
-                                "{}",
-                                match score
-                                    .get_attribute("cause")
-                                    .expect("Error while reading cause")
-                                    .as_str()
-                                {
-                                    "REGULAR" => "The game ended regular.".to_string(),
-                                    "LEFT" => "The game ended because a player left.".to_string(),
-                                    "RULE_VIOLATION" =>
-                                        "The game ended because of a rule violation.".to_string(),
-                                    "SOFT_TIMEOUT" =>
-                                        "The game ended because a player caused a soft timeout."
-                                            .to_string(),
-                                    _ => "The game ended because of a hard timeout.".to_string(),
-                                }
-                            );
-                            println!("Result: {}", self.state.game_result());
+                            self.handle_result(node);
                             return;
                         }
                         s => {
@@ -131,6 +93,79 @@ impl XMLClient {
                 _ => {}
             }
         }
+    }
+
+    fn handle_move_request(&mut self, stream: &TcpStream) {
+        if self.state.ply > 1 {
+            println!(
+                "Recieved move request (Opponent responded after ca. {}ms)",
+                self.opponent_time.elapsed().as_millis()
+            );
+        } else {
+            println!("Recieved move request");
+        }
+        let action = self.player.on_move_request(&self.state);
+        let xml_move = action.to_xml(self.state.get_current_color());
+        println!("Sending: {}", action);
+        XMLClient::write_to(
+            stream,
+            &format!(
+                "<room roomId=\"{}\">\n{}\n</room>",
+                self.room_id.as_ref().expect("Error while reading room id"),
+                xml_move
+            ),
+        );
+        self.opponent_time = Instant::now();
+    }
+
+    pub fn handle_result(&self, node: XMLNode) {
+        println!("Recieved result");
+        let score = node.get_child("score").expect("Unable to read score");
+        println!(
+            "{}",
+            match score
+                .get_attribute("cause")
+                .expect("Error while reading cause")
+                .as_str()
+            {
+                "REGULAR" => "The game ended regular.".to_string(),
+                "LEFT" => "The game ended because a player left.".to_string(),
+                "RULE_VIOLATION" => "The game ended because of a rule violation.".to_string(),
+                "SOFT_TIMEOUT" =>
+                    "The game ended because a player caused a soft timeout.".to_string(),
+                _ => "The game ended because of a hard timeout.".to_string(),
+            }
+        );
+        let mut team_one_score = 0;
+        let mut team_two_score = 0;
+        println!("Color   | Fields | Monomino last | All placed | Score");
+        for color in 0..4 {
+            let fields = self.state.board[color].count_ones();
+            let all_placed = fields == 89;
+            let m_last = self.state.monomino_placed_last & 0b1 << color != 0 && all_placed;
+            let score = fields + 5 * m_last as u32 + 15 * all_placed as u32;
+            println!(
+                "{} | {:6} | {:13} | {:10} | {:5}",
+                match color {
+                    0 => "BLUE   ",
+                    1 => "YELLOW ",
+                    2 => "RED    ",
+                    _ => "GREEN  ",
+                },
+                fields,
+                m_last,
+                all_placed,
+                score
+            );
+            if color % 2 == 0 {
+                team_one_score += score;
+            } else {
+                team_two_score += score;
+            }
+        }
+        println!("One score: {}", team_one_score);
+        println!("Two score: {}", team_two_score);
+        println!("Result: {}", self.state.game_result());
     }
 
     fn write_to(stream: &TcpStream, data: &str) {

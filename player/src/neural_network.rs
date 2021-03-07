@@ -220,7 +220,7 @@ impl Display for ConvolutionalLayer {
                 self.weights[0][0][0].len()
             )
         );
-        write!(f, "Conv2D     | {:19} | relu", shape,)
+        write!(f, "Conv2D     | {:19} | relu", shape)
     }
 }
 
@@ -233,8 +233,9 @@ impl NeuralNetwork {
     pub fn new(weights_file: &str) -> Self {
         let mut nn = Self::default();
         nn.add_convolutional_layer(ConvolutionalLayer::with_shape(7, 128, 4));
-        nn.add_convolutional_layer(ConvolutionalLayer::with_shape(7, 64, 128));
-        nn.add_convolutional_layer(ConvolutionalLayer::with_shape(7, 64, 64));
+        nn.add_convolutional_layer(ConvolutionalLayer::with_shape(7, 128, 128));
+        nn.add_convolutional_layer(ConvolutionalLayer::with_shape(5, 128, 128));
+        nn.add_convolutional_layer(ConvolutionalLayer::with_shape(5, 64, 128));
         nn.add_convolutional_layer(ConvolutionalLayer::with_shape(5, 64, 64));
         nn.add_convolutional_layer(ConvolutionalLayer::with_shape(5, 64, 64));
         nn.add_convolutional_layer(ConvolutionalLayer::with_shape(3, 32, 64));
@@ -343,8 +344,8 @@ impl Player for NeuralNetwork {
         let mut best_action: usize = 0;
         for index in 0..action_list.size {
             let mut confidence: f32 = 0.;
-            if let Action::Set(to, shape_index) = action_list[index] {
-                let mut action_board = Bitboard::with_piece(to, shape_index);
+            if let Action::Set(to, shape) = action_list[index] {
+                let mut action_board = Bitboard::with_piece(to, shape);
                 while action_board.not_zero() {
                     let bit_index = action_board.trailing_zeros();
                     action_board.flip_bit(bit_index);
@@ -441,8 +442,8 @@ impl Rotation {
 
     pub fn rotate_action(&self, action: Action) -> Action {
         match action {
-            Action::Set(to, shape_index) => Action::from_bitboard(
-                self.rotate_bitboard_back(Bitboard::with_piece(to, shape_index)),
+            Action::Set(to, shape) => Action::from_bitboard(
+                self.rotate_bitboard_back(Bitboard::with_piece(to, shape)),
             ),
             Action::Skip => action,
         }
