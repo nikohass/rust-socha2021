@@ -1,45 +1,23 @@
 use super::float_stuff::{ln, sqrt};
-use game_sdk::{Action, ActionList, Bitboard, GameState, PieceType, Player};
+use game_sdk::{Action, ActionList, GameState, Player};
 use rand::{rngs::SmallRng, SeedableRng};
 use std::time::Instant;
 
 const C: f32 = 0.0;
 const C_BASE: f32 = 7000.;
 const C_FACTOR: f32 = 38.5;
-const VISITS_BEFORE_EXPANSION: usize = 40;
+const VISITS_BEFORE_EXPANSION: usize = 45;
 
-pub fn rollout(state: &GameState, rng: &mut SmallRng) -> f32 {
-    let team = state.get_team();
-    let mut result = 0;
-    let mut state = state.clone();
+pub fn playout(initial_state: &GameState, rng: &mut SmallRng) -> f32 {
+    let team = initial_state.get_team();
+    let mut state = initial_state.clone();
     while !state.is_game_over() {
-        let color_index = state.get_current_color() as usize;
-        match state.get_random_possible_action(rng, state.ply < 16, 40) {
-            Action::Skip => {
-                state.skipped |= 1 << color_index;
-                result = state.game_result();
-                if (state.has_team_one_skipped() && result < 0)
-                    || (state.has_team_two_skipped() && result > 0)
-                {
-                    break;
-                }
-            }
-            Action::Set(to, shape) => {
-                let piece_type = PieceType::from_shape(shape);
-                state.pieces_left[piece_type as usize][color_index] = false;
-                state.board[color_index] ^= Bitboard::with_piece(to, shape);
-                if piece_type == PieceType::Monomino {
-                    state.monomino_placed_last |= 1 << color_index;
-                } else {
-                    state.monomino_placed_last &= !(1 << color_index);
-                }
-            }
-        };
-        state.ply += 1;
+        state.do_action(state.get_random_possible_action(rng, state.ply < 16, 40));
     }
+    let result = state.game_result();
     match result * team {
-        r if r > 0 => 1.,
-        r if r < 0 => 0.,
+        r if r > 0 => 0.999 + (result.abs() as f32) / 100_000.,
+        r if r < 0 => 0.001 - (result.abs() as f32) / 100_000.,
         _ => 0.5,
     }
 }
@@ -96,7 +74,7 @@ impl Node {
     #[inline(always)]
     fn get_uct_value(&self, parent_n: f32, c: f32) -> f32 {
         if self.n > 0. {
-            (self.q / self.n) + c * sqrt(ln(parent_n) / self.n)
+            self.q / self.n + c * sqrt(ln(parent_n) / self.n)
         } else {
             std::f32::INFINITY
         }
@@ -122,13 +100,13 @@ impl Node {
         self.q += q;
     }
 
-    fn expand(&mut self, state: &mut GameState, action_list: &mut ActionList) {
-        state.get_possible_actions(action_list);
-        self.children = Vec::with_capacity(action_list.size);
-        for i in 0..action_list.size {
+    fn expand(&mut self, state: &GameState, al: &mut ActionList) {
+        state.get_possible_actions(al);
+        self.children = Vec::with_capacity(al.size);
+        for i in 0..al.size {
             self.children.push(Node {
                 children: Vec::new(),
-                action: action_list[i],
+                action: al[i],
                 n: 0.,
                 q: 0.,
             });
@@ -137,7 +115,7 @@ impl Node {
 
     pub fn iteration(
         &mut self,
-        action_list: &mut ActionList,
+        al: &mut ActionList,
         state: &mut GameState,
         rng: &mut SmallRng,
     ) -> f32 {
@@ -145,14 +123,14 @@ impl Node {
         if self.children.is_empty() {
             if !state.is_game_over() {
                 if self.n as usize % VISITS_BEFORE_EXPANSION == 1 {
-                    self.expand(state, action_list);
+                    self.expand(state, al);
                 }
-                delta = rollout(&state, rng);
+                delta = playout(&state, rng);
             } else if self.n == 0. {
-                let result = state.game_result() * state.get_team();
-                self.q = match result {
-                    r if r > 0 => 1.,
-                    r if r < 0 => 0.,
+                let result = state.game_result();
+                self.q = match result * state.get_team() {
+                    r if r > 0 => 0.999 + (result.abs() as f32) / 100_000.,
+                    r if r < 0 => 0.001 - (result.abs() as f32) / 100_000.,
                     _ => 0.5,
                 };
                 self.n = 1.;
@@ -165,20 +143,20 @@ impl Node {
         }
         let next_child = self.child_with_max_uct_value();
         state.do_action(next_child.action);
-        delta = next_child.iteration(action_list, state, rng);
+        delta = next_child.iteration(al, state, rng);
         self.backpropagate(delta);
         1. - delta
     }
 
-    pub fn principal_variation(&self, state: &mut GameState, action_list: &mut ActionList) {
+    pub fn principal_variation(&self, state: &mut GameState, al: &mut ActionList) {
         if self.children.is_empty() {
             return;
         }
         let child = self.best_child();
         let action = child.action;
-        action_list.push(action);
+        al.push(action);
         state.do_action(action);
-        child.principal_variation(state, action_list);
+        child.principal_variation(state, al);
     }
 }
 
@@ -225,17 +203,18 @@ impl MCTS {
     }
 
     fn search_nodes(&mut self, n: usize, rng: &mut SmallRng) {
-        let mut action_list = ActionList::default();
+        let mut al = ActionList::default();
         for _ in 0..n {
             self.root_node
-                .iteration(&mut action_list, &mut self.root_state.clone(), rng);
+                .iteration(&mut al, &mut self.root_state.clone(), rng);
         }
     }
 
     fn print_stats(&self, principal_variation: &mut ActionList, time_left: i64) {
         println!(
-            "{:6}ms {:6.2} {}",
+            "{:6}ms {:6} {:5.2} {}",
             time_left,
+            principal_variation.size,
             1. - self.root_node.get_value(),
             principal_variation
         );
@@ -249,13 +228,13 @@ impl MCTS {
         let mut principal_variation = ActionList::default();
         let mut iterations_per_ms = 0.1;
         let mut searched: usize = 0;
-        let mut action_list = ActionList::default();
-        self.root_state.get_possible_actions(&mut action_list);
-        if action_list[0] == Action::Skip {
+        let mut al = ActionList::default();
+        self.root_state.get_possible_actions(&mut al);
+        if al[0] == Action::Skip {
             return (Action::Skip, std::f32::NEG_INFINITY);
         }
 
-        println!("    Time  Value PV");
+        println!("    Time  Depth Value PV");
         loop {
             let time_left = self.time_limit - start_time.elapsed().as_millis() as i64;
             principal_variation.clear();
@@ -267,7 +246,7 @@ impl MCTS {
             if time_left < 80 {
                 break;
             }
-            let to_search = ((time_left as f64 / 2.) * iterations_per_ms)
+            let to_search = ((time_left as f64 / 2.).min(5000.) * iterations_per_ms)
                 .max(1.)
                 .min(1_500_000.) as usize;
             self.search_nodes(to_search, &mut rng);
@@ -276,7 +255,7 @@ impl MCTS {
         }
         self.print_stats(&mut principal_variation, 0);
         println!(
-            "Search finished after {}ms. Value: {} PV: {}",
+            "Search finished after {}ms. Value: {:.2} PV: {}",
             start_time.elapsed().as_millis(),
             1. - self.root_node.get_value(),
             principal_variation,
