@@ -332,9 +332,9 @@ impl Player for NeuralNetwork {
         let mut state = state.clone();
         let rotation = Rotation::from_state(&state);
         rotation.rotate_state(&mut state);
-        let mut action_list = ActionList::default();
-        state.get_possible_actions(&mut action_list);
-        if action_list[0] == Action::Skip {
+        let mut al = ActionList::default();
+        state.get_possible_actions(&mut al);
+        if al[0] == Action::Skip {
             return Action::Skip;
         }
         let input_vector = state_to_vector(&state);
@@ -342,9 +342,9 @@ impl Player for NeuralNetwork {
 
         let mut highest_confidence: f32 = 0.;
         let mut best_action: usize = 0;
-        for index in 0..action_list.size {
+        for index in 0..al.size {
             let mut confidence: f32 = 0.;
-            if let Action::Set(to, shape) = action_list[index] {
+            if let Action::Set(to, shape) = al[index] {
                 let mut action_board = Bitboard::with_piece(to, shape);
                 while action_board.not_zero() {
                     let bit_index = action_board.trailing_zeros();
@@ -360,7 +360,7 @@ impl Player for NeuralNetwork {
             }
         }
         println!("Confidence: {}", highest_confidence);
-        rotation.rotate_action(action_list[best_action])
+        rotation.rotate_action(al[best_action])
     }
 }
 
@@ -442,9 +442,9 @@ impl Rotation {
 
     pub fn rotate_action(&self, action: Action) -> Action {
         match action {
-            Action::Set(to, shape) => Action::from_bitboard(
-                self.rotate_bitboard_back(Bitboard::with_piece(to, shape)),
-            ),
+            Action::Set(to, shape) => {
+                Action::from_bitboard(self.rotate_bitboard_back(Bitboard::with_piece(to, shape)))
+            }
             Action::Skip => action,
         }
     }

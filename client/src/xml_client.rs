@@ -62,13 +62,13 @@ impl XMLClient {
                     let data_class = node.get_attribute("class").unwrap_or(invalid).to_string();
                     match data_class.as_str() {
                         "memento" => {
-                            println!("Recieved memento: ");
+                            println!("Received memento: ");
                             node.as_memento(&mut self.state);
                             println!("    fen: {}", self.state.to_fen());
                             println!("    ply: {}", self.state.ply);
                         }
                         "welcomeMessage" => {
-                            println!("Recieved welcome message");
+                            println!("Received welcome message");
                         }
                         "sc.framework.plugins.protocol.MoveRequest" => {
                             self.handle_move_request(stream);
@@ -98,11 +98,11 @@ impl XMLClient {
     fn handle_move_request(&mut self, stream: &TcpStream) {
         if self.state.ply > 1 {
             println!(
-                "Recieved move request (Opponent responded after ca. {}ms)",
+                "Received move request (Opponent responded after approximately {}ms)",
                 self.opponent_time.elapsed().as_millis()
             );
         } else {
-            println!("Recieved move request");
+            println!("Received move request");
         }
         let action = self.player.on_move_request(&self.state);
         let xml_move = action.to_xml(self.state.get_current_color());
@@ -119,7 +119,7 @@ impl XMLClient {
     }
 
     pub fn handle_result(&self, node: XMLNode) {
-        println!("Recieved result");
+        println!("Received result");
         let score = node.get_child("score").expect("Unable to read score");
         println!(
             "{}",
@@ -136,14 +136,20 @@ impl XMLClient {
                 _ => "The game ended because of a hard timeout.".to_string(),
             }
         );
-        let mut team_one_score = 0;
-        let mut team_two_score = 0;
+        let mut team_one_score: i16 = 0;
+        let mut team_two_score: i16 = 0;
         println!("Color   | Fields | Monomino last | All placed | Score");
         for color in 0..4 {
-            let fields = self.state.board[color].count_ones();
+            let fields = self.state.board[color].count_ones() as i16;
             let all_placed = fields == 89;
-            let m_last = self.state.monomino_placed_last & 0b1 << color != 0 && all_placed;
-            let score = fields + 5 * m_last as u32 + 15 * all_placed as u32;
+            let m_last = self.state.monomino_placed_last & 0b1 << color != 0;
+            let mut score = fields;
+            if all_placed {
+                score += 15;
+                if m_last {
+                    score += 5;
+                }
+            }
             println!(
                 "{} | {:6} | {:13} | {:10} | {:5}",
                 match color {
@@ -165,7 +171,13 @@ impl XMLClient {
         }
         println!("One score: {}", team_one_score);
         println!("Two score: {}", team_two_score);
-        println!("Result: {}", self.state.game_result());
+        let result = team_one_score - team_two_score;
+        print!("Result: {} => ", self.state.game_result());
+        match result {
+            r if r > 0 => println!("Winner: Team One (BLUE, RED)"),
+            r if r < 0 => println!("Winner: Team Two (YELLOW, GREEN)"),
+            _ => println!("Draw"),
+        }
     }
 
     fn write_to(stream: &TcpStream, data: &str) {

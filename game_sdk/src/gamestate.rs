@@ -66,7 +66,7 @@ impl GameState {
     }
 
     pub fn do_action(&mut self, action: Action) {
-        debug_assert!(self.validate_action(&action), "Action is invalid");
+        debug_assert!(self.validate_action(&action));
         self.hash ^= PLY_HASH[self.ply as usize];
         let color = self.get_current_color() as usize;
         match action {
@@ -75,10 +75,9 @@ impl GameState {
             }
             Action::Set(to, shape) => {
                 let piece_type = PieceType::from_shape(shape);
-                self.hash ^= PIECE_HASH[shape][color];
-                self.hash ^= FIELD_HASH[to as usize][color];
                 self.pieces_left[piece_type as usize][color] = false;
                 self.board[color] ^= Bitboard::with_piece(to, shape);
+                self.hash ^= PIECE_HASH[shape][color] ^ FIELD_HASH[to as usize][color];
                 if piece_type == PieceType::Monomino {
                     self.monomino_placed_last |= 1 << color;
                 } else {
@@ -94,19 +93,19 @@ impl GameState {
         self.ply -= 1;
         self.hash ^= PLY_HASH[self.ply as usize];
         let color = self.get_current_color() as usize;
-        if let Action::Set(to, shape) = action {
-            let piece_type = PieceType::from_shape(shape);
-            self.hash ^= PIECE_HASH[shape][color];
-            self.hash ^= FIELD_HASH[to as usize][color];
-            debug_assert!(
-                !self.pieces_left[piece_type as usize][color],
-                "Can't remove piece that has not been placed."
-            );
-            self.pieces_left[piece_type as usize][color] = true;
-            self.board[color] ^= Bitboard::with_piece(to, shape);
-        } else {
-            self.skipped >>= 4;
-        }
+        match action {
+            Action::Skip => self.skipped >>= 4,
+            Action::Set(to, shape) => {
+                let piece_type = PieceType::from_shape(shape);
+                debug_assert!(
+                    !self.pieces_left[piece_type as usize][color],
+                    "Can't remove piece that has not been placed."
+                );
+                self.pieces_left[piece_type as usize][color] = true;
+                self.board[color] ^= Bitboard::with_piece(to, shape);
+                self.hash ^= PIECE_HASH[shape][color] ^ FIELD_HASH[to as usize][color];
+            }
+        };
         debug_assert!(self.check_integrity());
     }
 
@@ -226,102 +225,6 @@ impl GameState {
         let d4 = d3 & (legal_fields >> 63 & VALID_FIELDS);
         let u4 = u3 & (legal_fields << 63 & VALID_FIELDS);
 
-        if self.pieces_left[PieceType::Domino as usize][color] {
-            al.append((r2 & p) | (l2 & p) >> 1, 1);
-            al.append((d2 & p) | (u2 & p) >> 21, 2);
-        }
-
-        if self.pieces_left[PieceType::ITromino as usize][color] {
-            al.append((r3 & p) | (l3 & p) >> 2, 3);
-            al.append((u3 & p) >> 42 | (d3 & p), 4);
-        }
-
-        if self.pieces_left[PieceType::ITetromino as usize][color] {
-            al.append((r4 & p) | (l4 & p) >> 3, 5);
-            al.append((d4 & p) | (u4 & p) >> 63, 6);
-        }
-
-        if self.pieces_left[PieceType::IPentomino as usize][color] {
-            al.append(
-                (r4 & legal_fields >> 4 & p) | (l4 & legal_fields << 4 & p) >> 4,
-                7,
-            );
-            al.append(
-                (d4 & legal_fields >> 84 & p) | (u4 & legal_fields << 84 & p) >> 84,
-                8,
-            );
-        }
-
-        if self.pieces_left[PieceType::XPentomino as usize][color] {
-            al.append(
-                ((r3 >> 20 & d3) & (p | p >> 20 | p >> 22 | p >> 42)) >> 1,
-                10,
-            )
-        }
-
-        if self.pieces_left[PieceType::LTromino as usize][color] {
-            al.append((u2 & r2) >> 21 & (p | p >> 21 | p >> 22), 11);
-            al.append((d2 & r2) & (p | p >> 1 | p >> 21), 12);
-            al.append((d2 >> 1 & r2) & (p | p >> 1 | p >> 22), 13);
-            al.append((d2 >> 1 & r2 >> 21) & (p >> 1 | p >> 21 | p >> 22), 14);
-        }
-
-        if self.pieces_left[PieceType::LPentomino as usize][color] {
-            al.append((r4 & legal_fields >> 24) & (p | p >> 3 | p >> 24), 23);
-            al.append((r4 & d2) & (p | p >> 3 | p >> 21), 24);
-            al.append((legal_fields & r4 >> 21) & (p | p >> 21 | p >> 24), 25);
-            al.append((l4 & u2) >> 24 & (p >> 3 | p >> 21 | p >> 24), 26);
-            al.append((r2 & d4) & (p | p >> 1 | p >> 63), 27);
-            al.append((d4 & legal_fields >> 64) & (p | p >> 63 | p >> 64), 28);
-            al.append((r2 & d4 >> 1) & (p | p >> 1 | p >> 64), 29);
-            al.append((u4 & l2) >> 64 & (p >> 1 | p >> 63 | p >> 64), 30);
-        }
-
-        if self.pieces_left[PieceType::TPentomino as usize][color] {
-            al.append((r3 & d3 >> 1) & (p | p >> 2 | p >> 43), 31);
-            al.append((l2 & r2 & u3) >> 43 & (p >> 1 | p >> 42 | p >> 44), 32);
-            al.append((d3 & r3 >> 21) & (p | p >> 23 | p >> 42), 33);
-            al.append((l3 & u2 & d2) >> 23 & (p >> 2 | p >> 21 | p >> 44), 34);
-        }
-
-        if self.pieces_left[PieceType::ZPentomino as usize][color] {
-            al.append(
-                (legal_fields & (l3 & d2) >> 23) & (p | p >> 21 | p >> 23 | p >> 44),
-                43,
-            );
-            al.append(
-                ((legal_fields & (r3 & d2) >> 19) & (p | p >> 19 | p >> 21 | p >> 40)) >> 2,
-                44,
-            );
-            al.append(
-                (legal_fields >> 2 & (u3 & l2) >> 43) & (p >> 1 | p >> 2 | p >> 42 | p >> 43),
-                45,
-            );
-            al.append(
-                (r2 & (r2 & u3) >> 43) & (p | p >> 1 | p >> 43 | p >> 44),
-                46,
-            );
-        }
-
-        if self.pieces_left[PieceType::UPentomino as usize][color] {
-            al.append(
-                (r3 & d2 & legal_fields >> 23) & (p | p >> 2 | p >> 21 | p >> 23),
-                47,
-            );
-            al.append(
-                (legal_fields & (l3 & u2) >> 23) & (p | p >> 2 | p >> 21 | p >> 23),
-                48,
-            );
-            al.append(
-                (d3 & r2 & legal_fields >> 43) & (p | p >> 1 | p >> 42 | p >> 43),
-                49,
-            );
-            al.append(
-                (r2 & (l2 & u3) >> 43) & (p | p >> 1 | p >> 42 | p >> 43),
-                50,
-            );
-        }
-
         if self.pieces_left[PieceType::FPentomino as usize][color] {
             al.append(
                 ((u3 & l2) >> 43 & legal_fields >> 23) & (p >> 1 | p >> 23 | p >> 42 | p >> 43),
@@ -373,6 +276,102 @@ impl GameState {
             al.append(
                 ((r2 & (r2 & d2) >> 20) & (p | p >> 1 | p >> 20 | p >> 21 | p >> 41)) >> 1,
                 62,
+            );
+        }
+
+        if self.pieces_left[PieceType::LPentomino as usize][color] {
+            al.append((r4 & legal_fields >> 24) & (p | p >> 3 | p >> 24), 23);
+            al.append((r4 & d2) & (p | p >> 3 | p >> 21), 24);
+            al.append((legal_fields & r4 >> 21) & (p | p >> 21 | p >> 24), 25);
+            al.append((l4 & u2) >> 24 & (p >> 3 | p >> 21 | p >> 24), 26);
+            al.append((r2 & d4) & (p | p >> 1 | p >> 63), 27);
+            al.append((d4 & legal_fields >> 64) & (p | p >> 63 | p >> 64), 28);
+            al.append((r2 & d4 >> 1) & (p | p >> 1 | p >> 64), 29);
+            al.append((u4 & l2) >> 64 & (p >> 1 | p >> 63 | p >> 64), 30);
+        }
+
+        if self.pieces_left[PieceType::TPentomino as usize][color] {
+            al.append((r3 & d3 >> 1) & (p | p >> 2 | p >> 43), 31);
+            al.append((l2 & r2 & u3) >> 43 & (p >> 1 | p >> 42 | p >> 44), 32);
+            al.append((d3 & r3 >> 21) & (p | p >> 23 | p >> 42), 33);
+            al.append((l3 & u2 & d2) >> 23 & (p >> 2 | p >> 21 | p >> 44), 34);
+        }
+
+        if self.pieces_left[PieceType::ZPentomino as usize][color] {
+            al.append(
+                (legal_fields & (l3 & d2) >> 23) & (p | p >> 21 | p >> 23 | p >> 44),
+                43,
+            );
+            al.append(
+                ((legal_fields & (r3 & d2) >> 19) & (p | p >> 19 | p >> 21 | p >> 40)) >> 2,
+                44,
+            );
+            al.append(
+                (legal_fields >> 2 & (u3 & l2) >> 43) & (p >> 1 | p >> 2 | p >> 42 | p >> 43),
+                45,
+            );
+            al.append(
+                (r2 & (r2 & u3) >> 43) & (p | p >> 1 | p >> 43 | p >> 44),
+                46,
+            );
+        }
+
+        if self.pieces_left[PieceType::Domino as usize][color] {
+            al.append((r2 & p) | (l2 & p) >> 1, 1);
+            al.append((d2 & p) | (u2 & p) >> 21, 2);
+        }
+
+        if self.pieces_left[PieceType::ITromino as usize][color] {
+            al.append((r3 & p) | (l3 & p) >> 2, 3);
+            al.append((u3 & p) >> 42 | (d3 & p), 4);
+        }
+
+        if self.pieces_left[PieceType::ITetromino as usize][color] {
+            al.append((r4 & p) | (l4 & p) >> 3, 5);
+            al.append((d4 & p) | (u4 & p) >> 63, 6);
+        }
+
+        if self.pieces_left[PieceType::IPentomino as usize][color] {
+            al.append(
+                (r4 & legal_fields >> 4 & p) | (l4 & legal_fields << 4 & p) >> 4,
+                7,
+            );
+            al.append(
+                (d4 & legal_fields >> 84 & p) | (u4 & legal_fields << 84 & p) >> 84,
+                8,
+            );
+        }
+
+        if self.pieces_left[PieceType::XPentomino as usize][color] {
+            al.append(
+                ((r3 >> 20 & d3) & (p | p >> 20 | p >> 22 | p >> 42)) >> 1,
+                10,
+            )
+        }
+
+        if self.pieces_left[PieceType::LTromino as usize][color] {
+            al.append((u2 & r2) >> 21 & (p | p >> 21 | p >> 22), 11);
+            al.append((d2 & r2) & (p | p >> 1 | p >> 21), 12);
+            al.append((d2 >> 1 & r2) & (p | p >> 1 | p >> 22), 13);
+            al.append((d2 >> 1 & r2 >> 21) & (p >> 1 | p >> 21 | p >> 22), 14);
+        }
+
+        if self.pieces_left[PieceType::UPentomino as usize][color] {
+            al.append(
+                (r3 & d2 & legal_fields >> 23) & (p | p >> 2 | p >> 21 | p >> 23),
+                47,
+            );
+            al.append(
+                (legal_fields & (l3 & u2) >> 23) & (p | p >> 2 | p >> 21 | p >> 23),
+                48,
+            );
+            al.append(
+                (d3 & r2 & legal_fields >> 43) & (p | p >> 1 | p >> 42 | p >> 43),
+                49,
+            );
+            al.append(
+                (r2 & (l2 & u3) >> 43) & (p | p >> 1 | p >> 42 | p >> 43),
+                50,
             );
         }
 
@@ -568,8 +567,7 @@ impl GameState {
                     shape = PENTOMINO_SHAPES[(rng.next_u64() % 63) as usize]
                 }
             }
-            if !self.pieces_left[PieceType::from_shape(shape as usize) as usize][color]
-            {
+            if !self.pieces_left[PieceType::from_shape(shape as usize) as usize][color] {
                 continue;
             }
             let mut destinations = match shape {
@@ -674,8 +672,7 @@ impl GameState {
                 _ => ((legal_fields & r4 >> 20) & (p | p >> 20 | p >> 23)) >> 1,
             };
             if destinations.not_zero() {
-                let destination = destinations.random_field(rng);
-                return Action::Set(destination, shape);
+                return Action::Set(destinations.random_field(rng), shape);
             }
         }
         Action::Skip
@@ -702,7 +699,7 @@ impl GameState {
                 }
             }
         }
-        scores[0] + scores[2] - scores[1] - scores[3]
+        scores[0] - scores[1] + scores[2] - scores[3]
     }
 
     pub fn to_fen(&self) -> String {
@@ -769,7 +766,7 @@ impl Display for GameState {
                 0 => "🟦",
                 1 => "🟨",
                 2 => "🟥",
-                _ => "🟩"
+                _ => "🟩",
             },
             self.ply,
             self.game_result(),

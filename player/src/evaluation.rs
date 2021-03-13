@@ -9,7 +9,6 @@ pub struct EvaluationParameters {
     valuable_field_factor: f32,
     proximity_factor: f32,
     double_placement_field_factor: f32,
-    monomino_placed_last_factor: f32,
 }
 
 const DEFAULT_PARAMS: EvaluationParameters = EvaluationParameters {
@@ -47,7 +46,6 @@ const DEFAULT_PARAMS: EvaluationParameters = EvaluationParameters {
     valuable_field_factor: 7.5,
     proximity_factor: 15.,
     double_placement_field_factor: -50.,
-    monomino_placed_last_factor: 70.,
 };
 
 pub fn static_evaluation(state: &GameState) -> i16 {
@@ -115,17 +113,12 @@ pub fn static_evaluation(state: &GameState) -> i16 {
             | (all_occupied_fields & state.board[3].neighbours()))
         .count_ones() as f32;
 
-    let m_last = state.skipped as u8 & state.monomino_placed_last;
-    let monomino_placed_last_difference =
-        (m_last & 0b101).count_ones() as f32 - (m_last & 0b1010).count_ones() as f32;
-
     let score = field_difference * DEFAULT_PARAMS.occupied_field_factor
         + placement_field_difference * DEFAULT_PARAMS.placement_field_factor
         + blocked_placement_field_difference * DEFAULT_PARAMS.blocked_factor
         + valuable_field_difference * DEFAULT_PARAMS.valuable_field_factor
         + proximity_difference * DEFAULT_PARAMS.proximity_factor
-        + double_placement_field_difference * DEFAULT_PARAMS.double_placement_field_factor
-        + monomino_placed_last_difference * DEFAULT_PARAMS.monomino_placed_last_factor;
+        + double_placement_field_difference * DEFAULT_PARAMS.double_placement_field_factor;
 
-    score.round() as i16 * -team
+    score.round() as i16 * -team + 100
 }

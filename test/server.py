@@ -1,7 +1,8 @@
-import socket
-from threading import Thread
-from test import TestResult
 import os
+import time
+import socket
+from test import TestResult
+from threading import Thread
 
 PORT = 30_000
 VERBOSE = True
@@ -40,6 +41,7 @@ class ClientThread(Thread):
             except ConnectionResetError:
                 log(f"{self.info.addr} disconnected")
                 break
+            time.sleep(0.1)
             self.on_request(request.decode("utf-8"))
 
     def on_request(self, request):
@@ -137,7 +139,7 @@ class Server(Thread):
         s.bind(("", PORT))
         s.listen()
         conn, addr = s.accept()
-        self.clients[addr] = ClientThread(conn, addr, self.on_task_request, self.on_result_update)
+        self.clients[addr[0]] = ClientThread(conn, addr, self.on_task_request, self.on_result_update)
 
     def reset_results(self):
         for key in self.clients:

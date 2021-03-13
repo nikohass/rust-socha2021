@@ -11,13 +11,13 @@ pub mod simple_client {
 
     pub struct SimpleClient {
         rng: SmallRng,
-        action_list: ActionList,
+        al: ActionList,
     }
 
     impl SimpleClient {
         pub fn get_action(&mut self, state: &GameState) -> Action {
-            state.get_possible_actions(&mut self.action_list);
-            self.action_list[self.rng.next_u64() as usize % self.action_list.size]
+            state.get_possible_actions(&mut self.al);
+            self.al[self.rng.next_u64() as usize % self.al.size]
         }
     }
 
@@ -31,7 +31,7 @@ pub mod simple_client {
         fn default() -> Self {
             Self {
                 rng: SmallRng::from_entropy(),
-                action_list: ActionList::default(),
+                al: ActionList::default(),
             }
         }
     }

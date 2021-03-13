@@ -1,5 +1,6 @@
 /target
 /helper_scripts/log.txt
 /datasets
-*weights
+/clients
+*weights*
 *cpython*

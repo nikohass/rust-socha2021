@@ -30,48 +30,40 @@ mod tests {
         "18194 6732109985390493852982274 884736 31901482040045200655988913714818449409 20282409835765575363979011887727056 93461620752214586704661989910642688 0 131072 42535316147536582995760855127085285377 170141548549277432327859950371488137219 17179881472 996921076067190019787743985469008000 1952305854528819124263596185110970368 0 0 0 2535303278298107582477523524608 9470764998692365211093174290282477568",
     ];
 
-    fn count_actions(
-        state: &mut GameState,
-        depth: usize,
-        action_list_stack: &mut ActionListStack,
-    ) -> u64 {
-        action_list_stack[depth].clear();
-        state.get_possible_actions(&mut action_list_stack[depth]);
+    fn count_actions(state: &mut GameState, depth: usize, als: &mut ActionListStack) -> u64 {
+        als[depth].clear();
+        state.get_possible_actions(&mut als[depth]);
         if depth == 0 || state.is_game_over() {
-            return action_list_stack[depth].size as u64;
+            return als[depth].size as u64;
         }
         let mut nodes: u64 = 0;
-        for i in 0..action_list_stack[depth].size {
-            state.do_action(action_list_stack[depth][i]);
-            nodes += count_actions(state, depth - 1, action_list_stack);
-            state.undo_action(action_list_stack[depth][i]);
+        for i in 0..als[depth].size {
+            state.do_action(als[depth][i]);
+            nodes += count_actions(state, depth - 1, als);
+            state.undo_action(als[depth][i]);
         }
         nodes
     }
 
     #[test]
     fn test_state() {
-        let mut action_list_stack = ActionListStack::with_size(4);
-        let results: [u64; 4] = [
-            96564378, 815135, 200870, 56253
-        ];
+        let mut als = ActionListStack::with_size(4);
+        let results: [u64; 4] = [96564378, 815135, 200870, 56253];
         for (i, fen) in TEST_FENS.iter().enumerate() {
             let mut state = GameState::from_fen(fen.to_string());
-            assert_eq!(
-                results[i],
-                count_actions(&mut state, 2, &mut action_list_stack)
-            );
+            assert_eq!(results[i], count_actions(&mut state, 2, &mut als));
+            assert_eq!(state.hash, 0);
         }
     }
 
     #[test]
     fn test_action_serialization() {
-        let mut action_list = ActionList::default();
+        let mut al = ActionList::default();
         for fen in TEST_FENS.iter() {
             let state = GameState::from_fen(fen.to_string());
-            state.get_possible_actions(&mut action_list);
-            for index in 0..action_list.size / 10 {
-                let action = action_list[index];
+            state.get_possible_actions(&mut al);
+            for index in 0..al.size / 10 {
+                let action = al[index];
                 assert_eq!(action, Action::deserialize(action.serialize()));
             }
         }
@@ -79,14 +71,14 @@ mod tests {
 
     #[test]
     fn test_action_from_bitboard() {
-        let mut action_list = ActionList::default();
+        let mut al = ActionList::default();
         for fen in TEST_FENS.iter() {
             let state = GameState::from_fen(fen.to_string());
-            state.get_possible_actions(&mut action_list);
-            for index in 0..action_list.size / 10 {
-                if let Action::Set(to, shape) = action_list[index] {
+            state.get_possible_actions(&mut al);
+            for index in 0..al.size / 10 {
+                if let Action::Set(to, shape) = al[index] {
                     let action_board = Bitboard::with_piece(to, shape);
-                    assert_eq!(action_list[index], Action::from_bitboard(action_board));
+                    assert_eq!(al[index], Action::from_bitboard(action_board));
                 }
             }
         }
@@ -95,10 +87,10 @@ mod tests {
     #[test]
     fn test_skipped() {
         let mut state = GameState::default();
-        let mut action_list = ActionList::default();
+        let mut al = ActionList::default();
         for _ in 0..4 {
-            state.get_possible_actions(&mut action_list);
-            state.do_action(action_list[0]);
+            state.get_possible_actions(&mut al);
+            state.do_action(al[0]);
         }
 
         for _ in 0..8 {

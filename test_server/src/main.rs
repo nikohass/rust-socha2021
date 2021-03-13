@@ -122,10 +122,10 @@ fn play_game(
     client_team_two: &mut Client,
     verbose: bool,
 ) -> i16 {
-    let mut action_list = ActionList::default();
+    let mut al = ActionList::default();
     while !state.is_game_over() {
-        state.get_possible_actions(&mut action_list);
-        if action_list[0] == Action::Skip {
+        state.get_possible_actions(&mut al);
+        if al[0] == Action::Skip {
             state.do_action(Action::Skip);
             continue;
         }

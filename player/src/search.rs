@@ -13,7 +13,7 @@ pub struct Searcher {
     pub nodes_searched: u64,
     pub root_ply: u8,
     pub stop: bool,
-    pub action_list_stack: ActionListStack,
+    pub als: ActionListStack,
     pub principal_variation: ActionList,
     pub pv_table: ActionListStack,
     pub transposition_table: TranspositionTable,
@@ -28,7 +28,7 @@ impl Searcher {
             nodes_searched: 0,
             root_ply: 0,
             stop: false,
-            action_list_stack: ActionListStack::with_size(MAX_SEARCH_DEPTH),
+            als: ActionListStack::with_size(MAX_SEARCH_DEPTH),
             principal_variation: ActionList::default(),
             pv_table: ActionListStack::with_size(MAX_SEARCH_DEPTH),
             transposition_table: TranspositionTable::with_size(TT_SIZE),
@@ -48,7 +48,7 @@ impl Searcher {
         self.stop = false;
         self.principal_variation.clear();
 
-        let mut score = -MAX_SCORE;
+        let mut best_score = -MAX_SCORE;
         let mut best_action = Action::Skip;
         let mut last_principal_variation_size: usize = 0;
         for depth in 1..=MAX_SEARCH_DEPTH {
@@ -68,18 +68,18 @@ impl Searcher {
                 println!("(canceled)");
                 break;
             }
-            score = current_score;
+            best_score = current_score;
             self.principal_variation = self.pv_table[0].clone();
             best_action = self.principal_variation[0];
 
             if self.principal_variation.size == last_principal_variation_size {
                 println!("\nReached the end of the search tree.");
-                if score >= MATE_SCORE {
-                    println!("Mate in {} (+{})", depth - 1, score - MATE_SCORE);
-                } else if score == 0 {
+                if best_score >= MATE_SCORE {
+                    println!("Mate in {} (+{})", depth - 1, best_score - MATE_SCORE);
+                } else if best_score == 0 {
                     println!("Draw in {}", depth - 1);
                 } else {
-                    println!("Mated in {} ({})", depth - 1, score + MATE_SCORE);
+                    println!("Mated in {} ({})", depth - 1, best_score + MATE_SCORE);
                 }
                 break;
             }
@@ -93,7 +93,7 @@ impl Searcher {
         println!(
             "Search finished after {}ms. Score: {} Nodes: {} Nodes/s: {:.3} PV: {}",
             self.start_time.elapsed().as_millis(),
-            score,
+            best_score,
             self.nodes_searched,
             self.nodes_searched as f64 / self.start_time.elapsed().as_millis() as f64 * 1000.,
             self.principal_variation,
@@ -150,24 +150,14 @@ pub fn principal_variation_search(
         }
     }
 
-    if !is_pv_node && current_depth > 2 {
-        if state.ply & 0b1 == 0 {
-            if state.has_team_one_skipped() && state.game_result() < 0 {
-                return -MATE_SCORE;
-            }
-        } else if state.has_team_two_skipped() && state.game_result() > 0 {
-            return -MATE_SCORE;
-        }
-    }
-
-    state.get_possible_actions(&mut searcher.action_list_stack[depth_left]);
+    state.get_possible_actions(&mut searcher.als[depth_left]);
 
     let mut ordering_index: usize = 0;
     if searcher.principal_variation.size > current_depth {
         let pv_action = searcher.principal_variation[current_depth];
-        for i in 0..searcher.action_list_stack[depth_left].size {
-            if pv_action == searcher.action_list_stack[depth_left][i] {
-                searcher.action_list_stack[depth_left].swap(ordering_index, i);
+        for i in 0..searcher.als[depth_left].size {
+            if pv_action == searcher.als[depth_left][i] {
+                searcher.als[depth_left].swap(ordering_index, i);
                 ordering_index += 1;
                 break;
             }
@@ -190,9 +180,9 @@ pub fn principal_variation_search(
             }
         }
         let tt_action = tt_entry.action;
-        for i in ordering_index..searcher.action_list_stack[depth_left].size {
-            if tt_action == searcher.action_list_stack[depth_left][i] {
-                searcher.action_list_stack[depth_left].swap(ordering_index, i);
+        for i in ordering_index..searcher.als[depth_left].size {
+            if tt_action == searcher.als[depth_left][i] {
+                searcher.als[depth_left].swap(ordering_index, i);
                 //ordering_index += 1;
                 break;
             }
@@ -201,8 +191,8 @@ pub fn principal_variation_search(
 
     let mut best_score = -MAX_SCORE;
     let mut best_action_index: usize = 0;
-    for index in 0..searcher.action_list_stack[depth_left].size {
-        let action = searcher.action_list_stack[depth_left][index];
+    for index in 0..searcher.als[depth_left].size {
+        let action = searcher.als[depth_left][index];
         state.do_action(action);
 
         let score = if index == 0 {
@@ -260,7 +250,7 @@ pub fn principal_variation_search(
     searcher.transposition_table.insert(
         state.hash,
         TranspositionTableEntry {
-            action: searcher.action_list_stack[depth_left][best_action_index],
+            action: searcher.als[depth_left][best_action_index],
             score: best_score,
             ply: state.ply,
             depth_left: depth_left as u8,
