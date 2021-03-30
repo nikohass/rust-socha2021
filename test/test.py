@@ -59,7 +59,6 @@ class TestThread(Thread):
                     #self.on_exception()
                 elif not "info" in line:
                     print(line.replace("\\n", ""), end="")
-                    print(e)
                     self.stop = True
                     self.on_exception()
                 #else:

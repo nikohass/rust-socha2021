@@ -173,7 +173,6 @@ impl Node {
                 if self.n as usize % VISITS_BEFORE_EXPANSION == 1 {
                     self.expand(state, al);
                 }
-                //}
                 let result = playout(&mut state.clone(), rng, rave_table);
                 delta = if state.ply % 2 == 0 {
                     1. - result
@@ -240,14 +239,14 @@ impl Node {
     }
 }
 
-pub struct MCTS {
+pub struct Mcts {
     root_node: Node,
     root_state: GameState,
     time_limit: i64,
     rave_table: RaveTable,
 }
 
-impl MCTS {
+impl Mcts {
     pub fn new(time_limit: u128) -> Self {
         Self {
             root_node: Node::empty(),
@@ -347,7 +346,7 @@ impl MCTS {
     }
 }
 
-impl Player for MCTS {
+impl Player for Mcts {
     fn on_move_request(&mut self, state: &GameState) -> Action {
         let (action, _) = self.search_action(state);
         action

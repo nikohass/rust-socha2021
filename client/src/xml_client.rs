@@ -1,12 +1,12 @@
 use game_sdk::{GameState, Player};
 extern crate xml;
-use super::xml_node::XMLNode;
+use super::xml_node::XmlNode;
 use std::io::{prelude::Write, BufReader, BufWriter};
 use std::net::TcpStream;
 use std::time::Instant;
 use xml::reader::*;
 
-pub struct XMLClient {
+pub struct XmlClient {
     state: GameState,
     host: String,
     port: String,
@@ -16,14 +16,9 @@ pub struct XMLClient {
     time: Instant,
 }
 
-impl XMLClient {
-    pub fn new(
-        host: String,
-        port: String,
-        reservation: String,
-        player: Box<dyn Player>,
-    ) -> XMLClient {
-        XMLClient {
+impl XmlClient {
+    pub fn new(host: String, port: String, reservation: String, player: Box<dyn Player>) -> Self {
+        Self {
             state: GameState::default(),
             host,
             port,
@@ -39,14 +34,14 @@ impl XMLClient {
         let stream = TcpStream::connect(&format!("{}:{}", self.host, self.port))
             .expect("Could not connect to server");
         println!("Connected");
-        XMLClient::write_to(&stream, "<protocol>");
+        Self::write_to(&stream, "<protocol>");
 
         let join_xml = match self.reservation.as_str() {
             "" => "<join gameType=\"swc_2021_blokus\"/>".to_string(),
             _ => format!("<joinPrepared reservationCode=\"{}\" />", self.reservation),
         };
         print!("Sending join message ");
-        XMLClient::write_to(&stream, join_xml.as_str());
+        Self::write_to(&stream, join_xml.as_str());
 
         self.handle_stream(&stream);
     }
@@ -55,7 +50,7 @@ impl XMLClient {
         let mut parser = EventReader::new(BufReader::new(stream));
 
         loop {
-            let node = XMLNode::read_from(&mut parser);
+            let node = XmlNode::read_from(&mut parser);
             match node.name.as_str() {
                 "data" => {
                     let invalid = &"".to_string();
@@ -108,7 +103,7 @@ impl XMLClient {
         let action = self.player.on_move_request(&self.state);
         let xml_move = action.to_xml(self.state.get_current_color());
         print!("Sending: {}", action);
-        XMLClient::write_to(
+        Self::write_to(
             stream,
             &format!(
                 "<room roomId=\"{}\">\n{}\n</room>",
@@ -120,7 +115,7 @@ impl XMLClient {
         self.time = Instant::now();
     }
 
-    pub fn handle_result(&self, node: XMLNode) {
+    pub fn handle_result(&self, node: XmlNode) {
         println!("Received result");
         let score = node.get_child("score").expect("Unable to read score");
         println!(

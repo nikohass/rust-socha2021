@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 use game_sdk::{Action, ActionList, GameState, Player};
-use player::mcts::MCTS;
+use player::mcts::Mcts;
 use std::fs::OpenOptions;
 use std::io::prelude::*;
 
@@ -32,8 +32,8 @@ fn save(
 }
 
 fn generate_dataset() {
-    let mut mcts1 = MCTS::new(5000);
-    let mut mcts2 = MCTS::new(5000);
+    let mut mcts1 = Mcts::new(5000);
+    let mut mcts2 = Mcts::new(5000);
     let mut actions: ActionList = ActionList::default();
     let mut values: [f32; 100] = [0.; 100];
     let mut states: Vec<GameState> = Vec::with_capacity(100);
@@ -101,8 +101,8 @@ fn generate_dataset() {
 }
 
 fn generate_opening_dataset() {
-    let mut mcts = MCTS::new(3_000);
-    let mut simple_client = MCTS::new(500); //SimpleClient::default();
+    let mut mcts = Mcts::new(3_000);
+    let mut simple_client = Mcts::new(500); //SimpleClient::default();
     let mut actions: ActionList = ActionList::default();
     let mut values: [f32; 100] = [f32::NAN; 100];
     let mut states: Vec<GameState> = Vec::with_capacity(100);

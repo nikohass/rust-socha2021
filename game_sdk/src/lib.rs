@@ -128,7 +128,10 @@ mod tests {
                 let mut board = Bitboard::empty();
                 for action in pieces.iter() {
                     if action.is_set() {
-                        board |= Bitboard::with_piece(action.get_destination(), action.get_shape() as usize);
+                        board |= Bitboard::with_piece(
+                            action.get_destination(),
+                            action.get_shape() as usize,
+                        );
                     }
                 }
                 assert_eq!(board, state.board[color]);

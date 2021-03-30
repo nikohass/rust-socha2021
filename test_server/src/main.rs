@@ -77,17 +77,17 @@ pub fn play_game(client_one: &mut Client, client_two: &mut Client, first: u8) {
     }
     let result = state.game_result() as i64;
     let mut scores: [u32; 4] = [0, 0, 0, 0];
-    for color in 0..4 {
-        let mut score = state.board[color].count_ones();
-        if score == 89 {
-            score += 15;
+    for (color, score) in scores.iter_mut().enumerate() {
+        *score = state.board[color].count_ones();
+        if *score == 89 {
+            *score += 15;
             if state.monomino_placed_last & 0b1 << color != 0 {
-                score += 5;
+                *score += 5;
             }
         }
-        scores[color] = score;
     }
-    println!("result: {} {} {} {}",
+    println!(
+        "result: {} {} {} {}",
         first,
         result,
         scores[0] + scores[2],

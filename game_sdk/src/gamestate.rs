@@ -106,7 +106,6 @@ impl GameState {
             self.board[color] ^= Bitboard::with_piece(destination, shape);
             self.hash ^= PIECE_HASH[shape][color] ^ FIELD_HASH[destination as usize][color];
         }
-
         debug_assert!(self.check_integrity());
     }
 

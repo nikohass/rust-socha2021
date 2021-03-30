@@ -5,16 +5,16 @@ use std::net::TcpStream;
 use xml::reader::{EventReader, XmlEvent};
 
 #[derive(Debug)]
-pub struct XMLNode {
+pub struct XmlNode {
     pub name: String,
     pub data: String,
     attribs: HashMap<String, Vec<String>>,
-    childs: Vec<XMLNode>,
+    childs: Vec<XmlNode>,
 }
 
-impl XMLNode {
-    pub fn new() -> XMLNode {
-        XMLNode {
+impl XmlNode {
+    pub fn new() -> Self {
+        Self {
             name: String::new(),
             data: String::new(),
             attribs: HashMap::new(),
@@ -22,17 +22,17 @@ impl XMLNode {
         }
     }
 
-    pub fn read_from(xml_parser: &mut EventReader<BufReader<&TcpStream>>) -> XMLNode {
-        let mut node_stack: VecDeque<XMLNode> = VecDeque::new();
+    pub fn read_from(xml_parser: &mut EventReader<BufReader<&TcpStream>>) -> Self {
+        let mut node_stack: VecDeque<XmlNode> = VecDeque::new();
         let mut has_received_first = false;
-        let mut final_node: Option<XMLNode> = None;
+        let mut final_node: Option<XmlNode> = None;
 
         loop {
             match xml_parser.next() {
                 Ok(XmlEvent::StartElement {
                     name, attributes, ..
                 }) => {
-                    let mut node = XMLNode::new();
+                    let mut node = XmlNode::new();
                     node.name = name.local_name;
                     for attribute in attributes {
                         let attrib_name = attribute.name.local_name;
@@ -175,11 +175,11 @@ impl XMLNode {
         }
     }
 
-    pub fn get_children(&self) -> &Vec<XMLNode> {
+    pub fn get_children(&self) -> &Vec<XmlNode> {
         &self.childs
     }
 
-    pub fn get_child(&self, name: &str) -> Option<&XMLNode> {
+    pub fn get_child(&self, name: &str) -> Option<&XmlNode> {
         for child in &self.childs {
             if child.name.as_str() == name {
                 return Some(&child);
