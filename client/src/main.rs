@@ -31,7 +31,7 @@ fn main() {
             .refer(&mut time)
             .add_option(&["-t", "--time"], Store, "Time/Action in ms");
         parser.refer(&mut test).add_option(
-            &["-c", "--testclient"],
+            &["-c", "--test"],
             Store,
             "Run the test client instead of the xml client.",
         );
@@ -43,10 +43,10 @@ fn main() {
         host, port, reservation, time, test
     );
 
-    let player = Box::new(Player::new(time));
+    //let player = Box::new(Player::new(time));
 
+    let player = Box::new(Player::default()); // SimpleClient
     /*
-    //let player = Box::new(Player::default()); // SimpleClient
     let player = Box::new(Player::new("weights")); // Neural Network
     print!("{}", player);
     */

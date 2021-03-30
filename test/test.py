@@ -11,43 +11,15 @@ TEST_SERVER_PATH = root + "/target/release/test_server.exe"
 
 class TestResult:
     def __init__(self):
-        self.one = 0
+        self.one_wins = 0
         self.draws = 0
-        self.two = 0
-        self.games = 0
-        self.sum_results = 0
-
-    @staticmethod
-    def from_line(line):
-        ret = TestResult()
-        ret.one, ret.draws, ret.two, ret.games, ret.sum_results = \
-            tuple([int(entry) for entry in line.decode("utf-8").strip().split()])
-        return ret
-
-    def serialize(self):
-        return f"Result: {self.one} {self.draws} {self.two} {self.games} {self.sum_results}"
-
-    @staticmethod
-    def deserialize(string):
-        ret = TestResult()
-        ret.one, ret.draws, ret.two, ret.games, ret.sum_results = \
-            tuple([int(entry) for entry in string[8:].strip().split()])
-        return ret
-
-    def get_average_result(self):
-        return self.sum_results / self.games if self.games != 0 else 0
-
-    def __add__(self, other):
-        ret = TestResult()
-        ret.one = self.one + other.one
-        ret.draws = self.draws + other.draws
-        ret.two = self.two + other.two
-        ret.games = self.games + other.games
-        ret.sum_results = self.sum_results + other.sum_results
-        return ret
+        self.two_wins = 0
+        self.sum_one_scores = 0
+        self.sum_two_scores = 0
 
     def __str__(self):
-        return f"One: {self.one} Draws: {self.draws} Two: {self.two} Average: {round(self.get_average_result(), 2)}"
+        games = self.one_wins + self.draws + self.two_wins
+        return f"Game {games} One: {self.one_wins} Draws: {self.draws} Two: {self.two_wins} One average: {round(self.sum_one_scores / games, 2)} Two average: {round(self.sum_two_scores / games, 2)}"
 
     def __repr__(self):
         return str(self)
@@ -62,14 +34,13 @@ class TestThread(Thread):
         self.on_exception = on_exception
         self.args = args
         self.stop = False
-        self.test_result = TestResult()
         self.check_paths()
 
     def check_paths(self):
         if not os.path.exists(self.one):
-            raise Exception(f"wrong path for client 1: {self.one}")
+            raise Exception(f"Wrong path for client 1: {self.one}")
         if not os.path.exists(self.one):
-            raise Exception(f"wrong path for client 2: {self.two}")
+            raise Exception(f"Wrong path for client 2: {self.two}")
 
     def run(self):
         cmd = f"{TEST_SERVER_PATH} --one {self.one} --two {self.two}"
@@ -77,16 +48,22 @@ class TestThread(Thread):
             cmd += " " + argument
         p = subprocess.Popen(cmd.split(), stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         while not self.stop:
-            line = p.stdout.readline()
+            line = p.stdout.readline().decode("utf-8")
             if line != b"":
-                try:
-                    self.test_result = TestResult.from_line(line)
-                    self.on_result_update()
-                except Exception as e:
+                if line[:8] == "result: ":
+                    entries = [float(e) for e in line[8:].split()]
+                    self.on_result_update(entries)
+                elif "warning" in line:
+                    print(line.replace("\\n", ""), end="")
+                    #self.stop = True
+                    #self.on_exception()
+                elif not "info" in line:
+                    print(line.replace("\\n", ""), end="")
                     print(e)
-                    print(line)
                     self.stop = True
                     self.on_exception()
+                #else:
+                    #print(line.strip())
             if self.stop:
                 break
         p.terminate()
@@ -106,8 +83,8 @@ class ThreadManager:
         self.threads = []
         self.on_result_update = on_result_update
         self.games = games
-        self.test_result = TestResult()
         self.running = False
+        self.test_result = TestResult()
 
     def start(self):
         self.running = True
@@ -130,39 +107,48 @@ class ThreadManager:
             thread.stop = True
         self.running = False
 
-    def get_test_result(self):
-        test_result = TestResult()
-        for thread in self.threads:
-            test_result += thread.test_result
-        self.test_result = test_result
-
-    def on_thread_update(self):
-        self.get_test_result()
+    def on_thread_update(self, entries):
+        first, result, one_score, two_score = tuple(entries)
+        if first != 0:
+            result = -result
+            one_score, two_score = (two_score, one_score)
+        if result > 0:
+            self.test_result.one_wins += 1
+        elif result < 0:
+            self.test_result.two_wins += 1
+        else:
+            self.test_result.draws += 1
+        self.test_result.sum_one_scores += one_score
+        self.test_result.sum_two_scores += two_score
         self.on_result_update(self)
-        if self.games != -1 and self.test_result.games > games:
-            self.stop()
 
-def on_result_update(tm):
-    print(tm.test_result)
+def main():
+    def on_result_update(tm):
+        print(tm.test_result)
 
-if __name__ == "__main__":
-    os.chdir("target/release")
-    one = sys.argv[1].strip()
-    two = sys.argv[2].strip()
-    t = 1900
-    servers = 3
+    one = "clients/" + sys.argv[1].strip()
+    two = "clients/" + sys.argv[2].strip()
+    if one.find(".exe") == -1:
+        one = "target/release/client.exe"
+    if two.find(".exe") == -1:
+        two = "target/release/client.exe"
+    t = 1980
+    threads = 3
     if len(sys.argv) > 3:
         t = int(sys.argv[3].strip())
     if len(sys.argv) > 4:
         threads = int(sys.argv[4].strip())
-        if threads > 3:
+        if threads > 10:
             input(f"Start {threads} testservers?")
-    print(f"Client 1: {one}\nClient 2: {two}\nTime/Action: {t}\nThreads: {threads}")
+
+    print(f"One: {one}\nTwo: {two}\nTime/Action: {t}\nThreads: {threads}")
     tm = ThreadManager(one, two, t, threads, on_result_update)
     tm.start()
-
     try:
         while tm.running:
             time.sleep(1)
     except KeyboardInterrupt:
         print("Canceled")
+
+if __name__ == "__main__":
+    main()

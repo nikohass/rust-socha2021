@@ -26,7 +26,7 @@ def on_result_update(tm):
     if not tm.running:
         return
     c.send(tm.test_result.serialize().encode("utf-8"))
-    if c.recieve().decode("utf-8") == "stop":
+    if c.receive().decode("utf-8") == "stop":
         print("Terminating all threads")
         tm.stop()
 
