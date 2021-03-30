@@ -30,26 +30,26 @@ impl ActionList {
     }
 
     #[inline(always)]
-    pub fn append(&mut self, mut destinations: Bitboard, shape: usize) {
+    pub fn append(&mut self, mut destinations: Bitboard, shape: u16) {
         while destinations.0 != 0 {
-            let to = destinations.0.trailing_zeros();
-            destinations.0 ^= 1 << to;
-            self.push(Action::Set(to as u16 + 384, shape));
+            let d = destinations.0.trailing_zeros();
+            destinations.0 ^= 1 << d;
+            self.push(Action::set(d as u16 + 384, shape));
         }
         while destinations.1 != 0 {
-            let to = destinations.1.trailing_zeros();
-            destinations.1 ^= 1 << to;
-            self.push(Action::Set(to as u16 + 256, shape));
+            let d = destinations.1.trailing_zeros();
+            destinations.1 ^= 1 << d;
+            self.push(Action::set(d as u16 + 256, shape));
         }
         while destinations.2 != 0 {
-            let to = destinations.2.trailing_zeros();
-            destinations.2 ^= 1 << to;
-            self.push(Action::Set(to as u16 + 128, shape));
+            let d = destinations.2.trailing_zeros();
+            destinations.2 ^= 1 << d;
+            self.push(Action::set(d as u16 + 128, shape));
         }
         while destinations.3 != 0 {
-            let to = destinations.3.trailing_zeros();
-            destinations.3 ^= 1 << to;
-            self.push(Action::Set(to as u16, shape));
+            let d = destinations.3.trailing_zeros();
+            destinations.3 ^= 1 << d;
+            self.push(Action::set(d as u16, shape));
         }
     }
 }

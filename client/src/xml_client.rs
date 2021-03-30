@@ -13,7 +13,7 @@ pub struct XMLClient {
     reservation: String,
     room_id: Option<String>,
     player: Box<dyn Player>,
-    opponent_time: Instant,
+    time: Instant,
 }
 
 impl XMLClient {
@@ -30,7 +30,7 @@ impl XMLClient {
             reservation,
             room_id: None,
             player,
-            opponent_time: Instant::now(),
+            time: Instant::now(),
         }
     }
 
@@ -99,14 +99,15 @@ impl XMLClient {
         if self.state.ply > 1 {
             println!(
                 "Received move request (Opponent responded after approximately {}ms)",
-                self.opponent_time.elapsed().as_millis()
+                self.time.elapsed().as_millis()
             );
         } else {
             println!("Received move request");
         }
+        self.time = Instant::now();
         let action = self.player.on_move_request(&self.state);
         let xml_move = action.to_xml(self.state.get_current_color());
-        println!("Sending: {}", action);
+        print!("Sending: {}", action);
         XMLClient::write_to(
             stream,
             &format!(
@@ -115,7 +116,8 @@ impl XMLClient {
                 xml_move
             ),
         );
-        self.opponent_time = Instant::now();
+        println!(" Finished after {}ms", self.time.elapsed().as_millis());
+        self.time = Instant::now();
     }
 
     pub fn handle_result(&self, node: XMLNode) {

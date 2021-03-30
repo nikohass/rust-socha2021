@@ -1,6 +1,6 @@
-use game_sdk::{Action, ActionList, GameState};
+#![allow(dead_code)]
+use game_sdk::{Action, ActionList, GameState, Player};
 use player::mcts::MCTS;
-//use player::simple_client::SimpleClient;
 use std::fs::OpenOptions;
 use std::io::prelude::*;
 
@@ -31,8 +31,9 @@ fn save(
     }
 }
 
-pub fn generate_dataset() {
-    let mut mcts = MCTS::new(5100);
+fn generate_dataset() {
+    let mut mcts1 = MCTS::new(5000);
+    let mut mcts2 = MCTS::new(5000);
     let mut actions: ActionList = ActionList::default();
     let mut values: [f32; 100] = [0.; 100];
     let mut states: Vec<GameState> = Vec::with_capacity(100);
@@ -42,16 +43,22 @@ pub fn generate_dataset() {
     let mut sum_plies: u64 = 0;
     let mut one_wins: u64 = 0;
     let mut draws: u64 = 0;
+    let mut al = ActionList::default();
 
     loop {
         let mut state = GameState::random();
         while !state.is_game_over() {
             println!("{}\n{}", state.to_fen(), state);
-            let (action, value) = mcts.search_action(&state);
-            if action == Action::Skip {
-                state.do_action(Action::Skip);
+            state.get_possible_actions(&mut al);
+            if al[0] == Action::skip() {
+                state.do_action(Action::skip());
                 continue;
             }
+            let (action, value) = if state.ply % 2 == 0 {
+                mcts1.search_action(&state)
+            } else {
+                mcts2.search_action(&state)
+            };
             states_searched += 1;
             values[state.ply as usize] = value;
             states.push(state.clone());
@@ -74,6 +81,8 @@ pub fn generate_dataset() {
             &mut values,
             "datasets/dataset.txt",
         );
+        mcts1.on_reset();
+        mcts2.on_reset();
         actions.clear();
         states.truncate(0);
 
@@ -91,7 +100,7 @@ pub fn generate_dataset() {
     }
 }
 
-pub fn generate_opening_dataset() {
+fn generate_opening_dataset() {
     let mut mcts = MCTS::new(3_000);
     let mut simple_client = MCTS::new(500); //SimpleClient::default();
     let mut actions: ActionList = ActionList::default();
@@ -112,8 +121,8 @@ pub fn generate_opening_dataset() {
                 continue;
             }
             let (action, _) = mcts.search_action(&state);
-            if action == Action::Skip {
-                state.do_action(Action::Skip);
+            if action.is_skip() {
+                state.do_action(action);
                 continue;
             }
             states_searched += 1;
@@ -133,7 +142,7 @@ pub fn generate_opening_dataset() {
         );
         actions.clear();
         states.truncate(0);
-        println!("Searched: {} ", states_searched,);
+        println!("Searched: {} ", states_searched);
     }
 }
 

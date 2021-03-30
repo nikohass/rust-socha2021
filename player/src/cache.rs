@@ -43,7 +43,7 @@ impl TranspositionTableEntry {
 
     pub fn empty() -> Self {
         Self {
-            action: Action::Skip,
+            action: Action::skip(),
             score: 0,
             ply: 0,
             depth_left: std::u8::MAX,

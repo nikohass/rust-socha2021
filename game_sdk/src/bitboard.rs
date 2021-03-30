@@ -15,10 +15,10 @@ impl Bitboard {
         Bitboard(0, 0, 0, 0)
     }
 
-    pub fn with_piece(to: u16, shape: usize) -> Bitboard {
+    pub fn with_piece(destination: u16, shape: usize) -> Bitboard {
         let shape = PIECE_SHAPES[shape];
-        let shift = to as u8 & 0b1111111;
-        let board = match to >> 7 {
+        let shift = destination as u8 & 0b1111111;
+        let board = match destination >> 7 {
             0 => Bitboard(0, 0, 0, shape),
             1 => Bitboard(0, 0, shape, 0),
             2 => Bitboard(0, shape, 0, 0),

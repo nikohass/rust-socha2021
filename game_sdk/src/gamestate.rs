@@ -69,20 +69,19 @@ impl GameState {
         debug_assert!(self.validate_action(&action));
         self.hash ^= PLY_HASH[self.ply as usize];
         let color = self.get_current_color() as usize;
-        match action {
-            Action::Skip => {
-                self.skipped = ((self.skipped & 0b1111) | self.skipped << 4) | (1 << color);
-            }
-            Action::Set(to, shape) => {
-                let piece_type = PieceType::from_shape(shape);
-                self.pieces_left[piece_type as usize][color] = false;
-                self.board[color] ^= Bitboard::with_piece(to, shape);
-                self.hash ^= PIECE_HASH[shape][color] ^ FIELD_HASH[to as usize][color];
-                if piece_type == PieceType::Monomino {
-                    self.monomino_placed_last |= 1 << color;
-                } else {
-                    self.monomino_placed_last &= !(1 << color);
-                }
+        if action.is_skip() {
+            self.skipped = ((self.skipped & 0b1111) | self.skipped << 4) | (1 << color);
+        } else {
+            let destination = action.get_destination();
+            let shape = action.get_shape() as usize;
+            let piece_type = PieceType::from_shape(shape);
+            self.pieces_left[piece_type as usize][color] = false;
+            self.board[color] ^= Bitboard::with_piece(destination, shape);
+            self.hash ^= PIECE_HASH[shape][color] ^ FIELD_HASH[destination as usize][color];
+            if piece_type == PieceType::Monomino {
+                self.monomino_placed_last |= 1 << color;
+            } else {
+                self.monomino_placed_last &= !(1 << color);
             }
         };
         self.ply += 1;
@@ -93,71 +92,72 @@ impl GameState {
         self.ply -= 1;
         self.hash ^= PLY_HASH[self.ply as usize];
         let color = self.get_current_color() as usize;
-        match action {
-            Action::Skip => self.skipped >>= 4,
-            Action::Set(to, shape) => {
-                let piece_type = PieceType::from_shape(shape);
-                debug_assert!(
-                    !self.pieces_left[piece_type as usize][color],
-                    "Can't remove piece that has not been placed."
-                );
-                self.pieces_left[piece_type as usize][color] = true;
-                self.board[color] ^= Bitboard::with_piece(to, shape);
-                self.hash ^= PIECE_HASH[shape][color] ^ FIELD_HASH[to as usize][color];
-            }
-        };
+        if action.is_skip() {
+            self.skipped >>= 4;
+        } else {
+            let destination = action.get_destination();
+            let shape = action.get_shape() as usize;
+            let piece_type = PieceType::from_shape(shape);
+            debug_assert!(
+                !self.pieces_left[piece_type as usize][color],
+                "Can't remove piece that has not been placed."
+            );
+            self.pieces_left[piece_type as usize][color] = true;
+            self.board[color] ^= Bitboard::with_piece(destination, shape);
+            self.hash ^= PIECE_HASH[shape][color] ^ FIELD_HASH[destination as usize][color];
+        }
+
         debug_assert!(self.check_integrity());
     }
 
     pub fn validate_action(&self, action: &Action) -> bool {
         let color = self.get_current_color() as usize;
-        match action {
-            Action::Skip => true,
-            Action::Set(to, shape) => {
-                let mut is_valid = true;
-                let piece_type = PieceType::from_shape(*shape);
-                if self.ply < 4 && piece_type != self.start_piece_type {
-                    println!(
-                        "Invalid piece type. Start piece type is {}",
-                        self.start_piece_type
-                    );
-                    is_valid = false;
-                }
-                if !self.pieces_left[piece_type as usize][color] {
-                    println!("Can't place piece that has already been placed.");
-                    return false;
-                }
-                let piece = Bitboard::with_piece(*to, *shape);
-                let own_fields = self.board[color];
-                let other_fields = self.get_occupied_fields() & !own_fields;
-                let legal_fields =
-                    !(own_fields | other_fields | own_fields.neighbours()) & VALID_FIELDS;
-                let p = if self.ply > 3 {
-                    own_fields.diagonal_neighbours() & legal_fields
-                } else {
-                    START_FIELDS & !other_fields
-                };
-                if (piece & p).is_zero() {
-                    println!("Piece does not touch a corner");
-                    is_valid = false;
-                }
-                if piece & legal_fields != piece {
-                    println!("Piece destination is not valid");
-                    is_valid = false;
-                }
-                if piece_type.piece_size() != piece.count_ones() as u8 {
-                    println!("Piece shifted to invalid position");
-                    is_valid = false;
-                }
-                if !is_valid {
-                    println!("{}", action.to_string());
-                    println!("{}", piece.to_string());
-                    println!("{}", action.visualize());
-                    println!("{}", self);
-                }
-                is_valid
-            }
+        if action.is_skip() {
+            return true;
         }
+        let mut is_valid = true;
+        let destination = action.get_destination();
+        let shape = action.get_shape() as usize;
+        let piece_type = PieceType::from_shape(shape);
+        if self.ply < 4 && piece_type != self.start_piece_type {
+            println!(
+                "Invalid piece type. Start piece type is {}",
+                self.start_piece_type
+            );
+            is_valid = false;
+        }
+        if !self.pieces_left[piece_type as usize][color] {
+            println!("Can't place piece that has already been placed.");
+            return false;
+        }
+        let piece = Bitboard::with_piece(destination, shape);
+        let own_fields = self.board[color];
+        let other_fields = self.get_occupied_fields() & !own_fields;
+        let legal_fields = !(own_fields | other_fields | own_fields.neighbours()) & VALID_FIELDS;
+        let p = if self.ply > 3 {
+            own_fields.diagonal_neighbours() & legal_fields
+        } else {
+            START_FIELDS & !other_fields
+        };
+        if (piece & p).is_zero() {
+            println!("Piece does not touch a corner");
+            is_valid = false;
+        }
+        if piece & legal_fields != piece {
+            println!("Piece destination is not valid");
+            is_valid = false;
+        }
+        if piece_type.piece_size() != piece.count_ones() as u8 {
+            println!("Piece shifted to invalid position");
+            is_valid = false;
+        }
+        if !is_valid {
+            println!("{}", action.to_string());
+            println!("{}", piece.to_string());
+            println!("{}", action.visualize());
+            println!("{}", self);
+        }
+        is_valid
     }
 
     pub fn check_integrity(&self) -> bool {
@@ -165,10 +165,8 @@ impl GameState {
             let pieces = self.board[color].get_pieces();
             let mut pieces_left: [bool; 21] = [true; 21];
             for piece in pieces.iter() {
-                if let Action::Set(_, shape) = piece {
-                    let piece_type = PieceType::from_shape(*shape);
-                    pieces_left[piece_type as usize] = false;
-                }
+                let piece_type = PieceType::from_shape(piece.get_shape() as usize);
+                pieces_left[piece_type as usize] = false;
             }
             for piece_type in PIECE_TYPES.iter() {
                 if self.pieces_left[*piece_type as usize][color]
@@ -198,7 +196,7 @@ impl GameState {
         al.clear();
 
         if self.has_color_skipped(color as u8) {
-            al.push(Action::Skip);
+            al.push(Action::skip());
             return;
         }
         let own_fields = self.board[color];
@@ -503,19 +501,18 @@ impl GameState {
         if self.ply < 4 {
             let mut idx = 0;
             for i in 0..al.size {
-                if let Action::Set(_, shape) = al[i] {
-                    let piece_type = PieceType::from_shape(shape);
-                    if piece_type == self.start_piece_type {
-                        al.swap(idx, i);
-                        idx += 1;
-                    }
+                let shape = al[i].get_shape() as usize;
+                let piece_type = PieceType::from_shape(shape);
+                if piece_type == self.start_piece_type {
+                    al.swap(idx, i);
+                    idx += 1;
                 }
             }
             al.size = idx;
         }
 
         if al.size == 0 {
-            al.push(Action::Skip);
+            al.push(Action::skip());
         }
     }
 
@@ -536,7 +533,7 @@ impl GameState {
         };
 
         if p.is_zero() || self.skipped & 1 << color != 0 {
-            return Action::Skip;
+            return Action::skip();
         }
 
         let r2 = legal_fields & (legal_fields >> 1 & VALID_FIELDS);
@@ -672,10 +669,10 @@ impl GameState {
                 _ => ((legal_fields & r4 >> 20) & (p | p >> 20 | p >> 23)) >> 1,
             };
             if destinations.not_zero() {
-                return Action::Set(destinations.random_field(rng), shape);
+                return Action::set(destinations.random_field(rng), shape as u16);
             }
         }
-        Action::Skip
+        Action::skip()
     }
 
     #[inline(always)]

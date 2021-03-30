@@ -1,44 +1,54 @@
 use super::{Bitboard, PieceType, PIECE_ORIENTATIONS};
 use std::fmt::{Display, Formatter, Result};
 
+const SKIP: u16 = std::u16::MAX;
+
 #[derive(Copy, Clone, PartialEq, Debug)]
-pub enum Action {
-    Skip,
-    Set(u16, usize),
-}
+pub struct Action(u16);
 
 impl Action {
-    pub fn serialize(&self) -> String {
-        match self {
-            Action::Skip => "Skip".to_string(),
-            Action::Set(to, shape) => format!("{} {}", to, shape),
-        }
+    #[inline(always)]
+    pub fn set(destination: u16, shape: u16) -> Self {
+        Self(destination << 7 | shape)
     }
 
-    pub fn deserialize(string: String) -> Action {
-        if string == *"Skip" {
-            return Action::Skip;
-        }
-        let mut entries: Vec<&str> = string.split(' ').collect();
-        let to = entries.remove(0).parse::<u16>().unwrap();
-        let shape = entries.remove(0).parse::<usize>().unwrap();
-        Action::Set(to, shape)
+    #[inline(always)]
+    pub fn skip() -> Self {
+        Self(SKIP)
     }
 
-    pub fn visualize(&self) -> String {
-        let board = if let Action::Set(to, shape) = *self {
-            Bitboard::with_piece(to, shape)
-        } else {
-            Bitboard::empty()
-        };
-        format!("{}\n{}", self.to_string(), board)
+    #[inline(always)]
+    pub fn get_shape(self) -> u16 {
+        self.0 & 0b1111111
     }
 
-    pub fn from_bitboard(board: Bitboard) -> Action {
+    #[inline(always)]
+    pub fn get_destination(self) -> u16 {
+        self.0 >> 7
+    }
+
+    #[inline(always)]
+    pub fn is_skip(self) -> bool {
+        self.0 == SKIP
+    }
+
+    #[inline(always)]
+    pub fn is_set(self) -> bool {
+        self.0 != SKIP
+    }
+
+    pub fn serialize(self) -> String {
+        self.0.to_string()
+    }
+
+    pub fn deserialize(string: String) -> Self {
+        Self(string.parse::<u16>().unwrap())
+    }
+
+    pub fn from_bitboard(board: Bitboard) -> Self {
         if board.is_zero() {
-            return Action::Skip;
+            return Self::skip();
         }
-        // determine top left corner of the piece
         let mut board_copy = board;
         let mut left = 21;
         let mut top = 21;
@@ -54,11 +64,10 @@ impl Action {
                 top = y;
             }
         }
-        let to = left + top * 21;
-        // determine shape
+        let destination = left + top * 21;
         for shape in 0..91 {
-            if Bitboard::with_piece(to, shape) == board {
-                return Action::Set(to, shape);
+            if Bitboard::with_piece(destination, shape) == board {
+                return Self::set(destination, shape as u16);
             }
         }
         if cfg!(debug_assertions) {
@@ -67,57 +76,67 @@ impl Action {
                 board.to_string()
             );
         }
-        Action::Skip
+        Self::skip()
     }
 
-    pub fn to_xml(&self, color: u8) -> String {
-        match self {
-            Action::Skip => "<data class=\"sc.plugin2021.SkipMove\"/>".to_string(),
-            Action::Set(to, shape) => {
-                let piece_type = PieceType::from_shape(*shape);
-                let (r, flipped) = PIECE_ORIENTATIONS[*shape];
-                let rotation = match r {
-                    0 => "NONE".to_string(),
-                    1 => "RIGHT".to_string(),
-                    2 => "MIRROR".to_string(),
-                    3 => "LEFT".to_string(),
-                    _ => panic!("Invalid rotation"),
-                };
-                let x = *to % 21;
-                let y = (*to - x) / 21;
-                let mut xml =
-                    "  <data class=\"sc.plugin2021.SetMove\">\n    <piece color=\"".to_string();
-                xml.push_str(match color as u8 {
-                    0 => "BLUE\" ",
-                    1 => "YELLOW\" ",
-                    2 => "RED\" ",
-                    3 => "GREEN\" ",
-                    _ => panic!("Invalid color"),
-                });
-                xml.push_str(&format!(
-                    "kind=\"{}\" rotation=\"{}\" isFlipped=\"",
-                    &piece_type.to_xml_name(),
-                    &rotation,
-                ));
-                xml.push_str(&format!(
-                    "{}\">\n      <position x=\"{}\" y=\"{}\"/>\n    </piece>\n  </data>",
-                    &flipped.to_string(),
-                    x,
-                    y
-                ));
-                xml
-            }
+    pub fn to_xml(self, color: u8) -> String {
+        if self.is_skip() {
+            "<data class=\"sc.plugin2021.SkipMove\"/>".to_string()
+        } else {
+            let destination = self.get_destination();
+            let shape = self.get_shape() as usize;
+            let piece_type = PieceType::from_shape(shape);
+            let (r, flipped) = PIECE_ORIENTATIONS[shape];
+            let rotation = match r {
+                0 => "NONE".to_string(),
+                1 => "RIGHT".to_string(),
+                2 => "MIRROR".to_string(),
+                _ => "LEFT".to_string(),
+            };
+            let x = destination % 21;
+            let y = (destination - x) / 21;
+            let mut xml =
+                "  <data class=\"sc.plugin2021.SetMove\">\n    <piece color=\"".to_string();
+            xml.push_str(match color as u8 {
+                0 => "BLUE\" ",
+                1 => "YELLOW\" ",
+                2 => "RED\" ",
+                _ => "GREEN\" ",
+            });
+            xml.push_str(&format!(
+                "kind=\"{}\" rotation=\"{}\" isFlipped=\"",
+                &piece_type.to_xml_name(),
+                &rotation,
+            ));
+            xml.push_str(&format!(
+                "{}\">\n      <position x=\"{}\" y=\"{}\"/>\n    </piece>\n  </data>",
+                &flipped.to_string(),
+                x,
+                y
+            ));
+            xml
         }
     }
 
-    pub fn to_short_name(&self) -> String {
-        match self {
-            Action::Skip => "Skip".to_string(),
-            Action::Set(to, shape) => {
-                let piece_type = PieceType::from_shape(*shape);
-                format!("{} {} to {}", piece_type.to_short_name(), shape, to)
-            }
+    pub fn to_short_name(self) -> String {
+        if self.is_skip() {
+            "Skip".to_string()
+        } else {
+            let shape = self.get_shape() as usize;
+            let piece_type = PieceType::from_shape(shape);
+            format!("{}_{}", piece_type.to_short_name(), self.0)
         }
+    }
+
+    pub fn visualize(self) -> String {
+        let board = if self.is_set() {
+            let destination = self.get_destination();
+            let shape = self.get_shape();
+            Bitboard::with_piece(destination, shape as usize)
+        } else {
+            Bitboard::empty()
+        };
+        format!("{}\n{}", self.to_string(), board)
     }
 }
 
@@ -126,16 +145,18 @@ impl Display for Action {
         write!(
             f,
             "{}",
-            match self {
-                Action::Skip => "Skip".to_string(),
-                Action::Set(to, shape) => format!(
-                    "Set {} to {} (X={} Y={} Shape={})",
-                    PieceType::from_shape(*shape).to_string(),
-                    to,
-                    to % 21,
-                    (to - (to % 21)) / 21,
-                    shape
-                ),
+            if self.is_skip() {
+                "Skip".to_string()
+            } else {
+                let destination = self.get_destination();
+                let shape = self.get_shape() as usize;
+                let piece_type = PieceType::from_shape(shape).to_string();
+                let x = destination % 21;
+                let y = (destination - x) / 21;
+                format!(
+                    "Set {} to {} (X={} Y={} S={} V={})",
+                    piece_type, destination, x, y, shape, self.0
+                )
             }
         )
     }

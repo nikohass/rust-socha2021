@@ -49,7 +49,7 @@ impl Searcher {
         self.principal_variation.clear();
 
         let mut best_score = -MAX_SCORE;
-        let mut best_action = Action::Skip;
+        let mut best_action = Action::skip();
         let mut last_principal_variation_size: usize = 0;
         for depth in 1..=MAX_SEARCH_DEPTH {
             let depth_start_time = Instant::now();

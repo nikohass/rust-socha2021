@@ -76,9 +76,11 @@ mod tests {
             let state = GameState::from_fen(fen.to_string());
             state.get_possible_actions(&mut al);
             for index in 0..al.size / 10 {
-                if let Action::Set(to, shape) = al[index] {
-                    let action_board = Bitboard::with_piece(to, shape);
-                    assert_eq!(al[index], Action::from_bitboard(action_board));
+                if al[index].is_set() {
+                    let destination = al[index].get_destination();
+                    let shape = al[index].get_shape() as usize;
+                    let action = Action::from_bitboard(Bitboard::with_piece(destination, shape));
+                    assert_eq!(al[index], action);
                 }
             }
         }
@@ -94,15 +96,15 @@ mod tests {
         }
 
         for _ in 0..8 {
-            state.do_action(Action::Skip);
+            state.do_action(Action::skip());
         }
         assert_eq!(state.skipped & 0b1111, 0b1111);
         for _ in 0..4 {
-            state.undo_action(Action::Skip);
+            state.undo_action(Action::skip());
         }
         assert_eq!(state.skipped & 0b1111, 0b1111);
         for _ in 0..2 {
-            state.undo_action(Action::Skip);
+            state.undo_action(Action::skip());
         }
         assert_eq!(state.skipped & 0b1111, 0b0011);
     }
@@ -124,9 +126,9 @@ mod tests {
             for color in 0..4 {
                 let pieces = state.board[color].get_pieces();
                 let mut board = Bitboard::empty();
-                for piece in pieces.iter() {
-                    if let Action::Set(to, shape) = piece {
-                        board |= Bitboard::with_piece(*to, *shape);
+                for action in pieces.iter() {
+                    if action.is_set() {
+                        board |= Bitboard::with_piece(action.get_destination(), action.get_shape() as usize);
                     }
                 }
                 assert_eq!(board, state.board[color]);
