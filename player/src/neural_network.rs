@@ -232,12 +232,10 @@ pub struct NeuralNetwork {
 impl NeuralNetwork {
     pub fn new(weights_file: &str) -> Self {
         let mut nn = Self::default();
-        nn.add_convolutional_layer(ConvolutionalLayer::with_shape(7, 128, 4));
-        nn.add_convolutional_layer(ConvolutionalLayer::with_shape(7, 128, 128));
-        nn.add_convolutional_layer(ConvolutionalLayer::with_shape(5, 128, 128));
+        nn.add_convolutional_layer(ConvolutionalLayer::with_shape(7, 256, 4));
+        nn.add_convolutional_layer(ConvolutionalLayer::with_shape(5, 256, 256));
+        nn.add_convolutional_layer(ConvolutionalLayer::with_shape(5, 128, 256));
         nn.add_convolutional_layer(ConvolutionalLayer::with_shape(5, 64, 128));
-        nn.add_convolutional_layer(ConvolutionalLayer::with_shape(5, 64, 64));
-        nn.add_convolutional_layer(ConvolutionalLayer::with_shape(5, 64, 64));
         nn.add_convolutional_layer(ConvolutionalLayer::with_shape(3, 32, 64));
         nn.add_convolutional_layer(ConvolutionalLayer::with_shape(3, 4, 32));
 
@@ -334,8 +332,8 @@ impl Player for NeuralNetwork {
         rotation.rotate_state(&mut state);
         let mut al = ActionList::default();
         state.get_possible_actions(&mut al);
-        if al[0] == Action::Skip {
-            return Action::Skip;
+        if al[0].is_skip() {
+            return al[0];
         }
         let input_vector = state_to_vector(&state);
         let output_vector = self.feed_forward(input_vector);
@@ -344,7 +342,10 @@ impl Player for NeuralNetwork {
         let mut best_action: usize = 0;
         for index in 0..al.size {
             let mut confidence: f32 = 0.;
-            if let Action::Set(to, shape) = al[index] {
+            let action = al[index];
+            if action.is_set() {
+                let to = action.get_destination();
+                let shape = action.get_shape() as usize;
                 let mut action_board = Bitboard::with_piece(to, shape);
                 while action_board.not_zero() {
                     let bit_index = action_board.trailing_zeros();
@@ -441,11 +442,12 @@ impl Rotation {
     }
 
     pub fn rotate_action(&self, action: Action) -> Action {
-        match action {
-            Action::Set(to, shape) => {
-                Action::from_bitboard(self.rotate_bitboard_back(Bitboard::with_piece(to, shape)))
-            }
-            Action::Skip => action,
+        if action.is_set() {
+            let to = action.get_destination();
+            let shape = action.get_shape() as usize;
+            Action::from_bitboard(self.rotate_bitboard_back(Bitboard::with_piece(to, shape)))
+        } else {
+            action
         }
     }
 }
