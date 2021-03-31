@@ -1,8 +1,6 @@
-use super::{
-    Action, ActionList, Bitboard, PieceType, FIELD_HASH, PENTOMINO_SHAPES, PIECE_HASH, PIECE_TYPES,
-    PLY_HASH, START_FIELDS, VALID_FIELDS,
-};
-use rand::{rngs::SmallRng, RngCore};
+use super::hashing::{FIELD_HASH, PIECE_HASH, PLY_HASH};
+use super::{Action, ActionList, Bitboard, PieceType};
+use super::{PENTOMINO_SHAPES, PIECE_TYPES, START_FIELDS, VALID_FIELDS};
 use std::fmt::{Display, Formatter, Result};
 
 #[derive(Clone, Eq, PartialEq)]
@@ -45,7 +43,7 @@ impl GameState {
     }
 
     #[inline(always)]
-    pub fn has_color_skipped(&self, color: u8) -> bool {
+    pub fn has_color_skipped(&self, color: usize) -> bool {
         self.skipped & 1 << color != 0
     }
 
@@ -194,7 +192,7 @@ impl GameState {
         let color = self.get_current_color() as usize;
         al.clear();
 
-        if self.has_color_skipped(color as u8) {
+        if self.has_color_skipped(color) {
             al.push(Action::skip());
             return;
         }
@@ -514,7 +512,7 @@ impl GameState {
             al.push(Action::skip());
         }
     }
-
+    /*
     pub fn get_random_possible_action(
         &self,
         rng: &mut SmallRng,
@@ -672,7 +670,570 @@ impl GameState {
             }
         }
         Action::skip()
-    }
+    }*/
+    /*
+    pub fn quick_get_random_possible_action(
+        &self,
+        rng: &mut SmallRng,
+        pentomino_only: bool,
+        tries: usize,
+    ) -> Action {
+        let color = self.get_current_color() as usize;
+        let own_fields = self.board[color];
+        let other_fields = self.get_occupied_fields() & !own_fields;
+        let l = !(own_fields | other_fields | own_fields.neighbours()) & VALID_FIELDS;
+        let p = if self.ply > 3 {
+            own_fields.diagonal_neighbours() & legal_fields
+        } else {
+            START_FIELDS & !other_fields
+        };
+
+        if p.is_zero() || self.skipped & 1 << color != 0 {
+            return Action::skip();
+        }
+
+        for _ in 0..tries {
+            let mut shape = if pentomino_only {
+                PENTOMINO_SHAPES[(rng.next_u64() % 63) as usize]
+            } else {
+                (rng.next_u32() % 91) as usize
+            };
+            if self.ply < 4 {
+                while PieceType::from_shape(shape as usize) != self.start_piece_type {
+                    shape = PENTOMINO_SHAPES[(rng.next_u64() % 63) as usize]
+                }
+            }
+            if !self.pieces_left[PieceType::from_shape(shape as usize) as usize][color] {
+                continue;
+            }
+            let mut destinations = match shape {
+                0 => p,
+                1 => ((l & (l >> 1 & VALID_FIELDS)) & p) | ((l & (l << 1 & VALID_FIELDS)) & p) >> 1,
+                2 => {
+                    ((l & (l >> 21 & VALID_FIELDS)) & p)
+                        | ((l & (l << 21 & VALID_FIELDS)) & p) >> 21
+                }
+                3 => {
+                    (((l & (l >> 1 & VALID_FIELDS)) & (l >> 2 & VALID_FIELDS)) & p)
+                        | (((l & (l << 1 & VALID_FIELDS)) & (l << 2 & VALID_FIELDS)) & p) >> 2
+                }
+                4 => {
+                    (((l & (l << 21 & VALID_FIELDS)) & (l << 42 & VALID_FIELDS)) & p) >> 42
+                        | (((l & (l >> 21 & VALID_FIELDS)) & (l >> 42 & VALID_FIELDS)) & p)
+                }
+                5 => {
+                    ((((l & (l >> 1 & VALID_FIELDS)) & (l >> 2 & VALID_FIELDS))
+                        & (l >> 3 & VALID_FIELDS))
+                        & p)
+                        | ((((l & (l << 1 & VALID_FIELDS)) & (l << 2 & VALID_FIELDS))
+                            & (l << 3 & VALID_FIELDS))
+                            & p)
+                            >> 3
+                }
+                6 => {
+                    ((((l & (l >> 21 & VALID_FIELDS)) & (l >> 42 & VALID_FIELDS))
+                        & (l >> 63 & VALID_FIELDS))
+                        & p)
+                        | ((((l & (l << 21 & VALID_FIELDS)) & (l << 42 & VALID_FIELDS))
+                            & (l << 63 & VALID_FIELDS))
+                            & p)
+                            >> 63
+                }
+                7 => {
+                    ((((l & (l >> 1 & VALID_FIELDS)) & (l >> 2 & VALID_FIELDS))
+                        & (l >> 3 & VALID_FIELDS))
+                        & l >> 4
+                        & p)
+                        | ((((l & (l << 1 & VALID_FIELDS)) & (l << 2 & VALID_FIELDS))
+                            & (l << 3 & VALID_FIELDS))
+                            & l << 4
+                            & p)
+                            >> 4
+                }
+                8 => {
+                    ((((l & (l >> 21 & VALID_FIELDS)) & (l >> 42 & VALID_FIELDS))
+                        & (l >> 63 & VALID_FIELDS))
+                        & l >> 84
+                        & p)
+                        | ((((l & (l << 21 & VALID_FIELDS)) & (l << 42 & VALID_FIELDS))
+                            & (l << 63 & VALID_FIELDS))
+                            & l << 84
+                            & p)
+                            >> 84
+                }
+                9 => {
+                    ((l & (l >> 1 & VALID_FIELDS)) & (l & (l >> 1 & VALID_FIELDS)) >> 21)
+                        & (p | p >> 1 | p >> 21 | p >> 22)
+                }
+                10 => {
+                    ((((l & (l >> 1 & VALID_FIELDS)) & (l >> 2 & VALID_FIELDS)) >> 20
+                        & ((l & (l >> 21 & VALID_FIELDS)) & (l >> 42 & VALID_FIELDS)))
+                        & (p | p >> 20 | p >> 22 | p >> 42))
+                        >> 1
+                }
+                11 => {
+                    ((l & (l << 21 & VALID_FIELDS)) & (l & (l >> 1 & VALID_FIELDS))) >> 21
+                        & (p | p >> 21 | p >> 22)
+                }
+                12 => {
+                    ((l & (l >> 21 & VALID_FIELDS)) & (l & (l >> 1 & VALID_FIELDS)))
+                        & (p | p >> 1 | p >> 21)
+                }
+                13 => {
+                    ((l & (l >> 21 & VALID_FIELDS)) >> 1 & (l & (l >> 1 & VALID_FIELDS)))
+                        & (p | p >> 1 | p >> 22)
+                }
+                14 => {
+                    ((l & (l >> 21 & VALID_FIELDS)) >> 1 & (l & (l >> 1 & VALID_FIELDS)) >> 21)
+                        & (p >> 1 | p >> 21 | p >> 22)
+                }
+                15 => {
+                    (((l & (l >> 21 & VALID_FIELDS)) & (l >> 42 & VALID_FIELDS))
+                        & (l & (l >> 1 & VALID_FIELDS)))
+                        & (p | p >> 1 | p >> 42)
+                }
+                16 => {
+                    ((l & (l >> 1 & VALID_FIELDS))
+                        & ((l & (l >> 21 & VALID_FIELDS)) & (l >> 42 & VALID_FIELDS)) >> 1)
+                        & (p | p >> 1 | p >> 43)
+                }
+                17 => {
+                    ((((l & (l >> 21 & VALID_FIELDS)) & (l >> 42 & VALID_FIELDS))
+                        & (l & (l >> 1 & VALID_FIELDS)) >> 41)
+                        & (p | p >> 41 | p >> 42))
+                        >> 1
+                }
+                18 => {
+                    (((l & (l >> 21 & VALID_FIELDS)) & (l >> 42 & VALID_FIELDS))
+                        & (l & (l >> 1 & VALID_FIELDS)) >> 42)
+                        & (p | p >> 42 | p >> 43)
+                }
+                19 => {
+                    (l & ((l & (l >> 1 & VALID_FIELDS)) & (l >> 2 & VALID_FIELDS)) >> 21)
+                        & (p | p >> 21 | p >> 23)
+                }
+                20 => {
+                    (((l & (l >> 1 & VALID_FIELDS)) & (l >> 2 & VALID_FIELDS)) & l >> 21)
+                        & (p | p >> 2 | p >> 21)
+                }
+                21 => {
+                    (((l & (l >> 1 & VALID_FIELDS)) & (l >> 2 & VALID_FIELDS)) & l >> 23)
+                        & (p | p >> 2 | p >> 23)
+                }
+                22 => {
+                    ((l & (l << 21 & VALID_FIELDS))
+                        & ((l & (l << 1 & VALID_FIELDS)) & (l << 2 & VALID_FIELDS)))
+                        >> 23
+                        & (p >> 2 | p >> 21 | p >> 23)
+                }
+                23 => {
+                    ((((l & (l >> 1 & VALID_FIELDS)) & (l >> 2 & VALID_FIELDS))
+                        & (l >> 3 & VALID_FIELDS))
+                        & l >> 24)
+                        & (p | p >> 3 | p >> 24)
+                }
+                24 => {
+                    ((((l & (l >> 1 & VALID_FIELDS)) & (l >> 2 & VALID_FIELDS))
+                        & (l >> 3 & VALID_FIELDS))
+                        & (l & (l >> 21 & VALID_FIELDS)))
+                        & (p | p >> 3 | p >> 21)
+                }
+                25 => {
+                    (l & (((l & (l >> 1 & VALID_FIELDS)) & (l >> 2 & VALID_FIELDS))
+                        & (l >> 3 & VALID_FIELDS))
+                        >> 21)
+                        & (p | p >> 21 | p >> 24)
+                }
+                26 => {
+                    ((((l & (l << 1 & VALID_FIELDS)) & (l << 2 & VALID_FIELDS))
+                        & (l << 3 & VALID_FIELDS))
+                        & (l & (l << 21 & VALID_FIELDS)))
+                        >> 24
+                        & (p >> 3 | p >> 21 | p >> 24)
+                }
+                27 => {
+                    ((l & (l >> 1 & VALID_FIELDS))
+                        & (((l & (l >> 21 & VALID_FIELDS)) & (l >> 42 & VALID_FIELDS))
+                            & (l >> 63 & VALID_FIELDS)))
+                        & (p | p >> 1 | p >> 63)
+                }
+                28 => {
+                    ((((l & (l >> 21 & VALID_FIELDS)) & (l >> 42 & VALID_FIELDS))
+                        & (l >> 63 & VALID_FIELDS))
+                        & l >> 64)
+                        & (p | p >> 63 | p >> 64)
+                }
+                29 => {
+                    ((l & (l >> 1 & VALID_FIELDS))
+                        & (((l & (l >> 21 & VALID_FIELDS)) & (l >> 42 & VALID_FIELDS))
+                            & (l >> 63 & VALID_FIELDS))
+                            >> 1)
+                        & (p | p >> 1 | p >> 64)
+                }
+                30 => {
+                    ((((l & (l << 21 & VALID_FIELDS)) & (l << 42 & VALID_FIELDS))
+                        & (l << 63 & VALID_FIELDS))
+                        & (l & (l << 1 & VALID_FIELDS)))
+                        >> 64
+                        & (p >> 1 | p >> 63 | p >> 64)
+                }
+                31 => {
+                    (((l & (l >> 1 & VALID_FIELDS)) & (l >> 2 & VALID_FIELDS))
+                        & ((l & (l >> 21 & VALID_FIELDS)) & (l >> 42 & VALID_FIELDS)) >> 1)
+                        & (p | p >> 2 | p >> 43)
+                }
+                32 => {
+                    ((l & (l << 1 & VALID_FIELDS))
+                        & (l & (l >> 1 & VALID_FIELDS))
+                        & ((l & (l << 21 & VALID_FIELDS)) & (l << 42 & VALID_FIELDS)))
+                        >> 43
+                        & (p >> 1 | p >> 42 | p >> 44)
+                }
+                33 => {
+                    (((l & (l >> 21 & VALID_FIELDS)) & (l >> 42 & VALID_FIELDS))
+                        & ((l & (l >> 1 & VALID_FIELDS)) & (l >> 2 & VALID_FIELDS)) >> 21)
+                        & (p | p >> 23 | p >> 42)
+                }
+                34 => {
+                    (((l & (l << 1 & VALID_FIELDS)) & (l << 2 & VALID_FIELDS))
+                        & (l & (l << 21 & VALID_FIELDS))
+                        & (l & (l >> 21 & VALID_FIELDS)))
+                        >> 23
+                        & (p >> 2 | p >> 21 | p >> 44)
+                }
+                35 => {
+                    (((l & (l >> 1 & VALID_FIELDS)) & (l >> 2 & VALID_FIELDS)) & l >> 22)
+                        & (p | p >> 2 | p >> 22)
+                }
+                36 => {
+                    ((l & (l << 21 & VALID_FIELDS))
+                        & (l & (l >> 1 & VALID_FIELDS))
+                        & (l & (l << 1 & VALID_FIELDS)))
+                        >> 22
+                        & (p >> 1 | p >> 21 | p >> 23)
+                }
+                37 => {
+                    (((l & (l >> 21 & VALID_FIELDS)) & (l >> 42 & VALID_FIELDS)) & l >> 22)
+                        & (p | p >> 22 | p >> 42)
+                }
+                38 => {
+                    ((l & (l << 21 & VALID_FIELDS))
+                        & (l & (l >> 21 & VALID_FIELDS))
+                        & (l & (l << 1 & VALID_FIELDS)))
+                        >> 22
+                        & (p >> 1 | p >> 21 | p >> 43)
+                }
+                39 => {
+                    (((l & (l >> 1 & VALID_FIELDS)) & (l & (l >> 1 & VALID_FIELDS)) >> 20)
+                        & (p | p >> 1 | p >> 20 | p >> 21))
+                        >> 1
+                }
+                40 => {
+                    ((l & (l >> 1 & VALID_FIELDS)) & (l & (l >> 1 & VALID_FIELDS)) >> 22)
+                        & (p | p >> 1 | p >> 22 | p >> 23)
+                }
+                41 => {
+                    (((l & (l >> 21 & VALID_FIELDS)) & (l & (l >> 21 & VALID_FIELDS)) >> 20)
+                        & (p | p >> 20 | p >> 21 | p >> 41))
+                        >> 1
+                }
+                42 => {
+                    ((l & (l >> 21 & VALID_FIELDS)) & (l & (l >> 21 & VALID_FIELDS)) >> 22)
+                        & (p | p >> 21 | p >> 22 | p >> 43)
+                }
+                43 => {
+                    (l & (((l & (l << 1 & VALID_FIELDS)) & (l << 2 & VALID_FIELDS))
+                        & (l & (l >> 21 & VALID_FIELDS)))
+                        >> 23)
+                        & (p | p >> 21 | p >> 23 | p >> 44)
+                }
+                44 => {
+                    ((l & (((l & (l >> 1 & VALID_FIELDS)) & (l >> 2 & VALID_FIELDS))
+                        & (l & (l >> 21 & VALID_FIELDS)))
+                        >> 19)
+                        & (p | p >> 19 | p >> 21 | p >> 40))
+                        >> 2
+                }
+                45 => {
+                    (l >> 2
+                        & (((l & (l << 21 & VALID_FIELDS)) & (l << 42 & VALID_FIELDS))
+                            & (l & (l << 1 & VALID_FIELDS)))
+                            >> 43)
+                        & (p >> 1 | p >> 2 | p >> 42 | p >> 43)
+                }
+                46 => {
+                    ((l & (l >> 1 & VALID_FIELDS))
+                        & ((l & (l >> 1 & VALID_FIELDS))
+                            & ((l & (l << 21 & VALID_FIELDS)) & (l << 42 & VALID_FIELDS)))
+                            >> 43)
+                        & (p | p >> 1 | p >> 43 | p >> 44)
+                }
+                47 => {
+                    (((l & (l >> 1 & VALID_FIELDS)) & (l >> 2 & VALID_FIELDS))
+                        & (l & (l >> 21 & VALID_FIELDS))
+                        & l >> 23)
+                        & (p | p >> 2 | p >> 21 | p >> 23)
+                }
+                48 => {
+                    (l & (((l & (l << 1 & VALID_FIELDS)) & (l << 2 & VALID_FIELDS))
+                        & (l & (l << 21 & VALID_FIELDS)))
+                        >> 23)
+                        & (p | p >> 2 | p >> 21 | p >> 23)
+                }
+                49 => {
+                    (((l & (l >> 21 & VALID_FIELDS)) & (l >> 42 & VALID_FIELDS))
+                        & (l & (l >> 1 & VALID_FIELDS))
+                        & l >> 43)
+                        & (p | p >> 1 | p >> 42 | p >> 43)
+                }
+                50 => {
+                    ((l & (l >> 1 & VALID_FIELDS))
+                        & ((l & (l << 1 & VALID_FIELDS))
+                            & ((l & (l << 21 & VALID_FIELDS)) & (l << 42 & VALID_FIELDS)))
+                            >> 43)
+                        & (p | p >> 1 | p >> 42 | p >> 43)
+                }
+                51 => {
+                    ((((l & (l << 21 & VALID_FIELDS)) & (l << 42 & VALID_FIELDS))
+                        & (l & (l << 1 & VALID_FIELDS)))
+                        >> 43
+                        & l >> 23)
+                        & (p >> 1 | p >> 23 | p >> 42 | p >> 43)
+                }
+                52 => {
+                    (l >> 21
+                        & (((l & (l << 21 & VALID_FIELDS)) & (l << 42 & VALID_FIELDS))
+                            & (l & (l >> 1 & VALID_FIELDS)))
+                            >> 43)
+                        & (p >> 1 | p >> 21 | p >> 43 | p >> 44)
+                }
+                53 => {
+                    (((((l & (l >> 21 & VALID_FIELDS)) & (l >> 42 & VALID_FIELDS))
+                        & (l & (l >> 1 & VALID_FIELDS)))
+                        & l >> 20)
+                        & (p | p >> 1 | p >> 20 | p >> 42))
+                        >> 1
+                }
+                54 => {
+                    ((((l & (l >> 21 & VALID_FIELDS)) & (l >> 42 & VALID_FIELDS))
+                        & (l & (l << 1 & VALID_FIELDS)))
+                        >> 1
+                        & l >> 23)
+                        & (p | p >> 1 | p >> 23 | p >> 43)
+                }
+                55 => {
+                    ((((l & (l << 1 & VALID_FIELDS)) & (l << 2 & VALID_FIELDS))
+                        & (l & (l << 21 & VALID_FIELDS)))
+                        >> 23
+                        & l >> 43)
+                        & (p >> 2 | p >> 21 | p >> 23 | p >> 43)
+                }
+                56 => {
+                    ((((l & (l >> 1 & VALID_FIELDS)) & (l >> 2 & VALID_FIELDS))
+                        & (l & (l << 21 & VALID_FIELDS)))
+                        >> 21
+                        & l >> 43)
+                        & (p | p >> 21 | p >> 23 | p >> 43)
+                }
+                57 => {
+                    ((l & (((l & (l << 1 & VALID_FIELDS)) & (l << 2 & VALID_FIELDS))
+                        & (l & (l >> 21 & VALID_FIELDS)))
+                        >> 22)
+                        & (p | p >> 20 | p >> 22 | p >> 43))
+                        >> 1
+                }
+                58 => {
+                    ((l & (((l & (l >> 1 & VALID_FIELDS)) & (l >> 2 & VALID_FIELDS))
+                        & (l & (l >> 21 & VALID_FIELDS)))
+                        >> 20)
+                        & (p | p >> 20 | p >> 22 | p >> 41))
+                        >> 1
+                }
+                59 => {
+                    ((l & (l >> 21 & VALID_FIELDS))
+                        & ((l & (l << 21 & VALID_FIELDS)) & (l & (l >> 1 & VALID_FIELDS))) >> 43)
+                        & (p | p >> 21 | p >> 22 | p >> 43 | p >> 44)
+                }
+                60 => {
+                    (((l & (l << 21 & VALID_FIELDS)) & (l & (l << 1 & VALID_FIELDS))) >> 23
+                        & (l & (l >> 1 & VALID_FIELDS)) >> 42)
+                        & (p >> 2 | p >> 22 | p >> 23 | p >> 42 | p >> 43)
+                }
+                61 => {
+                    ((l & (l >> 1 & VALID_FIELDS))
+                        & ((l & (l >> 21 & VALID_FIELDS)) & (l & (l << 1 & VALID_FIELDS))) >> 23)
+                        & (p | p >> 1 | p >> 22 | p >> 23 | p >> 44)
+                }
+                62 => {
+                    (((l & (l >> 1 & VALID_FIELDS))
+                        & ((l & (l >> 1 & VALID_FIELDS)) & (l & (l >> 21 & VALID_FIELDS))) >> 20)
+                        & (p | p >> 1 | p >> 20 | p >> 21 | p >> 41))
+                        >> 1
+                }
+                63 => {
+                    ((((l & (l >> 21 & VALID_FIELDS)) & (l >> 42 & VALID_FIELDS))
+                        & (l & (l >> 21 & VALID_FIELDS)) >> 41)
+                        & (p | p >> 41 | p >> 42 | p >> 62))
+                        >> 1
+                }
+                64 => {
+                    (((l & (l >> 21 & VALID_FIELDS)) & (l >> 42 & VALID_FIELDS))
+                        & (l & (l >> 21 & VALID_FIELDS)) >> 43)
+                        & (p | p >> 42 | p >> 43 | p >> 64)
+                }
+                65 => {
+                    (((l & (l >> 21 & VALID_FIELDS))
+                        & ((l & (l >> 21 & VALID_FIELDS)) & (l >> 42 & VALID_FIELDS)) >> 20)
+                        & (p | p >> 20 | p >> 21 | p >> 62))
+                        >> 1
+                }
+                66 => {
+                    ((l & (l >> 21 & VALID_FIELDS))
+                        & ((l & (l >> 21 & VALID_FIELDS)) & (l >> 42 & VALID_FIELDS)) >> 22)
+                        & (p | p >> 21 | p >> 22 | p >> 64)
+                }
+                67 => {
+                    (((l & (l >> 1 & VALID_FIELDS))
+                        & ((l & (l >> 1 & VALID_FIELDS)) & (l >> 2 & VALID_FIELDS)) >> 19)
+                        & (p | p >> 1 | p >> 19 | p >> 21))
+                        >> 2
+                }
+                68 => {
+                    (((l & (l >> 1 & VALID_FIELDS)) & (l >> 2 & VALID_FIELDS))
+                        & (l & (l >> 1 & VALID_FIELDS)) >> 23)
+                        & (p | p >> 2 | p >> 23 | p >> 24)
+                }
+                69 => {
+                    ((l & (l >> 1 & VALID_FIELDS))
+                        & ((l & (l >> 1 & VALID_FIELDS)) & (l >> 2 & VALID_FIELDS)) >> 22)
+                        & (p | p >> 1 | p >> 22 | p >> 24)
+                }
+                70 => {
+                    ((((l & (l >> 1 & VALID_FIELDS)) & (l >> 2 & VALID_FIELDS))
+                        & (l & (l >> 1 & VALID_FIELDS)) >> 20)
+                        & (p | p >> 2 | p >> 20 | p >> 21))
+                        >> 1
+                }
+                71 => {
+                    (((l & (l >> 1 & VALID_FIELDS)) & (l >> 2 & VALID_FIELDS))
+                        & ((l & (l >> 21 & VALID_FIELDS)) & (l >> 42 & VALID_FIELDS)))
+                        & (p | p >> 2 | p >> 42)
+                }
+                72 => {
+                    (((l & (l << 21 & VALID_FIELDS)) & (l << 42 & VALID_FIELDS))
+                        & ((l & (l << 1 & VALID_FIELDS)) & (l << 2 & VALID_FIELDS)))
+                        >> 44
+                        & (p >> 2 | p >> 42 | p >> 44)
+                }
+                73 => {
+                    (((l & (l >> 1 & VALID_FIELDS)) & (l >> 2 & VALID_FIELDS))
+                        & ((l & (l >> 21 & VALID_FIELDS)) & (l >> 42 & VALID_FIELDS)) >> 2)
+                        & (p | p >> 2 | p >> 44)
+                }
+                74 => {
+                    (((l & (l >> 21 & VALID_FIELDS)) & (l >> 42 & VALID_FIELDS))
+                        & ((l & (l >> 1 & VALID_FIELDS)) & (l >> 2 & VALID_FIELDS)) >> 42)
+                        & (p | p >> 42 | p >> 44)
+                }
+                75 => {
+                    (((l & (l >> 1 & VALID_FIELDS)) & (l & (l >> 1 & VALID_FIELDS)) >> 21)
+                        & l >> 42)
+                        & (p | p >> 1 | p >> 22 | p >> 42)
+                }
+                76 => {
+                    (((l & (l >> 1 & VALID_FIELDS)) & (l & (l >> 1 & VALID_FIELDS)) >> 21)
+                        & l >> 43)
+                        & (p | p >> 1 | p >> 21 | p >> 43)
+                }
+                77 => {
+                    (((l & (l >> 1 & VALID_FIELDS)) & (l & (l >> 1 & VALID_FIELDS)) >> 21)
+                        & l >> 23)
+                        & (p | p >> 1 | p >> 21 | p >> 23)
+                }
+                78 => {
+                    (((l & (l >> 1 & VALID_FIELDS)) & (l & (l >> 1 & VALID_FIELDS)) >> 21) & l >> 2)
+                        & (p | p >> 2 | p >> 21 | p >> 22)
+                }
+                79 => {
+                    (((l & (l >> 1 & VALID_FIELDS)) & (l & (l >> 1 & VALID_FIELDS)) >> 21) >> 1 & l)
+                        & (p | p >> 2 | p >> 22 | p >> 23)
+                }
+                80 => {
+                    ((((l & (l >> 1 & VALID_FIELDS)) & (l & (l >> 1 & VALID_FIELDS)) >> 21)
+                        & l >> 20)
+                        & (p | p >> 1 | p >> 20 | p >> 22))
+                        >> 1
+                }
+                81 => {
+                    ((l & ((l & (l >> 1 & VALID_FIELDS)) & (l & (l >> 1 & VALID_FIELDS)) >> 21)
+                        >> 20)
+                        & (p | p >> 20 | p >> 41 | p >> 42))
+                        >> 1
+                }
+                82 => {
+                    (l & ((l & (l >> 1 & VALID_FIELDS)) & (l & (l >> 1 & VALID_FIELDS)) >> 21)
+                        >> 21)
+                        & (p | p >> 22 | p >> 42 | p >> 43)
+                }
+                83 => {
+                    ((((l & (l >> 21 & VALID_FIELDS)) & (l >> 42 & VALID_FIELDS))
+                        & (l >> 63 & VALID_FIELDS))
+                        & l >> 22)
+                        & (p | p >> 22 | p >> 63)
+                }
+                84 => {
+                    ((((l & (l >> 21 & VALID_FIELDS)) & (l >> 42 & VALID_FIELDS))
+                        & (l >> 63 & VALID_FIELDS))
+                        & l >> 43)
+                        & (p | p >> 43 | p >> 63)
+                }
+                85 => {
+                    (((((l & (l >> 21 & VALID_FIELDS)) & (l >> 42 & VALID_FIELDS))
+                        & (l >> 63 & VALID_FIELDS))
+                        & l >> 41)
+                        & (p | p >> 41 | p >> 63))
+                        >> 1
+                }
+                86 => {
+                    (((((l & (l >> 21 & VALID_FIELDS)) & (l >> 42 & VALID_FIELDS))
+                        & (l >> 63 & VALID_FIELDS))
+                        & l >> 20)
+                        & (p | p >> 20 | p >> 63))
+                        >> 1
+                }
+                87 => {
+                    ((((l & (l >> 1 & VALID_FIELDS)) & (l >> 2 & VALID_FIELDS))
+                        & (l >> 3 & VALID_FIELDS))
+                        & l >> 23)
+                        & (p | p >> 3 | p >> 23)
+                }
+                88 => {
+                    ((((l & (l >> 1 & VALID_FIELDS)) & (l >> 2 & VALID_FIELDS))
+                        & (l >> 3 & VALID_FIELDS))
+                        & l >> 22)
+                        & (p | p >> 3 | p >> 22)
+                }
+                89 => {
+                    ((l & (l << 21 & VALID_FIELDS))
+                        & (l & (l >> 1 & VALID_FIELDS))
+                        & ((l & (l << 1 & VALID_FIELDS)) & (l << 2 & VALID_FIELDS)))
+                        >> 23
+                        & (p >> 2 | p >> 21 | p >> 24)
+                }
+                _ => {
+                    ((l & (((l & (l >> 1 & VALID_FIELDS)) & (l >> 2 & VALID_FIELDS))
+                        & (l >> 3 & VALID_FIELDS))
+                        >> 20)
+                        & (p | p >> 20 | p >> 23))
+                        >> 1
+                }
+            };
+            if destinations.not_zero() {
+                return Action::set(destinations.random_field(rng), shape as u16);
+            }
+        }
+        Action::skip()
+    }*/
 
     #[inline(always)]
     pub fn is_game_over(&self) -> bool {

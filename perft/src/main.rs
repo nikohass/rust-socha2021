@@ -15,7 +15,7 @@ fn perft(state: &mut GameState, depth: usize, als: &mut ActionListStack) -> u64 
     }
     nodes
 }
-
+/*
 fn random_perft() {
     let start_time = Instant::now();
     let mut rng = SmallRng::from_entropy();
@@ -48,7 +48,7 @@ fn random_perft() {
         time_elapsed as f64 / 1000.
     );
 }
-
+*/
 fn test() {
     let current_best: f64 = 22_061_650.;
     let depth = 3;
@@ -81,5 +81,5 @@ fn main() {
     for _ in 0..3 {
         test();
     }
-    random_perft();
+    //random_perft();
 }

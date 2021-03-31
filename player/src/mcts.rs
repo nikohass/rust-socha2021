@@ -1,15 +1,16 @@
 use super::float_stuff::{ln, sqrt};
+use super::playout::playout;
 use game_sdk::{Action, ActionList, GameState, Player};
 use rand::{rngs::SmallRng, SeedableRng};
 use std::time::Instant;
 
 const C: f32 = 0.0;
-const C_BASE: f32 = 7000.;
+const C_BASE: f32 = 9000.;
 const C_FACTOR: f32 = 38.5;
 const VISITS_BEFORE_EXPANSION: usize = 40;
 const B_SQUARED: f32 = 0.7;
 const FPU_R: f32 = 0.1;
-
+/*
 pub fn playout(state: &mut GameState, rng: &mut SmallRng, rave_table: &mut RaveTable) -> f32 {
     if state.is_game_over() {
         let result = state.game_result();
@@ -20,14 +21,18 @@ pub fn playout(state: &mut GameState, rng: &mut SmallRng, rave_table: &mut RaveT
         }
     } else {
         let color = state.get_current_color() as usize;
-        let action = state.get_random_possible_action(rng, state.ply < 16, 40);
+        let action = if state.ply > 32 {
+            state.get_random_possible_action(rng, false, 40)
+        } else {
+            state.quick_get_random_possible_action(rng, state.ply < 16, 40)
+        };
         state.do_action(action);
         let result = playout(state, rng, rave_table);
         rave_table.add_value(action, color, result);
         result
     }
 }
-
+*/
 pub struct RaveTable {
     actions: Vec<(f32, f32)>,
 }

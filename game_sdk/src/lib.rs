@@ -11,7 +11,6 @@ pub use actionlist::{ActionList, ActionListStack};
 pub use bitboard::Bitboard;
 pub use constants::*;
 pub use gamestate::GameState;
-pub use hashing::*;
 pub use piece_type::{PieceType, PIECE_TYPES, START_PIECE_TYPES};
 
 pub trait Player {
