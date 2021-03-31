@@ -1,5 +1,4 @@
-use game_sdk::{ActionList, ActionListStack, GameState};
-use rand::{rngs::SmallRng, RngCore, SeedableRng};
+use game_sdk::{ActionListStack, GameState};
 use std::time::Instant;
 
 fn perft(state: &mut GameState, depth: usize, als: &mut ActionListStack) -> u64 {
@@ -15,42 +14,9 @@ fn perft(state: &mut GameState, depth: usize, als: &mut ActionListStack) -> u64 
     }
     nodes
 }
-/*
-fn random_perft() {
-    let start_time = Instant::now();
-    let mut rng = SmallRng::from_entropy();
 
-    for _ in 0..10_000 {
-        let mut state = GameState::random();
-        while !state.is_game_over() {
-            let random_action = state.get_random_possible_action(&mut rng, state.ply < 16, 40);
-            state.do_action(random_action);
-        }
-    }
-    let time_elapsed = start_time.elapsed().as_micros();
-    println!(
-        "Random action generation: {}ms",
-        time_elapsed as f64 / 1000.
-    );
-
-    let start_time = Instant::now();
-    let mut al = ActionList::default();
-    for _ in 0..10_000 {
-        let mut state = GameState::random();
-        while !state.is_game_over() {
-            state.get_possible_actions(&mut al);
-            state.do_action(al[rng.next_u64() as usize % al.size]);
-        }
-    }
-    let time_elapsed = start_time.elapsed().as_micros();
-    println!(
-        "Complete action genteration: {}ms",
-        time_elapsed as f64 / 1000.
-    );
-}
-*/
 fn test() {
-    let current_best: f64 = 22_061_650.;
+    let current_best: f64 = 23_072_428.;
     let depth = 3;
     let start_time = Instant::now();
     let mut als = ActionListStack::with_size(depth + 1);
@@ -70,15 +36,15 @@ fn test() {
     let time_elapsed = start_time.elapsed().as_micros();
     let nps = (nodes * 1_000_000) as f64 / time_elapsed as f64;
     println!(
-        "{:.2}%, Nodes: {}, Nodes/s: {}",
+        "{:.2}%, Nodes: {}, Nodes/s: {:.2}",
         nps / current_best * 100.,
         nodes,
-        nps as u64
+        nps
     );
 }
 
 fn main() {
-    for _ in 0..3 {
+    for _ in 0..10 {
         test();
     }
     //random_perft();

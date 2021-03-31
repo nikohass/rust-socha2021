@@ -10,29 +10,7 @@ const C_FACTOR: f32 = 38.5;
 const VISITS_BEFORE_EXPANSION: usize = 40;
 const B_SQUARED: f32 = 0.7;
 const FPU_R: f32 = 0.1;
-/*
-pub fn playout(state: &mut GameState, rng: &mut SmallRng, rave_table: &mut RaveTable) -> f32 {
-    if state.is_game_over() {
-        let result = state.game_result();
-        match result {
-            r if r > 0 => 0.999 + (result.abs() as f32) / 100_000.,
-            r if r < 0 => 0.001 - (result.abs() as f32) / 100_000.,
-            _ => 0.5,
-        }
-    } else {
-        let color = state.get_current_color() as usize;
-        let action = if state.ply > 32 {
-            state.get_random_possible_action(rng, false, 40)
-        } else {
-            state.quick_get_random_possible_action(rng, state.ply < 16, 40)
-        };
-        state.do_action(action);
-        let result = playout(state, rng, rave_table);
-        rave_table.add_value(action, color, result);
-        result
-    }
-}
-*/
+
 pub struct RaveTable {
     actions: Vec<(f32, f32)>,
 }
