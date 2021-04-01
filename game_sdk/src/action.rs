@@ -79,7 +79,7 @@ impl Action {
         Self::skip()
     }
 
-    pub fn to_xml(self, color: u8) -> String {
+    pub fn to_xml(self, color: usize) -> String {
         if self.is_skip() {
             "<data class=\"sc.plugin2021.SkipMove\"/>".to_string()
         } else {

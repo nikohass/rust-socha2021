@@ -63,6 +63,7 @@ name = "perft"
 version = "0.1.0"
 dependencies = [
  "game_sdk",
+ "player",
  "rand",
 ]
 

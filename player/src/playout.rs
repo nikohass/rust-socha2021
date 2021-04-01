@@ -37,572 +37,370 @@ pub fn playout(state: &mut GameState, rng: &mut SmallRng, rave_table: &mut RaveT
     }
 }
 
-pub fn shape_0(_l: Bitboard, p: Bitboard) -> Bitboard {
+fn shape_0(_l: Bitboard, p: Bitboard) -> Bitboard {
     p
 }
 
-pub fn shape_1(l: Bitboard, p: Bitboard) -> Bitboard {
-    ((l & (l >> 1 & VALID_FIELDS)) & p) | ((l & (l << 1 & VALID_FIELDS)) & p) >> 1
+fn shape_1(l: Bitboard, p: Bitboard) -> Bitboard {
+    (l & l >> 1) & (p | p >> 1)
 }
 
-pub fn shape_2(l: Bitboard, p: Bitboard) -> Bitboard {
-    ((l & (l >> 21 & VALID_FIELDS)) & p) | ((l & (l << 21 & VALID_FIELDS)) & p) >> 21
+fn shape_2(l: Bitboard, p: Bitboard) -> Bitboard {
+    (l & l >> 21) & (p | p >> 21)
 }
 
-pub fn shape_3(l: Bitboard, p: Bitboard) -> Bitboard {
-    (((l & (l >> 1 & VALID_FIELDS)) & (l >> 2 & VALID_FIELDS)) & p)
-        | (((l & (l << 1 & VALID_FIELDS)) & (l << 2 & VALID_FIELDS)) & p) >> 2
+fn shape_3(l: Bitboard, p: Bitboard) -> Bitboard {
+    (l & l >> 1 & l >> 2) & (p | p >> 2)
 }
 
-pub fn shape_4(l: Bitboard, p: Bitboard) -> Bitboard {
-    (((l & (l << 21 & VALID_FIELDS)) & (l << 42 & VALID_FIELDS)) & p) >> 42
-        | (((l & (l >> 21 & VALID_FIELDS)) & (l >> 42 & VALID_FIELDS)) & p)
+fn shape_4(l: Bitboard, p: Bitboard) -> Bitboard {
+    (l & l >> 21 & l >> 42) & (p | p >> 42)
 }
 
-pub fn shape_5(l: Bitboard, p: Bitboard) -> Bitboard {
-    ((((l & (l >> 1 & VALID_FIELDS)) & (l >> 2 & VALID_FIELDS)) & (l >> 3 & VALID_FIELDS)) & p)
-        | ((((l & (l << 1 & VALID_FIELDS)) & (l << 2 & VALID_FIELDS)) & (l << 3 & VALID_FIELDS))
-            & p)
-            >> 3
+fn shape_5(l: Bitboard, p: Bitboard) -> Bitboard {
+    (l & l >> 1 & l >> 2 & l >> 3) & (p | p >> 3)
 }
 
-pub fn shape_6(l: Bitboard, p: Bitboard) -> Bitboard {
-    ((((l & (l >> 21 & VALID_FIELDS)) & (l >> 42 & VALID_FIELDS)) & (l >> 63 & VALID_FIELDS)) & p)
-        | ((((l & (l << 21 & VALID_FIELDS)) & (l << 42 & VALID_FIELDS)) & (l << 63 & VALID_FIELDS))
-            & p)
-            >> 63
+fn shape_6(l: Bitboard, p: Bitboard) -> Bitboard {
+    (l & l >> 21 & l >> 42 & l >> 63) & (p | p >> 63)
 }
 
-pub fn shape_7(l: Bitboard, p: Bitboard) -> Bitboard {
-    ((((l & (l >> 1 & VALID_FIELDS)) & (l >> 2 & VALID_FIELDS)) & (l >> 3 & VALID_FIELDS))
-        & l >> 4
-        & p)
-        | ((((l & (l << 1 & VALID_FIELDS)) & (l << 2 & VALID_FIELDS)) & (l << 3 & VALID_FIELDS))
-            & l << 4
-            & p)
-            >> 4
+fn shape_7(l: Bitboard, p: Bitboard) -> Bitboard {
+    (l & l >> 1 & l >> 2 & l >> 3 & l >> 4) & (p | p >> 4)
 }
 
-pub fn shape_8(l: Bitboard, p: Bitboard) -> Bitboard {
-    ((((l & (l >> 21 & VALID_FIELDS)) & (l >> 42 & VALID_FIELDS)) & (l >> 63 & VALID_FIELDS))
-        & l >> 84
-        & p)
-        | ((((l & (l << 21 & VALID_FIELDS)) & (l << 42 & VALID_FIELDS)) & (l << 63 & VALID_FIELDS))
-            & l << 84
-            & p)
-            >> 84
+fn shape_8(l: Bitboard, p: Bitboard) -> Bitboard {
+    (l & l >> 21 & l >> 42 & l >> 63 & l >> 84) & (p | p >> 84)
 }
 
-pub fn shape_9(l: Bitboard, p: Bitboard) -> Bitboard {
-    ((l & (l >> 1 & VALID_FIELDS)) & (l & (l >> 1 & VALID_FIELDS)) >> 21)
-        & (p | p >> 1 | p >> 21 | p >> 22)
+fn shape_9(l: Bitboard, p: Bitboard) -> Bitboard {
+    (l & l >> 1 & l >> 21 & l >> 22) & (p | p >> 1 | p >> 21 | p >> 22)
 }
 
-pub fn shape_10(l: Bitboard, p: Bitboard) -> Bitboard {
-    ((((l & (l >> 1 & VALID_FIELDS)) & (l >> 2 & VALID_FIELDS)) >> 20
-        & ((l & (l >> 21 & VALID_FIELDS)) & (l >> 42 & VALID_FIELDS)))
-        & (p | p >> 20 | p >> 22 | p >> 42))
-        >> 1
+fn shape_10(l: Bitboard, p: Bitboard) -> Bitboard {
+    (l >> 1 & l >> 21 & l >> 22 & l >> 23 & l >> 43) & (p >> 1 | p >> 21 | p >> 23 | p >> 43)
 }
 
-pub fn shape_11(l: Bitboard, p: Bitboard) -> Bitboard {
-    ((l & (l << 21 & VALID_FIELDS)) & (l & (l >> 1 & VALID_FIELDS))) >> 21 & (p | p >> 21 | p >> 22)
+fn shape_11(l: Bitboard, p: Bitboard) -> Bitboard {
+    (l & l >> 21 & l >> 22) & (p | p >> 21 | p >> 22)
 }
 
-pub fn shape_12(l: Bitboard, p: Bitboard) -> Bitboard {
-    ((l & (l >> 21 & VALID_FIELDS)) & (l & (l >> 1 & VALID_FIELDS))) & (p | p >> 1 | p >> 21)
+fn shape_12(l: Bitboard, p: Bitboard) -> Bitboard {
+    (l & l >> 1 & l >> 21) & (p | p >> 1 | p >> 21)
 }
 
-pub fn shape_13(l: Bitboard, p: Bitboard) -> Bitboard {
-    ((l & (l >> 21 & VALID_FIELDS)) >> 1 & (l & (l >> 1 & VALID_FIELDS))) & (p | p >> 1 | p >> 22)
+fn shape_13(l: Bitboard, p: Bitboard) -> Bitboard {
+    (l & l >> 1 & l >> 22) & (p | p >> 1 | p >> 22)
 }
 
-pub fn shape_14(l: Bitboard, p: Bitboard) -> Bitboard {
-    ((l & (l >> 21 & VALID_FIELDS)) >> 1 & (l & (l >> 1 & VALID_FIELDS)) >> 21)
-        & (p >> 1 | p >> 21 | p >> 22)
+fn shape_14(l: Bitboard, p: Bitboard) -> Bitboard {
+    (l >> 1 & l >> 21 & l >> 22) & (p >> 1 | p >> 21 | p >> 22)
 }
 
-pub fn shape_15(l: Bitboard, p: Bitboard) -> Bitboard {
-    (((l & (l >> 21 & VALID_FIELDS)) & (l >> 42 & VALID_FIELDS)) & (l & (l >> 1 & VALID_FIELDS)))
-        & (p | p >> 1 | p >> 42)
+fn shape_15(l: Bitboard, p: Bitboard) -> Bitboard {
+    (l & l >> 1 & l >> 21 & l >> 42) & (p | p >> 1 | p >> 42)
 }
 
-pub fn shape_16(l: Bitboard, p: Bitboard) -> Bitboard {
-    ((l & (l >> 1 & VALID_FIELDS))
-        & ((l & (l >> 21 & VALID_FIELDS)) & (l >> 42 & VALID_FIELDS)) >> 1)
-        & (p | p >> 1 | p >> 43)
+fn shape_16(l: Bitboard, p: Bitboard) -> Bitboard {
+    (l & l >> 1 & l >> 22 & l >> 43) & (p | p >> 1 | p >> 43)
 }
 
-pub fn shape_17(l: Bitboard, p: Bitboard) -> Bitboard {
-    ((((l & (l >> 21 & VALID_FIELDS)) & (l >> 42 & VALID_FIELDS))
-        & (l & (l >> 1 & VALID_FIELDS)) >> 41)
-        & (p | p >> 41 | p >> 42))
-        >> 1
+fn shape_17(l: Bitboard, p: Bitboard) -> Bitboard {
+    (l >> 1 & l >> 22 & l >> 42 & l >> 43) & (p >> 1 | p >> 42 | p >> 43)
 }
 
-pub fn shape_18(l: Bitboard, p: Bitboard) -> Bitboard {
-    (((l & (l >> 21 & VALID_FIELDS)) & (l >> 42 & VALID_FIELDS))
-        & (l & (l >> 1 & VALID_FIELDS)) >> 42)
-        & (p | p >> 42 | p >> 43)
+fn shape_18(l: Bitboard, p: Bitboard) -> Bitboard {
+    (l & l >> 21 & l >> 42 & l >> 43) & (p | p >> 42 | p >> 43)
 }
 
-pub fn shape_19(l: Bitboard, p: Bitboard) -> Bitboard {
-    (l & ((l & (l >> 1 & VALID_FIELDS)) & (l >> 2 & VALID_FIELDS)) >> 21) & (p | p >> 21 | p >> 23)
+fn shape_19(l: Bitboard, p: Bitboard) -> Bitboard {
+    (l & l >> 21 & l >> 22 & l >> 23) & (p | p >> 21 | p >> 23)
 }
 
-pub fn shape_20(l: Bitboard, p: Bitboard) -> Bitboard {
-    (((l & (l >> 1 & VALID_FIELDS)) & (l >> 2 & VALID_FIELDS)) & l >> 21) & (p | p >> 2 | p >> 21)
+fn shape_20(l: Bitboard, p: Bitboard) -> Bitboard {
+    (l & l >> 1 & l >> 2 & l >> 21) & (p | p >> 2 | p >> 21)
 }
 
-pub fn shape_21(l: Bitboard, p: Bitboard) -> Bitboard {
-    (((l & (l >> 1 & VALID_FIELDS)) & (l >> 2 & VALID_FIELDS)) & l >> 23) & (p | p >> 2 | p >> 23)
+fn shape_21(l: Bitboard, p: Bitboard) -> Bitboard {
+    (l & l >> 1 & l >> 2 & l >> 23) & (p | p >> 2 | p >> 23)
 }
 
-pub fn shape_22(l: Bitboard, p: Bitboard) -> Bitboard {
-    ((l & (l << 21 & VALID_FIELDS)) & ((l & (l << 1 & VALID_FIELDS)) & (l << 2 & VALID_FIELDS)))
-        >> 23
-        & (p >> 2 | p >> 21 | p >> 23)
+fn shape_22(l: Bitboard, p: Bitboard) -> Bitboard {
+    (l >> 2 & l >> 21 & l >> 22 & l >> 23) & (p >> 2 | p >> 21 | p >> 23)
 }
 
-pub fn shape_23(l: Bitboard, p: Bitboard) -> Bitboard {
-    ((((l & (l >> 1 & VALID_FIELDS)) & (l >> 2 & VALID_FIELDS)) & (l >> 3 & VALID_FIELDS))
-        & l >> 24)
-        & (p | p >> 3 | p >> 24)
+fn shape_23(l: Bitboard, p: Bitboard) -> Bitboard {
+    (l & l >> 1 & l >> 2 & l >> 3 & l >> 24) & (p | p >> 3 | p >> 24)
 }
 
-pub fn shape_24(l: Bitboard, p: Bitboard) -> Bitboard {
-    ((((l & (l >> 1 & VALID_FIELDS)) & (l >> 2 & VALID_FIELDS)) & (l >> 3 & VALID_FIELDS))
-        & (l & (l >> 21 & VALID_FIELDS)))
-        & (p | p >> 3 | p >> 21)
+fn shape_24(l: Bitboard, p: Bitboard) -> Bitboard {
+    (l & l >> 1 & l >> 2 & l >> 3 & l >> 21) & (p | p >> 3 | p >> 21)
 }
 
-pub fn shape_25(l: Bitboard, p: Bitboard) -> Bitboard {
-    (l & (((l & (l >> 1 & VALID_FIELDS)) & (l >> 2 & VALID_FIELDS)) & (l >> 3 & VALID_FIELDS))
-        >> 21)
-        & (p | p >> 21 | p >> 24)
+fn shape_25(l: Bitboard, p: Bitboard) -> Bitboard {
+    (l & l >> 21 & l >> 22 & l >> 23 & l >> 24) & (p | p >> 21 | p >> 24)
 }
 
-pub fn shape_26(l: Bitboard, p: Bitboard) -> Bitboard {
-    ((((l & (l << 1 & VALID_FIELDS)) & (l << 2 & VALID_FIELDS)) & (l << 3 & VALID_FIELDS))
-        & (l & (l << 21 & VALID_FIELDS)))
-        >> 24
-        & (p >> 3 | p >> 21 | p >> 24)
+fn shape_26(l: Bitboard, p: Bitboard) -> Bitboard {
+    (l >> 3 & l >> 21 & l >> 22 & l >> 23 & l >> 24) & (p >> 3 | p >> 21 | p >> 24)
 }
 
-pub fn shape_27(l: Bitboard, p: Bitboard) -> Bitboard {
-    ((l & (l >> 1 & VALID_FIELDS))
-        & (((l & (l >> 21 & VALID_FIELDS)) & (l >> 42 & VALID_FIELDS)) & (l >> 63 & VALID_FIELDS)))
-        & (p | p >> 1 | p >> 63)
+fn shape_27(l: Bitboard, p: Bitboard) -> Bitboard {
+    (l & l >> 1 & l >> 21 & l >> 42 & l >> 63) & (p | p >> 1 | p >> 63)
 }
 
-pub fn shape_28(l: Bitboard, p: Bitboard) -> Bitboard {
-    ((((l & (l >> 21 & VALID_FIELDS)) & (l >> 42 & VALID_FIELDS)) & (l >> 63 & VALID_FIELDS))
-        & l >> 64)
-        & (p | p >> 63 | p >> 64)
+fn shape_28(l: Bitboard, p: Bitboard) -> Bitboard {
+    (l & l >> 21 & l >> 42 & l >> 63 & l >> 64) & (p | p >> 63 | p >> 64)
 }
 
-pub fn shape_29(l: Bitboard, p: Bitboard) -> Bitboard {
-    ((l & (l >> 1 & VALID_FIELDS))
-        & (((l & (l >> 21 & VALID_FIELDS)) & (l >> 42 & VALID_FIELDS)) & (l >> 63 & VALID_FIELDS))
-            >> 1)
-        & (p | p >> 1 | p >> 64)
+fn shape_29(l: Bitboard, p: Bitboard) -> Bitboard {
+    (l & l >> 1 & l >> 22 & l >> 43 & l >> 64) & (p | p >> 1 | p >> 64)
 }
 
-pub fn shape_30(l: Bitboard, p: Bitboard) -> Bitboard {
-    ((((l & (l << 21 & VALID_FIELDS)) & (l << 42 & VALID_FIELDS)) & (l << 63 & VALID_FIELDS))
-        & (l & (l << 1 & VALID_FIELDS)))
-        >> 64
-        & (p >> 1 | p >> 63 | p >> 64)
+fn shape_30(l: Bitboard, p: Bitboard) -> Bitboard {
+    (l >> 1 & l >> 22 & l >> 43 & l >> 63 & l >> 64) & (p >> 1 | p >> 63 | p >> 64)
 }
 
-pub fn shape_31(l: Bitboard, p: Bitboard) -> Bitboard {
-    (((l & (l >> 1 & VALID_FIELDS)) & (l >> 2 & VALID_FIELDS))
-        & ((l & (l >> 21 & VALID_FIELDS)) & (l >> 42 & VALID_FIELDS)) >> 1)
-        & (p | p >> 2 | p >> 43)
+fn shape_31(l: Bitboard, p: Bitboard) -> Bitboard {
+    (l & l >> 1 & l >> 2 & l >> 22 & l >> 43) & (p | p >> 2 | p >> 43)
 }
 
-pub fn shape_32(l: Bitboard, p: Bitboard) -> Bitboard {
-    ((l & (l << 1 & VALID_FIELDS))
-        & (l & (l >> 1 & VALID_FIELDS))
-        & ((l & (l << 21 & VALID_FIELDS)) & (l << 42 & VALID_FIELDS)))
-        >> 43
-        & (p >> 1 | p >> 42 | p >> 44)
+fn shape_32(l: Bitboard, p: Bitboard) -> Bitboard {
+    (l >> 1 & l >> 22 & l >> 42 & l >> 43 & l >> 44) & (p >> 1 | p >> 42 | p >> 44)
 }
 
-pub fn shape_33(l: Bitboard, p: Bitboard) -> Bitboard {
-    (((l & (l >> 21 & VALID_FIELDS)) & (l >> 42 & VALID_FIELDS))
-        & ((l & (l >> 1 & VALID_FIELDS)) & (l >> 2 & VALID_FIELDS)) >> 21)
-        & (p | p >> 23 | p >> 42)
+fn shape_33(l: Bitboard, p: Bitboard) -> Bitboard {
+    (l & l >> 21 & l >> 22 & l >> 23 & l >> 42) & (p | p >> 23 | p >> 42)
 }
 
-pub fn shape_34(l: Bitboard, p: Bitboard) -> Bitboard {
-    (((l & (l << 1 & VALID_FIELDS)) & (l << 2 & VALID_FIELDS))
-        & (l & (l << 21 & VALID_FIELDS))
-        & (l & (l >> 21 & VALID_FIELDS)))
-        >> 23
-        & (p >> 2 | p >> 21 | p >> 44)
+fn shape_34(l: Bitboard, p: Bitboard) -> Bitboard {
+    (l >> 2 & l >> 21 & l >> 22 & l >> 23 & l >> 44) & (p >> 2 | p >> 21 | p >> 44)
 }
 
-pub fn shape_35(l: Bitboard, p: Bitboard) -> Bitboard {
-    (((l & (l >> 1 & VALID_FIELDS)) & (l >> 2 & VALID_FIELDS)) & l >> 22) & (p | p >> 2 | p >> 22)
+fn shape_35(l: Bitboard, p: Bitboard) -> Bitboard {
+    (l & l >> 1 & l >> 2 & l >> 22) & (p | p >> 2 | p >> 22)
 }
 
-pub fn shape_36(l: Bitboard, p: Bitboard) -> Bitboard {
-    ((l & (l << 21 & VALID_FIELDS)) & (l & (l >> 1 & VALID_FIELDS)) & (l & (l << 1 & VALID_FIELDS)))
-        >> 22
-        & (p >> 1 | p >> 21 | p >> 23)
+fn shape_36(l: Bitboard, p: Bitboard) -> Bitboard {
+    (l >> 1 & l >> 21 & l >> 22 & l >> 23) & (p >> 1 | p >> 21 | p >> 23)
 }
 
-pub fn shape_37(l: Bitboard, p: Bitboard) -> Bitboard {
-    (((l & (l >> 21 & VALID_FIELDS)) & (l >> 42 & VALID_FIELDS)) & l >> 22)
-        & (p | p >> 22 | p >> 42)
+fn shape_37(l: Bitboard, p: Bitboard) -> Bitboard {
+    (l & l >> 21 & l >> 22 & l >> 42) & (p | p >> 22 | p >> 42)
 }
 
-pub fn shape_38(l: Bitboard, p: Bitboard) -> Bitboard {
-    ((l & (l << 21 & VALID_FIELDS))
-        & (l & (l >> 21 & VALID_FIELDS))
-        & (l & (l << 1 & VALID_FIELDS)))
-        >> 22
-        & (p >> 1 | p >> 21 | p >> 43)
+fn shape_38(l: Bitboard, p: Bitboard) -> Bitboard {
+    (l >> 1 & l >> 21 & l >> 22 & l >> 43) & (p >> 1 | p >> 21 | p >> 43)
 }
 
-pub fn shape_39(l: Bitboard, p: Bitboard) -> Bitboard {
-    (((l & (l >> 1 & VALID_FIELDS)) & (l & (l >> 1 & VALID_FIELDS)) >> 20)
-        & (p | p >> 1 | p >> 20 | p >> 21))
-        >> 1
+fn shape_39(l: Bitboard, p: Bitboard) -> Bitboard {
+    (l >> 1 & l >> 2 & l >> 21 & l >> 22) & (p >> 1 | p >> 2 | p >> 21 | p >> 22)
 }
 
-pub fn shape_40(l: Bitboard, p: Bitboard) -> Bitboard {
-    ((l & (l >> 1 & VALID_FIELDS)) & (l & (l >> 1 & VALID_FIELDS)) >> 22)
-        & (p | p >> 1 | p >> 22 | p >> 23)
+fn shape_40(l: Bitboard, p: Bitboard) -> Bitboard {
+    (l & l >> 1 & l >> 22 & l >> 23) & (p | p >> 1 | p >> 22 | p >> 23)
 }
 
-pub fn shape_41(l: Bitboard, p: Bitboard) -> Bitboard {
-    (((l & (l >> 21 & VALID_FIELDS)) & (l & (l >> 21 & VALID_FIELDS)) >> 20)
-        & (p | p >> 20 | p >> 21 | p >> 41))
-        >> 1
+fn shape_41(l: Bitboard, p: Bitboard) -> Bitboard {
+    (l >> 1 & l >> 21 & l >> 22 & l >> 42) & (p >> 1 | p >> 21 | p >> 22 | p >> 42)
 }
 
-pub fn shape_42(l: Bitboard, p: Bitboard) -> Bitboard {
-    ((l & (l >> 21 & VALID_FIELDS)) & (l & (l >> 21 & VALID_FIELDS)) >> 22)
-        & (p | p >> 21 | p >> 22 | p >> 43)
+fn shape_42(l: Bitboard, p: Bitboard) -> Bitboard {
+    (l & l >> 21 & l >> 22 & l >> 43) & (p | p >> 21 | p >> 22 | p >> 43)
 }
 
-pub fn shape_43(l: Bitboard, p: Bitboard) -> Bitboard {
-    (l & (((l & (l << 1 & VALID_FIELDS)) & (l << 2 & VALID_FIELDS))
-        & (l & (l >> 21 & VALID_FIELDS)))
-        >> 23)
-        & (p | p >> 21 | p >> 23 | p >> 44)
+fn shape_43(l: Bitboard, p: Bitboard) -> Bitboard {
+    (l & l >> 21 & l >> 22 & l >> 23 & l >> 44) & (p | p >> 21 | p >> 23 | p >> 44)
 }
 
-pub fn shape_44(l: Bitboard, p: Bitboard) -> Bitboard {
-    ((l & (((l & (l >> 1 & VALID_FIELDS)) & (l >> 2 & VALID_FIELDS))
-        & (l & (l >> 21 & VALID_FIELDS)))
-        >> 19)
-        & (p | p >> 19 | p >> 21 | p >> 40))
-        >> 2
+fn shape_44(l: Bitboard, p: Bitboard) -> Bitboard {
+    (l >> 2 & l >> 21 & l >> 22 & l >> 23 & l >> 42) & (p >> 2 | p >> 21 | p >> 23 | p >> 42)
 }
 
-pub fn shape_45(l: Bitboard, p: Bitboard) -> Bitboard {
-    (l >> 2
-        & (((l & (l << 21 & VALID_FIELDS)) & (l << 42 & VALID_FIELDS))
-            & (l & (l << 1 & VALID_FIELDS)))
-            >> 43)
-        & (p >> 1 | p >> 2 | p >> 42 | p >> 43)
+fn shape_45(l: Bitboard, p: Bitboard) -> Bitboard {
+    (l >> 1 & l >> 2 & l >> 22 & l >> 42 & l >> 43) & (p >> 1 | p >> 2 | p >> 42 | p >> 43)
 }
 
-pub fn shape_46(l: Bitboard, p: Bitboard) -> Bitboard {
-    ((l & (l >> 1 & VALID_FIELDS))
-        & ((l & (l >> 1 & VALID_FIELDS))
-            & ((l & (l << 21 & VALID_FIELDS)) & (l << 42 & VALID_FIELDS)))
-            >> 43)
-        & (p | p >> 1 | p >> 43 | p >> 44)
+fn shape_46(l: Bitboard, p: Bitboard) -> Bitboard {
+    (l & l >> 1 & l >> 22 & l >> 43 & l >> 44) & (p | p >> 1 | p >> 43 | p >> 44)
 }
 
-pub fn shape_47(l: Bitboard, p: Bitboard) -> Bitboard {
-    (((l & (l >> 1 & VALID_FIELDS)) & (l >> 2 & VALID_FIELDS))
-        & (l & (l >> 21 & VALID_FIELDS))
-        & l >> 23)
-        & (p | p >> 2 | p >> 21 | p >> 23)
+fn shape_47(l: Bitboard, p: Bitboard) -> Bitboard {
+    (l & l >> 1 & l >> 2 & l >> 21 & l >> 23) & (p | p >> 2 | p >> 21 | p >> 23)
 }
 
-pub fn shape_48(l: Bitboard, p: Bitboard) -> Bitboard {
-    (l & (((l & (l << 1 & VALID_FIELDS)) & (l << 2 & VALID_FIELDS))
-        & (l & (l << 21 & VALID_FIELDS)))
-        >> 23)
-        & (p | p >> 2 | p >> 21 | p >> 23)
+fn shape_48(l: Bitboard, p: Bitboard) -> Bitboard {
+    (l & l >> 2 & l >> 21 & l >> 22 & l >> 23) & (p | p >> 2 | p >> 21 | p >> 23)
 }
 
-pub fn shape_49(l: Bitboard, p: Bitboard) -> Bitboard {
-    (((l & (l >> 21 & VALID_FIELDS)) & (l >> 42 & VALID_FIELDS))
-        & (l & (l >> 1 & VALID_FIELDS))
-        & l >> 43)
-        & (p | p >> 1 | p >> 42 | p >> 43)
+fn shape_49(l: Bitboard, p: Bitboard) -> Bitboard {
+    (l & l >> 1 & l >> 21 & l >> 42 & l >> 43) & (p | p >> 1 | p >> 42 | p >> 43)
 }
 
-pub fn shape_50(l: Bitboard, p: Bitboard) -> Bitboard {
-    ((l & (l >> 1 & VALID_FIELDS))
-        & ((l & (l << 1 & VALID_FIELDS))
-            & ((l & (l << 21 & VALID_FIELDS)) & (l << 42 & VALID_FIELDS)))
-            >> 43)
-        & (p | p >> 1 | p >> 42 | p >> 43)
+fn shape_50(l: Bitboard, p: Bitboard) -> Bitboard {
+    (l & l >> 1 & l >> 22 & l >> 42 & l >> 43) & (p | p >> 1 | p >> 42 | p >> 43)
 }
 
-pub fn shape_51(l: Bitboard, p: Bitboard) -> Bitboard {
-    ((((l & (l << 21 & VALID_FIELDS)) & (l << 42 & VALID_FIELDS)) & (l & (l << 1 & VALID_FIELDS)))
-        >> 43
-        & l >> 23)
-        & (p >> 1 | p >> 23 | p >> 42 | p >> 43)
+fn shape_51(l: Bitboard, p: Bitboard) -> Bitboard {
+    (l >> 1 & l >> 22 & l >> 23 & l >> 42 & l >> 43) & (p >> 1 | p >> 23 | p >> 42 | p >> 43)
 }
 
-pub fn shape_52(l: Bitboard, p: Bitboard) -> Bitboard {
-    (l >> 21
-        & (((l & (l << 21 & VALID_FIELDS)) & (l << 42 & VALID_FIELDS))
-            & (l & (l >> 1 & VALID_FIELDS)))
-            >> 43)
-        & (p >> 1 | p >> 21 | p >> 43 | p >> 44)
+fn shape_52(l: Bitboard, p: Bitboard) -> Bitboard {
+    (l >> 1 & l >> 21 & l >> 22 & l >> 43 & l >> 44) & (p >> 1 | p >> 21 | p >> 43 | p >> 44)
 }
 
-pub fn shape_53(l: Bitboard, p: Bitboard) -> Bitboard {
-    (((((l & (l >> 21 & VALID_FIELDS)) & (l >> 42 & VALID_FIELDS))
-        & (l & (l >> 1 & VALID_FIELDS)))
-        & l >> 20)
-        & (p | p >> 1 | p >> 20 | p >> 42))
-        >> 1
+fn shape_53(l: Bitboard, p: Bitboard) -> Bitboard {
+    (l >> 1 & l >> 2 & l >> 21 & l >> 22 & l >> 43) & (p >> 1 | p >> 2 | p >> 21 | p >> 43)
 }
 
-pub fn shape_54(l: Bitboard, p: Bitboard) -> Bitboard {
-    ((((l & (l >> 21 & VALID_FIELDS)) & (l >> 42 & VALID_FIELDS)) & (l & (l << 1 & VALID_FIELDS)))
-        >> 1
-        & l >> 23)
-        & (p | p >> 1 | p >> 23 | p >> 43)
+fn shape_54(l: Bitboard, p: Bitboard) -> Bitboard {
+    (l & l >> 1 & l >> 22 & l >> 23 & l >> 43) & (p | p >> 1 | p >> 23 | p >> 43)
 }
 
-pub fn shape_55(l: Bitboard, p: Bitboard) -> Bitboard {
-    ((((l & (l << 1 & VALID_FIELDS)) & (l << 2 & VALID_FIELDS)) & (l & (l << 21 & VALID_FIELDS)))
-        >> 23
-        & l >> 43)
-        & (p >> 2 | p >> 21 | p >> 23 | p >> 43)
+fn shape_55(l: Bitboard, p: Bitboard) -> Bitboard {
+    (l >> 2 & l >> 21 & l >> 22 & l >> 23 & l >> 43) & (p >> 2 | p >> 21 | p >> 23 | p >> 43)
 }
 
-pub fn shape_56(l: Bitboard, p: Bitboard) -> Bitboard {
-    ((((l & (l >> 1 & VALID_FIELDS)) & (l >> 2 & VALID_FIELDS)) & (l & (l << 21 & VALID_FIELDS)))
-        >> 21
-        & l >> 43)
-        & (p | p >> 21 | p >> 23 | p >> 43)
+fn shape_56(l: Bitboard, p: Bitboard) -> Bitboard {
+    (l & l >> 21 & l >> 22 & l >> 23 & l >> 43) & (p | p >> 21 | p >> 23 | p >> 43)
 }
 
-pub fn shape_57(l: Bitboard, p: Bitboard) -> Bitboard {
-    ((l & (((l & (l << 1 & VALID_FIELDS)) & (l << 2 & VALID_FIELDS))
-        & (l & (l >> 21 & VALID_FIELDS)))
-        >> 22)
-        & (p | p >> 20 | p >> 22 | p >> 43))
-        >> 1
+fn shape_57(l: Bitboard, p: Bitboard) -> Bitboard {
+    (l >> 1 & l >> 21 & l >> 22 & l >> 23 & l >> 44) & (p >> 1 | p >> 21 | p >> 23 | p >> 44)
 }
 
-pub fn shape_58(l: Bitboard, p: Bitboard) -> Bitboard {
-    ((l & (((l & (l >> 1 & VALID_FIELDS)) & (l >> 2 & VALID_FIELDS))
-        & (l & (l >> 21 & VALID_FIELDS)))
-        >> 20)
-        & (p | p >> 20 | p >> 22 | p >> 41))
-        >> 1
+fn shape_58(l: Bitboard, p: Bitboard) -> Bitboard {
+    (l >> 1 & l >> 21 & l >> 22 & l >> 23 & l >> 42) & (p >> 1 | p >> 21 | p >> 23 | p >> 42)
 }
 
-pub fn shape_59(l: Bitboard, p: Bitboard) -> Bitboard {
-    ((l & (l >> 21 & VALID_FIELDS))
-        & ((l & (l << 21 & VALID_FIELDS)) & (l & (l >> 1 & VALID_FIELDS))) >> 43)
-        & (p | p >> 21 | p >> 22 | p >> 43 | p >> 44)
+fn shape_59(l: Bitboard, p: Bitboard) -> Bitboard {
+    (l & l >> 21 & l >> 22 & l >> 43 & l >> 44) & (p | p >> 21 | p >> 22 | p >> 43 | p >> 44)
 }
 
-pub fn shape_60(l: Bitboard, p: Bitboard) -> Bitboard {
-    (((l & (l << 21 & VALID_FIELDS)) & (l & (l << 1 & VALID_FIELDS))) >> 23
-        & (l & (l >> 1 & VALID_FIELDS)) >> 42)
+fn shape_60(l: Bitboard, p: Bitboard) -> Bitboard {
+    (l >> 2 & l >> 22 & l >> 23 & l >> 42 & l >> 43)
+
         & (p >> 2 | p >> 22 | p >> 23 | p >> 42 | p >> 43)
 }
-
-pub fn shape_61(l: Bitboard, p: Bitboard) -> Bitboard {
-    ((l & (l >> 1 & VALID_FIELDS))
-        & ((l & (l >> 21 & VALID_FIELDS)) & (l & (l << 1 & VALID_FIELDS))) >> 23)
-        & (p | p >> 1 | p >> 22 | p >> 23 | p >> 44)
+fn shape_61(l: Bitboard, p: Bitboard) -> Bitboard {
+    (l & l >> 1 & l >> 22 & l >> 23 & l >> 44) & (p | p >> 1 | p >> 22 | p >> 23 | p >> 44)
 }
 
-pub fn shape_62(l: Bitboard, p: Bitboard) -> Bitboard {
-    (((l & (l >> 1 & VALID_FIELDS))
-        & ((l & (l >> 1 & VALID_FIELDS)) & (l & (l >> 21 & VALID_FIELDS))) >> 20)
-        & (p | p >> 1 | p >> 20 | p >> 21 | p >> 41))
-        >> 1
+fn shape_62(l: Bitboard, p: Bitboard) -> Bitboard {
+    (l >> 1 & l >> 2 & l >> 21 & l >> 22 & l >> 42)
+
+        & (p >> 1 | p >> 2 | p >> 21 | p >> 22 | p >> 42)
+}
+fn shape_63(l: Bitboard, p: Bitboard) -> Bitboard {
+    (l >> 1 & l >> 22 & l >> 42 & l >> 43 & l >> 63) & (p >> 1 | p >> 42 | p >> 43 | p >> 63)
 }
 
-pub fn shape_63(l: Bitboard, p: Bitboard) -> Bitboard {
-    ((((l & (l >> 21 & VALID_FIELDS)) & (l >> 42 & VALID_FIELDS))
-        & (l & (l >> 21 & VALID_FIELDS)) >> 41)
-        & (p | p >> 41 | p >> 42 | p >> 62))
-        >> 1
+fn shape_64(l: Bitboard, p: Bitboard) -> Bitboard {
+    (l & l >> 21 & l >> 42 & l >> 43 & l >> 64) & (p | p >> 42 | p >> 43 | p >> 64)
 }
 
-pub fn shape_64(l: Bitboard, p: Bitboard) -> Bitboard {
-    (((l & (l >> 21 & VALID_FIELDS)) & (l >> 42 & VALID_FIELDS))
-        & (l & (l >> 21 & VALID_FIELDS)) >> 43)
-        & (p | p >> 42 | p >> 43 | p >> 64)
+fn shape_65(l: Bitboard, p: Bitboard) -> Bitboard {
+    (l >> 1 & l >> 21 & l >> 22 & l >> 42 & l >> 63) & (p >> 1 | p >> 21 | p >> 22 | p >> 63)
 }
 
-pub fn shape_65(l: Bitboard, p: Bitboard) -> Bitboard {
-    (((l & (l >> 21 & VALID_FIELDS))
-        & ((l & (l >> 21 & VALID_FIELDS)) & (l >> 42 & VALID_FIELDS)) >> 20)
-        & (p | p >> 20 | p >> 21 | p >> 62))
-        >> 1
+fn shape_66(l: Bitboard, p: Bitboard) -> Bitboard {
+    (l & l >> 21 & l >> 22 & l >> 43 & l >> 64) & (p | p >> 21 | p >> 22 | p >> 64)
 }
 
-pub fn shape_66(l: Bitboard, p: Bitboard) -> Bitboard {
-    ((l & (l >> 21 & VALID_FIELDS))
-        & ((l & (l >> 21 & VALID_FIELDS)) & (l >> 42 & VALID_FIELDS)) >> 22)
-        & (p | p >> 21 | p >> 22 | p >> 64)
+fn shape_67(l: Bitboard, p: Bitboard) -> Bitboard {
+    (l >> 2 & l >> 3 & l >> 21 & l >> 22 & l >> 23) & (p >> 2 | p >> 3 | p >> 21 | p >> 23)
 }
 
-pub fn shape_67(l: Bitboard, p: Bitboard) -> Bitboard {
-    (((l & (l >> 1 & VALID_FIELDS))
-        & ((l & (l >> 1 & VALID_FIELDS)) & (l >> 2 & VALID_FIELDS)) >> 19)
-        & (p | p >> 1 | p >> 19 | p >> 21))
-        >> 2
+fn shape_68(l: Bitboard, p: Bitboard) -> Bitboard {
+    (l & l >> 1 & l >> 2 & l >> 23 & l >> 24) & (p | p >> 2 | p >> 23 | p >> 24)
 }
 
-pub fn shape_68(l: Bitboard, p: Bitboard) -> Bitboard {
-    (((l & (l >> 1 & VALID_FIELDS)) & (l >> 2 & VALID_FIELDS))
-        & (l & (l >> 1 & VALID_FIELDS)) >> 23)
-        & (p | p >> 2 | p >> 23 | p >> 24)
+fn shape_69(l: Bitboard, p: Bitboard) -> Bitboard {
+    (l & l >> 1 & l >> 22 & l >> 23 & l >> 24) & (p | p >> 1 | p >> 22 | p >> 24)
 }
 
-pub fn shape_69(l: Bitboard, p: Bitboard) -> Bitboard {
-    ((l & (l >> 1 & VALID_FIELDS))
-        & ((l & (l >> 1 & VALID_FIELDS)) & (l >> 2 & VALID_FIELDS)) >> 22)
-        & (p | p >> 1 | p >> 22 | p >> 24)
+fn shape_70(l: Bitboard, p: Bitboard) -> Bitboard {
+    (l >> 1 & l >> 2 & l >> 3 & l >> 21 & l >> 22) & (p >> 1 | p >> 3 | p >> 21 | p >> 22)
 }
 
-pub fn shape_70(l: Bitboard, p: Bitboard) -> Bitboard {
-    ((((l & (l >> 1 & VALID_FIELDS)) & (l >> 2 & VALID_FIELDS))
-        & (l & (l >> 1 & VALID_FIELDS)) >> 20)
-        & (p | p >> 2 | p >> 20 | p >> 21))
-        >> 1
+fn shape_71(l: Bitboard, p: Bitboard) -> Bitboard {
+    (l & l >> 1 & l >> 2 & l >> 21 & l >> 42) & (p | p >> 2 | p >> 42)
 }
 
-pub fn shape_71(l: Bitboard, p: Bitboard) -> Bitboard {
-    (((l & (l >> 1 & VALID_FIELDS)) & (l >> 2 & VALID_FIELDS))
-        & ((l & (l >> 21 & VALID_FIELDS)) & (l >> 42 & VALID_FIELDS)))
-        & (p | p >> 2 | p >> 42)
+fn shape_72(l: Bitboard, p: Bitboard) -> Bitboard {
+    (l >> 2 & l >> 23 & l >> 42 & l >> 43 & l >> 44) & (p >> 2 | p >> 42 | p >> 44)
 }
 
-pub fn shape_72(l: Bitboard, p: Bitboard) -> Bitboard {
-    (((l & (l << 21 & VALID_FIELDS)) & (l << 42 & VALID_FIELDS))
-        & ((l & (l << 1 & VALID_FIELDS)) & (l << 2 & VALID_FIELDS)))
-        >> 44
-        & (p >> 2 | p >> 42 | p >> 44)
+fn shape_73(l: Bitboard, p: Bitboard) -> Bitboard {
+    (l & l >> 1 & l >> 2 & l >> 23 & l >> 44) & (p | p >> 2 | p >> 44)
 }
 
-pub fn shape_73(l: Bitboard, p: Bitboard) -> Bitboard {
-    (((l & (l >> 1 & VALID_FIELDS)) & (l >> 2 & VALID_FIELDS))
-        & ((l & (l >> 21 & VALID_FIELDS)) & (l >> 42 & VALID_FIELDS)) >> 2)
-        & (p | p >> 2 | p >> 44)
+fn shape_74(l: Bitboard, p: Bitboard) -> Bitboard {
+    (l & l >> 21 & l >> 42 & l >> 43 & l >> 44) & (p | p >> 42 | p >> 44)
 }
 
-pub fn shape_74(l: Bitboard, p: Bitboard) -> Bitboard {
-    (((l & (l >> 21 & VALID_FIELDS)) & (l >> 42 & VALID_FIELDS))
-        & ((l & (l >> 1 & VALID_FIELDS)) & (l >> 2 & VALID_FIELDS)) >> 42)
-        & (p | p >> 42 | p >> 44)
+fn shape_75(l: Bitboard, p: Bitboard) -> Bitboard {
+    (l & l >> 1 & l >> 21 & l >> 22 & l >> 42) & (p | p >> 1 | p >> 22 | p >> 42)
 }
 
-pub fn shape_75(l: Bitboard, p: Bitboard) -> Bitboard {
-    (((l & (l >> 1 & VALID_FIELDS)) & (l & (l >> 1 & VALID_FIELDS)) >> 21) & l >> 42)
-        & (p | p >> 1 | p >> 22 | p >> 42)
+fn shape_76(l: Bitboard, p: Bitboard) -> Bitboard {
+    (l & l >> 1 & l >> 21 & l >> 22 & l >> 43) & (p | p >> 1 | p >> 21 | p >> 43)
 }
 
-pub fn shape_76(l: Bitboard, p: Bitboard) -> Bitboard {
-    (((l & (l >> 1 & VALID_FIELDS)) & (l & (l >> 1 & VALID_FIELDS)) >> 21) & l >> 43)
-        & (p | p >> 1 | p >> 21 | p >> 43)
+fn shape_77(l: Bitboard, p: Bitboard) -> Bitboard {
+    (l & l >> 1 & l >> 21 & l >> 22 & l >> 23) & (p | p >> 1 | p >> 21 | p >> 23)
 }
 
-pub fn shape_77(l: Bitboard, p: Bitboard) -> Bitboard {
-    (((l & (l >> 1 & VALID_FIELDS)) & (l & (l >> 1 & VALID_FIELDS)) >> 21) & l >> 23)
-        & (p | p >> 1 | p >> 21 | p >> 23)
+fn shape_78(l: Bitboard, p: Bitboard) -> Bitboard {
+    (l & l >> 1 & l >> 2 & l >> 21 & l >> 22) & (p | p >> 2 | p >> 21 | p >> 22)
 }
 
-pub fn shape_78(l: Bitboard, p: Bitboard) -> Bitboard {
-    (((l & (l >> 1 & VALID_FIELDS)) & (l & (l >> 1 & VALID_FIELDS)) >> 21) & l >> 2)
-        & (p | p >> 2 | p >> 21 | p >> 22)
+fn shape_79(l: Bitboard, p: Bitboard) -> Bitboard {
+    (l & l >> 1 & l >> 2 & l >> 22 & l >> 23) & (p | p >> 2 | p >> 22 | p >> 23)
 }
 
-pub fn shape_79(l: Bitboard, p: Bitboard) -> Bitboard {
-    (((l & (l >> 1 & VALID_FIELDS)) & (l & (l >> 1 & VALID_FIELDS)) >> 21) >> 1 & l)
-        & (p | p >> 2 | p >> 22 | p >> 23)
+fn shape_80(l: Bitboard, p: Bitboard) -> Bitboard {
+    (l >> 1 & l >> 2 & l >> 21 & l >> 22 & l >> 23) & (p >> 1 | p >> 2 | p >> 21 | p >> 23)
 }
 
-pub fn shape_80(l: Bitboard, p: Bitboard) -> Bitboard {
-    ((((l & (l >> 1 & VALID_FIELDS)) & (l & (l >> 1 & VALID_FIELDS)) >> 21) & l >> 20)
-        & (p | p >> 1 | p >> 20 | p >> 22))
-        >> 1
+fn shape_81(l: Bitboard, p: Bitboard) -> Bitboard {
+    (l >> 1 & l >> 21 & l >> 22 & l >> 42 & l >> 43) & (p >> 1 | p >> 21 | p >> 42 | p >> 43)
 }
 
-pub fn shape_81(l: Bitboard, p: Bitboard) -> Bitboard {
-    ((l & ((l & (l >> 1 & VALID_FIELDS)) & (l & (l >> 1 & VALID_FIELDS)) >> 21) >> 20)
-        & (p | p >> 20 | p >> 41 | p >> 42))
-        >> 1
+fn shape_82(l: Bitboard, p: Bitboard) -> Bitboard {
+    (l & l >> 21 & l >> 22 & l >> 42 & l >> 43) & (p | p >> 22 | p >> 42 | p >> 43)
 }
 
-pub fn shape_82(l: Bitboard, p: Bitboard) -> Bitboard {
-    (l & ((l & (l >> 1 & VALID_FIELDS)) & (l & (l >> 1 & VALID_FIELDS)) >> 21) >> 21)
-        & (p | p >> 22 | p >> 42 | p >> 43)
+fn shape_83(l: Bitboard, p: Bitboard) -> Bitboard {
+    (l & l >> 21 & l >> 22 & l >> 42 & l >> 63) & (p | p >> 22 | p >> 63)
 }
 
-pub fn shape_83(l: Bitboard, p: Bitboard) -> Bitboard {
-    ((((l & (l >> 21 & VALID_FIELDS)) & (l >> 42 & VALID_FIELDS)) & (l >> 63 & VALID_FIELDS))
-        & l >> 22)
-        & (p | p >> 22 | p >> 63)
+fn shape_84(l: Bitboard, p: Bitboard) -> Bitboard {
+    (l & l >> 21 & l >> 42 & l >> 43 & l >> 63) & (p | p >> 43 | p >> 63)
 }
 
-pub fn shape_84(l: Bitboard, p: Bitboard) -> Bitboard {
-    ((((l & (l >> 21 & VALID_FIELDS)) & (l >> 42 & VALID_FIELDS)) & (l >> 63 & VALID_FIELDS))
-        & l >> 43)
-        & (p | p >> 43 | p >> 63)
+fn shape_85(l: Bitboard, p: Bitboard) -> Bitboard {
+    (l >> 1 & l >> 22 & l >> 42 & l >> 43 & l >> 64) & (p >> 1 | p >> 42 | p >> 64)
 }
 
-pub fn shape_85(l: Bitboard, p: Bitboard) -> Bitboard {
-    (((((l & (l >> 21 & VALID_FIELDS)) & (l >> 42 & VALID_FIELDS)) & (l >> 63 & VALID_FIELDS))
-        & l >> 41)
-        & (p | p >> 41 | p >> 63))
-        >> 1
+fn shape_86(l: Bitboard, p: Bitboard) -> Bitboard {
+    (l >> 1 & l >> 21 & l >> 22 & l >> 43 & l >> 64) & (p >> 1 | p >> 21 | p >> 64)
 }
 
-pub fn shape_86(l: Bitboard, p: Bitboard) -> Bitboard {
-    (((((l & (l >> 21 & VALID_FIELDS)) & (l >> 42 & VALID_FIELDS)) & (l >> 63 & VALID_FIELDS))
-        & l >> 20)
-        & (p | p >> 20 | p >> 63))
-        >> 1
+fn shape_87(l: Bitboard, p: Bitboard) -> Bitboard {
+    (l & l >> 1 & l >> 2 & l >> 3 & l >> 23) & (p | p >> 3 | p >> 23)
 }
 
-pub fn shape_87(l: Bitboard, p: Bitboard) -> Bitboard {
-    ((((l & (l >> 1 & VALID_FIELDS)) & (l >> 2 & VALID_FIELDS)) & (l >> 3 & VALID_FIELDS))
-        & l >> 23)
-        & (p | p >> 3 | p >> 23)
+fn shape_88(l: Bitboard, p: Bitboard) -> Bitboard {
+    (l & l >> 1 & l >> 2 & l >> 3 & l >> 22) & (p | p >> 3 | p >> 22)
 }
 
-pub fn shape_88(l: Bitboard, p: Bitboard) -> Bitboard {
-    ((((l & (l >> 1 & VALID_FIELDS)) & (l >> 2 & VALID_FIELDS)) & (l >> 3 & VALID_FIELDS))
-        & l >> 22)
-        & (p | p >> 3 | p >> 22)
+fn shape_89(l: Bitboard, p: Bitboard) -> Bitboard {
+    (l >> 2 & l >> 21 & l >> 22 & l >> 23 & l >> 24) & (p >> 2 | p >> 21 | p >> 24)
 }
 
-pub fn shape_89(l: Bitboard, p: Bitboard) -> Bitboard {
-    ((l & (l << 21 & VALID_FIELDS))
-        & (l & (l >> 1 & VALID_FIELDS))
-        & ((l & (l << 1 & VALID_FIELDS)) & (l << 2 & VALID_FIELDS)))
-        >> 23
-        & (p >> 2 | p >> 21 | p >> 24)
-}
-
-pub fn shape_90(l: Bitboard, p: Bitboard) -> Bitboard {
-    ((l & (((l & (l >> 1 & VALID_FIELDS)) & (l >> 2 & VALID_FIELDS)) & (l >> 3 & VALID_FIELDS))
-        >> 20)
-        & (p | p >> 20 | p >> 23))
-        >> 1
+fn shape_90(l: Bitboard, p: Bitboard) -> Bitboard {
+    (l >> 1 & l >> 21 & l >> 22 & l >> 23 & l >> 24) & (p >> 1 | p >> 21 | p >> 24)
 }
 
 pub fn random_action(state: &GameState, rng: &mut SmallRng, pentomino_only: bool) -> Action {
@@ -638,4 +436,46 @@ pub fn random_action(state: &GameState, rng: &mut SmallRng, pentomino_only: bool
         }
     }
     Action::skip()
+}
+
+#[cfg(test)]
+mod test {
+    use super::random_action;
+    use game_sdk::{Action, ActionList, GameState};
+    use rand::{rngs::SmallRng, SeedableRng};
+
+    #[test]
+    fn test_random_actions() {
+        let mut al = ActionList::default();
+        let mut rng = SmallRng::from_entropy();
+        for _ in 0..300_000 {
+            let mut state = GameState::random();
+            let mut action = Action::skip();
+            state.get_possible_actions(&mut al);
+            for _ in 0..100 {
+                action = random_action(&state, &mut rng, false);
+                let mut is_legal = false;
+                for i in 0..al.size {
+                    if action == al[i] {
+                        is_legal = true;
+                        break;
+                    }
+                }
+                if !is_legal {
+                    panic!("Invalid action");
+                }
+            }
+            while al.size > 0 {
+                action = random_action(&state, &mut rng, false);
+                for i in 0..al.size {
+                    if al[i] == action {
+                        al.swap(i, al.size - 1);
+                        al.size -= 1;
+                        break;
+                    }
+                }
+            }
+            state.do_action(action);
+        }
+    }
 }

@@ -1,49 +1,55 @@
 import pygame
 pygame.display.init()
-window = pygame.display.set_mode((420, 420))
+window = pygame.display.set_mode((630, 630))
 pygame.display.set_caption("Board")
+pygame.font.init()
+font = pygame.font.SysFont("arial", 13)
 
-def draw(ones):
+RED = (255, 0, 0)
+GREEN = (0, 255, 0)
+BLACK = (0, 0, 0)
+
+def draw(board):
     window.fill((255, 255, 255))
-    index = 0
-    for j in range(21):
-        for i in range(21):
-            color = ((0, 255, 0) if j < 20 and i < 20 else (255, 0, 0)) if index in ones else (0, 0, 0)
-            pygame.draw.rect(window, color, (i * 20 + 1, j * 20 + 1, 18, 18))
-            index += 1
+    for y in range(21):
+        for x in range(21):
+            bit = 1 << (x + y * 21)
+            color = BLACK
+            if bit & board != 0:
+                if y > 19 or x > 19:
+                    color = RED
+                else:
+                    color = GREEN
+            pygame.draw.rect(window, color, (x * 30 + 1, y * 30 + 1, 28, 28))
+            window.blit(font.render(str(x + y * 21), 1, (255, 255, 255)), (x * 30 + 2, y * 30 + 5))
     pygame.display.update()
 
-def to_bitboard(ones):
-    i = 0
-    for idx in ones:
-        i |= 1 << idx
-    print("one:", i >> 384 & 340282366920938463463374607431768211455)
-    print("two:", i >> 256 & 340282366920938463463374607431768211455)
-    print("three:", i >> 128 & 340282366920938463463374607431768211455)
-    print("four:", i & 340282366920938463463374607431768211455)
+def field_at_coords(x, y):
+    return x // 30 + y // 30 * 21
 
 def main():
+    board = 0
     ones = []
     while True:
-        pygame.time.delay(60)
+        pygame.time.delay(10)
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 return
         if pygame.mouse.get_pressed()[0]:
             x, y = pygame.mouse.get_pos()
-            idx = x // 20 + y // 20 * 21
-            if not idx in ones:
-                ones.append(idx)
-            to_bitboard(ones)
+            shift = field_at_coords(x, y)
+            if shift >= 0 and shift <= 440:
+                board |= 1 << shift
+                print(board)
 
         if pygame.mouse.get_pressed()[2]:
             x, y = pygame.mouse.get_pos()
-            idx = x // 20 + y // 20 * 21
-            if idx in ones:
-                ones.remove(idx)
-            to_bitboard(ones)
-        draw(ones)
+            shift = field_at_coords(x, y)
+            if shift >= 0 and shift <= 440:
+                board &= ~(1 << shift)
+                print(board)
+        draw(board)
 
 if __name__ == "__main__":
     main()

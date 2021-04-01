@@ -28,8 +28,8 @@ impl GameState {
     }
 
     #[inline(always)]
-    pub fn get_current_color(&self) -> u8 {
-        self.ply & 0b11
+    pub fn get_current_color(&self) -> usize {
+        (self.ply & 0b11) as usize
     }
 
     #[inline(always)]
@@ -53,20 +53,10 @@ impl GameState {
         self.skipped & team_mask == team_mask
     }
 
-    #[inline(always)]
-    pub fn has_team_one_skipped(&self) -> bool {
-        self.skipped & 0b101 == 0b101
-    }
-
-    #[inline(always)]
-    pub fn has_team_two_skipped(&self) -> bool {
-        self.skipped & 0b1010 == 0b1010
-    }
-
     pub fn do_action(&mut self, action: Action) {
         debug_assert!(self.validate_action(&action));
         self.hash ^= PLY_HASH[self.ply as usize];
-        let color = self.get_current_color() as usize;
+        let color = self.get_current_color();
         if action.is_skip() {
             self.skipped = ((self.skipped & 0b1111) | self.skipped << 4) | (1 << color);
         } else {
@@ -89,7 +79,7 @@ impl GameState {
     pub fn undo_action(&mut self, action: Action) {
         self.ply -= 1;
         self.hash ^= PLY_HASH[self.ply as usize];
-        let color = self.get_current_color() as usize;
+        let color = self.get_current_color();
         if action.is_skip() {
             self.skipped >>= 4;
         } else {
@@ -108,7 +98,7 @@ impl GameState {
     }
 
     pub fn validate_action(&self, action: &Action) -> bool {
-        let color = self.get_current_color() as usize;
+        let color = self.get_current_color();
         if action.is_skip() {
             return true;
         }
@@ -189,7 +179,7 @@ impl GameState {
     }
 
     pub fn get_possible_actions(&self, al: &mut ActionList) {
-        let color = self.get_current_color() as usize;
+        let color = self.get_current_color();
         al.clear();
 
         if self.has_color_skipped(color) {
@@ -545,7 +535,7 @@ impl GameState {
         let mut pieces: u128 = 0;
         for color in 0..4 {
             for piece_type in 0..21 {
-                if !self.pieces_left[piece_type as usize][color as usize] {
+                if !self.pieces_left[piece_type][color] {
                     pieces |= 1 << (piece_type + color * 21);
                 }
             }
@@ -573,7 +563,7 @@ impl GameState {
         for color in 0..4 {
             for piece_type in 0..21 {
                 if pieces & 1 << (piece_type + color * 21) != 0 {
-                    state.pieces_left[piece_type as usize][color as usize] = false;
+                    state.pieces_left[piece_type][color] = false;
                 }
             }
         }

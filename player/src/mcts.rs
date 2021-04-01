@@ -12,7 +12,7 @@ const B_SQUARED: f32 = 0.7;
 const FPU_R: f32 = 0.1;
 
 pub struct RaveTable {
-    actions: Vec<(f32, f32)>,
+    pub actions: Vec<(f32, f32)>,
 }
 
 impl RaveTable {
