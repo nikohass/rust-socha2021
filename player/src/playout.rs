@@ -279,7 +279,6 @@ fn shape_59(l: Bitboard, p: Bitboard) -> Bitboard {
 
 fn shape_60(l: Bitboard, p: Bitboard) -> Bitboard {
     (l >> 2 & l >> 22 & l >> 23 & l >> 42 & l >> 43)
-
         & (p >> 2 | p >> 22 | p >> 23 | p >> 42 | p >> 43)
 }
 fn shape_61(l: Bitboard, p: Bitboard) -> Bitboard {
@@ -288,7 +287,6 @@ fn shape_61(l: Bitboard, p: Bitboard) -> Bitboard {
 
 fn shape_62(l: Bitboard, p: Bitboard) -> Bitboard {
     (l >> 1 & l >> 2 & l >> 21 & l >> 22 & l >> 42)
-
         & (p >> 1 | p >> 2 | p >> 21 | p >> 22 | p >> 42)
 }
 fn shape_63(l: Bitboard, p: Bitboard) -> Bitboard {

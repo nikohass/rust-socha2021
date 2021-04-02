@@ -509,22 +509,15 @@ impl GameState {
     }
 
     pub fn game_result(&self) -> i16 {
-        let mut scores: [i16; 4] = [
-            self.board[0].count_ones() as i16,
-            self.board[1].count_ones() as i16,
-            self.board[2].count_ones() as i16,
-            self.board[3].count_ones() as i16,
-        ];
-
-        for (color, score) in scores.iter_mut().enumerate() {
-            if *score == 89 {
-                *score += 15;
-                if self.monomino_placed_last & (1 << color) != 0 {
-                    *score += 5;
-                }
-            }
+        let mut result: i16 = 0;
+        for (color, board) in self.board.iter().enumerate() {
+            let fields = board.count_ones() as i16;
+            result -= (fields
+                + (fields == 89) as i16
+                    * (15 + 5 * (self.monomino_placed_last & 0b1 << color != 0) as i16))
+                * (((color as i16 & 0b1) << 1) - 1);
         }
-        scores[0] - scores[1] + scores[2] - scores[3]
+        result
     }
 
     pub fn to_fen(&self) -> String {
