@@ -57,7 +57,7 @@ impl XmlClient {
                     let data_class = node.get_attribute("class").unwrap_or(invalid).to_string();
                     match data_class.as_str() {
                         "memento" => {
-                            println!("Received memento: ");
+                            println!("Received memento:");
                             node.as_memento(&mut self.state);
                             println!("    fen: {}", self.state.to_fen());
                             println!("    ply: {}", self.state.ply);
@@ -111,7 +111,7 @@ impl XmlClient {
                 xml_move
             ),
         );
-        println!(" Finished after {}ms", self.time.elapsed().as_millis());
+        println!(" Move sent after {}ms", self.time.elapsed().as_millis());
         self.time = Instant::now();
     }
 

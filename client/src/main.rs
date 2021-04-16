@@ -13,7 +13,7 @@ fn main() {
     let mut host = "localhost".to_string();
     let mut port = "13050".to_string();
     let mut reservation = "".to_string();
-    let mut time: u128 = 1980;
+    let mut time: i64 = 1980;
     let mut test = false;
 
     {
@@ -38,22 +38,20 @@ fn main() {
         parser.parse_args_or_exit();
     }
 
-    let player = Box::new(Player::new(time));
+    println!(
+        "Server: {}:{}\nReservation: \"{}\"\nTime/Action: {}ms\nTest: {}",
+        host, port, reservation, time, test
+    );
 
-    //let player = Box::new(Player::default()); // SimpleClient
+    //let player = Box::new(Player::new("weights").unwrap());
 
-    /*
-    let player = Box::new(Player::new("weights")); // Neural Network
-    print!("{}", player);
-    */
+    let mut player = Box::new(Player::default());
+    player.set_time_limit(Some(time));
+    player.set_neural_network(None);
 
     if test {
         run_test_client(player);
     } else {
-        println!(
-            "Server: {}:{}\nReservation: \"{}\"\nTime/Action: {}ms\nTest: {}",
-            host, port, reservation, time, test
-        );
         let mut client = XmlClient::new(host, port, reservation, player);
         client.run();
     }

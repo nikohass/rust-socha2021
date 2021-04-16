@@ -4,19 +4,6 @@ use game_sdk::{PENTOMINO_SHAPES, START_FIELDS, VALID_FIELDS};
 use rand::{rngs::SmallRng, RngCore};
 
 type ShapeFunction = fn(Bitboard, Bitboard) -> Bitboard;
-
-const SHAPE_FUNCTIONS: [ShapeFunction; 91] = [
-    shape_0, shape_1, shape_2, shape_3, shape_4, shape_5, shape_6, shape_7, shape_8, shape_9,
-    shape_10, shape_11, shape_12, shape_13, shape_14, shape_15, shape_16, shape_17, shape_18,
-    shape_19, shape_20, shape_21, shape_22, shape_23, shape_24, shape_25, shape_26, shape_27,
-    shape_28, shape_29, shape_30, shape_31, shape_32, shape_33, shape_34, shape_35, shape_36,
-    shape_37, shape_38, shape_39, shape_40, shape_41, shape_42, shape_43, shape_44, shape_45,
-    shape_46, shape_47, shape_48, shape_49, shape_50, shape_51, shape_52, shape_53, shape_54,
-    shape_55, shape_56, shape_57, shape_58, shape_59, shape_60, shape_61, shape_62, shape_63,
-    shape_64, shape_65, shape_66, shape_67, shape_68, shape_69, shape_70, shape_71, shape_72,
-    shape_73, shape_74, shape_75, shape_76, shape_77, shape_78, shape_79, shape_80, shape_81,
-    shape_82, shape_83, shape_84, shape_85, shape_86, shape_87, shape_88, shape_89, shape_90,
-];
 const MOVEGEN_RETRIES: usize = 40;
 
 pub fn playout(state: &mut GameState, rng: &mut SmallRng, rave_table: &mut RaveTable) -> f32 {
@@ -35,6 +22,44 @@ pub fn playout(state: &mut GameState, rng: &mut SmallRng, rave_table: &mut RaveT
         rave_table.add_value(action, color, result);
         result
     }
+}
+
+pub fn random_action(state: &GameState, rng: &mut SmallRng, pentomino_only: bool) -> Action {
+    let color = state.get_current_color() as usize;
+    if state.has_color_skipped(color) {
+        return Action::skip();
+    }
+    let own_fields = state.board[color];
+    let other_fields = state.get_occupied_fields() & !own_fields;
+    let legal_fields = !(own_fields | other_fields | own_fields.neighbours()) & VALID_FIELDS;
+    let p = if state.ply > 3 {
+        own_fields.diagonal_neighbours() & legal_fields
+    } else {
+        START_FIELDS & !other_fields
+    };
+    if p.is_zero() {
+        return Action::skip();
+    }
+    for _ in 0..MOVEGEN_RETRIES {
+        let mut shape = if pentomino_only {
+            PENTOMINO_SHAPES[(rng.next_u64() % 63) as usize]
+        } else {
+            (rng.next_u32() % 91) as usize
+        };
+        if state.ply < 4 {
+            while PieceType::from_shape(shape as usize) != state.start_piece_type {
+                shape = PENTOMINO_SHAPES[(rng.next_u64() % 63) as usize]
+            }
+        }
+        if !state.pieces_left[PieceType::from_shape(shape as usize) as usize][color] {
+            continue;
+        }
+        let mut destinations = SHAPE_FUNCTIONS[shape](legal_fields, p);
+        if destinations.not_zero() {
+            return Action::set(destinations.random_field(rng), shape as u16);
+        }
+    }
+    Action::skip()
 }
 
 fn shape_0(_l: Bitboard, p: Bitboard) -> Bitboard {
@@ -401,40 +426,18 @@ fn shape_90(l: Bitboard, p: Bitboard) -> Bitboard {
     (l >> 1 & l >> 21 & l >> 22 & l >> 23 & l >> 24) & (p >> 1 | p >> 21 | p >> 24)
 }
 
-pub fn random_action(state: &GameState, rng: &mut SmallRng, pentomino_only: bool) -> Action {
-    let color = state.get_current_color() as usize;
-    let own_fields = state.board[color];
-    let other_fields = state.get_occupied_fields() & !own_fields;
-    let legal_fields = !(own_fields | other_fields | own_fields.neighbours()) & VALID_FIELDS;
-    let p = if state.ply > 3 {
-        own_fields.diagonal_neighbours() & legal_fields
-    } else {
-        START_FIELDS & !other_fields
-    };
-    if p.is_zero() || state.has_color_skipped(color) {
-        return Action::skip();
-    }
-    for _ in 0..MOVEGEN_RETRIES {
-        let mut shape = if pentomino_only {
-            PENTOMINO_SHAPES[(rng.next_u64() % 63) as usize]
-        } else {
-            (rng.next_u32() % 91) as usize
-        };
-        if state.ply < 4 {
-            while PieceType::from_shape(shape as usize) != state.start_piece_type {
-                shape = PENTOMINO_SHAPES[(rng.next_u64() % 63) as usize]
-            }
-        }
-        if !state.pieces_left[PieceType::from_shape(shape as usize) as usize][color] {
-            continue;
-        }
-        let mut destinations = SHAPE_FUNCTIONS[shape](legal_fields, p);
-        if destinations.not_zero() {
-            return Action::set(destinations.random_field(rng), shape as u16);
-        }
-    }
-    Action::skip()
-}
+const SHAPE_FUNCTIONS: [ShapeFunction; 91] = [
+    shape_0, shape_1, shape_2, shape_3, shape_4, shape_5, shape_6, shape_7, shape_8, shape_9,
+    shape_10, shape_11, shape_12, shape_13, shape_14, shape_15, shape_16, shape_17, shape_18,
+    shape_19, shape_20, shape_21, shape_22, shape_23, shape_24, shape_25, shape_26, shape_27,
+    shape_28, shape_29, shape_30, shape_31, shape_32, shape_33, shape_34, shape_35, shape_36,
+    shape_37, shape_38, shape_39, shape_40, shape_41, shape_42, shape_43, shape_44, shape_45,
+    shape_46, shape_47, shape_48, shape_49, shape_50, shape_51, shape_52, shape_53, shape_54,
+    shape_55, shape_56, shape_57, shape_58, shape_59, shape_60, shape_61, shape_62, shape_63,
+    shape_64, shape_65, shape_66, shape_67, shape_68, shape_69, shape_70, shape_71, shape_72,
+    shape_73, shape_74, shape_75, shape_76, shape_77, shape_78, shape_79, shape_80, shape_81,
+    shape_82, shape_83, shape_84, shape_85, shape_86, shape_87, shape_88, shape_89, shape_90,
+];
 
 #[cfg(test)]
 mod test {

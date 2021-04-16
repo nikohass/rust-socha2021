@@ -1,26 +1,27 @@
 use super::float_stuff::{ln, sqrt};
+use super::neural_network::{state_to_vector, BoardRotation, NeuralNetwork};
 use super::playout::playout;
-use game_sdk::{Action, ActionList, GameState, Player};
+use game_sdk::{Action, ActionList, Bitboard, GameState, Player};
 use rand::{rngs::SmallRng, SeedableRng};
 use std::time::Instant;
 
 const C: f32 = 0.0;
-const C_BASE: f32 = 9000.;
-const C_FACTOR: f32 = 38.5;
-const VISITS_BEFORE_EXPANSION: usize = 40;
+const C_BASE: f32 = 9000.0;
+const C_FACTOR: f32 = 30.0;
+const VISITS_BEFORE_EXPANSION: usize = 50;
 const B_SQUARED: f32 = 0.7;
 const FPU_R: f32 = 0.1;
 
 pub struct RaveTable {
-    pub actions: Vec<(f32, f32)>,
+    actions: Vec<(f32, f32)>,
 }
 
 impl RaveTable {
     pub fn get_values(&self, action: Action, color: usize) -> (f32, f32) {
         let index = if action.is_set() {
-            let to = action.get_destination() as usize;
+            let destination = action.get_destination() as usize;
             let shape = action.get_shape() as usize;
-            (shape * 418 + to) * 4 + color
+            (shape * 418 + destination) * 4 + color
         } else {
             153828 + color
         };
@@ -29,15 +30,19 @@ impl RaveTable {
 
     pub fn add_value(&mut self, action: Action, color: usize, value: f32) {
         let index = if action.is_set() {
-            let to = action.get_destination() as usize;
+            let destination = action.get_destination() as usize;
             let shape = action.get_shape() as usize;
-            (shape * 418 + to) * 4 + color
+            (shape * 418 + destination) * 4 + color
         } else {
             153828 + color
         };
         let entry = self.actions.get_mut(index).unwrap();
         entry.0 += value;
         entry.1 += 1.;
+    }
+
+    pub fn get_actions(&self) -> &Vec<(f32, f32)> {
+        &self.actions
     }
 }
 
@@ -185,7 +190,7 @@ impl Node {
         1. - delta
     }
 
-    pub fn principal_variation(&self, state: &mut GameState, al: &mut ActionList) {
+    pub fn pv(&mut self, state: &mut GameState, al: &mut ActionList) {
         if self.children.is_empty() {
             return;
         }
@@ -193,10 +198,10 @@ impl Node {
         let action = child.action;
         al.push(action);
         state.do_action(action);
-        child.principal_variation(state, al);
+        child.pv(state, al);
     }
 
-    pub fn best_child(&self) -> &Node {
+    pub fn best_child(&mut self) -> &mut Node {
         let value = 1. - self.get_value();
         let mut best_child: usize = 0;
         let mut best_value = std::f32::NEG_INFINITY;
@@ -210,33 +215,93 @@ impl Node {
                 best_child = i;
             }
         }
-        &self.children[best_child]
+        &mut self.children[best_child]
     }
 
-    pub fn best_action(&self) -> Action {
+    pub fn best_action(&mut self) -> Action {
         if self.children.is_empty() {
             Action::skip()
         } else {
             self.best_child().action
         }
     }
+
+    pub fn search_seeding(
+        &mut self,
+        state: &GameState,
+        al: &mut ActionList,
+        neural_network: &mut NeuralNetwork,
+    ) {
+        if self.children.is_empty() {
+            self.expand(state, al);
+        }
+        let mut state = state.clone();
+        let r = BoardRotation::rotate_state(&mut state);
+        let input = state_to_vector(&state, al);
+        let output = neural_network.feed_forward(input);
+        for child in self.children.iter_mut() {
+            if child.action.is_skip() {
+                continue;
+            }
+            let mut value: f32 = 0.;
+            let destination = child.action.get_destination();
+            let shape = child.action.get_shape() as usize;
+            let mut action_board = Bitboard::with_piece(destination, shape);
+            action_board = r.rotate_bitboard(action_board);
+            while action_board.not_zero() {
+                let field_index = action_board.trailing_zeros();
+                action_board.flip_bit(field_index);
+                let x = field_index % 21;
+                let y = (field_index - x) / 21;
+                value += output[(x + y * 20) as usize];
+            }
+            for _ in 0..3 {
+                child.backpropagate(value / 5.);
+            }
+        }
+    }
+
+    pub fn get_children(&self) -> &Vec<Node> {
+        &self.children
+    }
 }
 
 pub struct Mcts {
     root_node: Node,
     root_state: GameState,
-    time_limit: i64,
+    time_limit: Option<i64>,
+    iteration_limit: Option<usize>,
     rave_table: RaveTable,
+    neural_network: Option<NeuralNetwork>,
 }
 
 impl Mcts {
-    pub fn new(time_limit: u128) -> Self {
-        Self {
-            root_node: Node::empty(),
-            root_state: GameState::default(),
-            time_limit: time_limit as i64,
-            rave_table: RaveTable::default(),
+    pub fn set_iteration_limit(&mut self, iteration_limit: Option<usize>) {
+        self.iteration_limit = iteration_limit;
+    }
+
+    pub fn set_time_limit(&mut self, time_limit: Option<i64>) {
+        self.time_limit = time_limit;
+    }
+
+    pub fn set_neural_network(&mut self, neural_network: Option<NeuralNetwork>) {
+        self.neural_network = neural_network;
+    }
+
+    pub fn get_action_value_pairs(&self) -> Vec<(Action, f32)> {
+        let mut ret: Vec<(Action, f32)> = Vec::with_capacity(1300);
+        for child in self.root_node.get_children().iter() {
+            ret.push((child.action, child.get_value()));
         }
+        ret
+    }
+
+    pub fn get_value(&self) -> f32 {
+        1. - self.root_node.get_value()
+    }
+
+    pub fn get_root_node(&mut self) -> &mut Node {
+        &mut self.root_node
     }
 
     fn set_root(&mut self, state: &GameState) {
@@ -266,7 +331,7 @@ impl Mcts {
         self.root_state = state.clone();
     }
 
-    fn search_nodes(&mut self, n: usize, rng: &mut SmallRng) {
+    fn do_iterations(&mut self, n: usize, rng: &mut SmallRng) {
         let mut al = ActionList::default();
         for _ in 0..n {
             self.root_node.iteration(
@@ -279,64 +344,107 @@ impl Mcts {
         }
     }
 
-    pub fn search_action(&mut self, state: &GameState) -> (Action, f32) {
+    pub fn search_action(&mut self, state: &GameState) -> Action {
         println!("Searching action using MCTS. Fen: {}", state.to_fen());
-        println!("    Time Depth Iterations Value PV");
         let start_time = Instant::now();
         self.set_root(&state);
         let mut rng = SmallRng::from_entropy();
-        let mut principal_variation = ActionList::default();
-        let mut iterations_per_ms = 0.1;
+        let mut pv = ActionList::default();
+        let mut iterations_per_ms = 5.;
         let mut iterations: usize = 0;
 
+        if state.ply >= 4 && state.ply < 12 {
+            if let Some(neural_network) = &mut self.neural_network {
+                print!("Neural Network prediction... ");
+                let nn_start_time = Instant::now();
+                self.root_node
+                    .search_seeding(&self.root_state, &mut pv, neural_network);
+                println!("finished after {}ms", nn_start_time.elapsed().as_millis());
+            }
+        }
+
+        println!("    Left Depth Iterations Value PV");
+        let search_start_time = Instant::now();
         loop {
-            principal_variation.clear();
-            self.root_node
-                .principal_variation(&mut self.root_state.clone(), &mut principal_variation);
-            let time_left = self.time_limit - start_time.elapsed().as_millis() as i64;
-            println!(
-                "{:6}ms {:5} {:10} {:5.2} {}",
-                time_left,
-                principal_variation.size,
-                iterations,
-                1. - self.root_node.get_value(),
-                principal_variation
-            );
-            if time_left < 30 {
+            pv.clear();
+            self.root_node.pv(&mut self.root_state.clone(), &mut pv);
+
+            let (next_iterations, stop) = if let Some(time_limit) = self.time_limit {
+                let time_left = time_limit - start_time.elapsed().as_millis() as i64;
+                println!(
+                    "{:6}ms {:5} {:10} {:4.0}% {}",
+                    time_left,
+                    pv.size,
+                    iterations,
+                    (1. - self.root_node.get_value()).min(1.0) * 100.,
+                    pv
+                );
+                let next_iterations =
+                    ((time_left as f64 / 6.).min(5000.) * iterations_per_ms).max(1.) as usize;
+                (next_iterations, time_left < 30)
+            } else if let Some(iteration_limit) = self.iteration_limit {
+                if iterations >= iteration_limit {
+                    (0, true)
+                } else {
+                    let iterations_left = iteration_limit - iterations;
+                    println!(
+                        "{:6}it {:5} {:10} {:4.0}% {}",
+                        iterations_left,
+                        pv.size,
+                        iterations,
+                        (1. - self.root_node.get_value()).min(1.0) * 100.,
+                        pv
+                    );
+                    let next_iterations = iterations_left as usize / 2;
+                    (next_iterations, next_iterations < 100)
+                }
+            } else {
+                println!("Mcts has neither a time limit nor a node limit");
+                (0, true)
+            };
+            if stop {
                 break;
             }
-            let to_search =
-                ((time_left as f64 / 6.).min(5000.) * iterations_per_ms).max(1.) as usize;
-            self.search_nodes(to_search, &mut rng);
-            iterations += to_search;
-            let elapsed = start_time.elapsed().as_micros() as f64;
+            self.do_iterations(next_iterations, &mut rng);
+            iterations += next_iterations;
+            let elapsed = search_start_time.elapsed().as_micros() as f64;
             if elapsed > 0. {
                 iterations_per_ms = iterations as f64 / elapsed * 1000.;
             }
         }
         println!(
-            "Search finished after {}ms. Value: {:.2} Iterations: {} Iterations/s: {:.2} PV: {}",
+            "Search finished after {}ms. Value: {:.0}% PV-Depth: {} Iterations: {} Iterations/s: {:.2} PV: {}",
             start_time.elapsed().as_millis(),
-            1. - self.root_node.get_value(),
+            (1. - self.root_node.get_value()).min(1.0) * 100.,
+            pv.size,
             iterations,
             iterations_per_ms * 1000.,
-            principal_variation,
+            pv,
         );
-        (
-            self.root_node.best_action(),
-            1. - self.root_node.get_value(),
-        )
+        self.root_node.best_action()
     }
 }
 
 impl Player for Mcts {
     fn on_move_request(&mut self, state: &GameState) -> Action {
-        let (action, _) = self.search_action(state);
-        action
+        self.search_action(state)
     }
 
     fn on_reset(&mut self) {
         self.root_node = Node::empty();
         self.rave_table = RaveTable::default();
+    }
+}
+
+impl Default for Mcts {
+    fn default() -> Self {
+        Self {
+            root_node: Node::empty(),
+            root_state: GameState::default(),
+            time_limit: Some(1980),
+            iteration_limit: None,
+            rave_table: RaveTable::default(),
+            neural_network: NeuralNetwork::new("weights"),
+        }
     }
 }

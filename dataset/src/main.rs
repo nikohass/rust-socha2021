@@ -1,152 +1,153 @@
-#![allow(dead_code)]
-use game_sdk::{Action, ActionList, GameState, Player};
+use argparse::{ArgumentParser, Store};
+use game_sdk::{Action, Bitboard, GameState, Player};
 use player::mcts::Mcts;
+use rand::{rngs::SmallRng, RngCore, SeedableRng};
 use std::fs::OpenOptions;
 use std::io::prelude::*;
+use std::thread;
 
-fn save(
-    states: &[GameState],
-    actions: &mut ActionList,
-    result: i16,
-    values: &mut [f32; 100],
-    path: &str,
-) {
+pub struct Example {
+    pub state: GameState,
+    pub value_map: Vec<u16>,
+    pub best_action: Action,
+}
+
+fn save_examples(examples: &mut Vec<Example>, path: &str) {
     let mut file = OpenOptions::new()
         .write(true)
         .append(true)
         .create(true)
         .open(path)
         .unwrap();
-    for (i, state) in states.iter().enumerate() {
-        let fen = format!(
-            "{} {} {} {}",
-            state.to_fen(),
-            actions[i].serialize(),
-            values[i],
-            result * state.get_team()
-        );
-        if let Err(e) = writeln!(file, "{}", fen) {
-            println!("Couldn't write to file: {}", e);
+    let mut string = String::new();
+    for example in examples.iter_mut() {
+        string.push_str(&example.state.to_fen());
+        for v in example.value_map.iter() {
+            string.push(' ');
+            string.push_str(&v.to_string());
         }
+        string.push_str(&format!(" {}", example.best_action.serialize()));
+        string.push('\n');
+    }
+    string.pop();
+    if let Err(e) = writeln!(file, "{}", string) {
+        println!("Couldn't write to file: {}", e);
+    }
+    examples.truncate(0);
+}
+
+fn sort(action_value_pairs: &mut Vec<(Action, f32)>) {
+    for i in 0..action_value_pairs.len() {
+        let mut max_value = std::f32::NEG_INFINITY;
+        let mut best_index = 0;
+        for (j, pair) in action_value_pairs.iter().enumerate().skip(i) {
+            let value = pair.1;
+            if value > max_value {
+                max_value = value;
+                best_index = j;
+            }
+        }
+        action_value_pairs.swap(i, best_index);
     }
 }
 
-fn generate_dataset() {
-    let mut mcts1 = Mcts::new(5000);
-    let mut mcts2 = Mcts::new(5000);
-    let mut actions: ActionList = ActionList::default();
-    let mut values: [f32; 100] = [0.; 100];
-    let mut states: Vec<GameState> = Vec::with_capacity(100);
-    let mut states_searched: u64 = 0;
-    let mut games_played: u64 = 0;
-    let mut sum_results: i64 = 0;
-    let mut sum_plies: u64 = 0;
-    let mut one_wins: u64 = 0;
-    let mut draws: u64 = 0;
-    let mut al = ActionList::default();
-
-    loop {
-        let mut state = GameState::random();
-        while !state.is_game_over() {
-            println!("{}\n{}", state.to_fen(), state);
-            state.get_possible_actions(&mut al);
-            if al[0] == Action::skip() {
-                state.do_action(Action::skip());
-                continue;
-            }
-            let (action, value) = if state.ply % 2 == 0 {
-                mcts1.search_action(&state)
-            } else {
-                mcts2.search_action(&state)
-            };
-            states_searched += 1;
-            values[state.ply as usize] = value;
-            states.push(state.clone());
-            actions.push(action);
-            state.do_action(action);
+fn get_y(player: &Mcts) -> Vec<u16> {
+    let mut action_value_pairs = player.get_action_value_pairs();
+    sort(&mut action_value_pairs);
+    let mut value_map: Vec<f32> = vec![0.; 400];
+    let mut frequency_map: Vec<f32> = vec![0.; 400];
+    for (action, value) in action_value_pairs.iter() {
+        let mut action_board =
+            Bitboard::with_piece(action.get_destination(), action.get_shape() as usize);
+        while action_board.not_zero() {
+            let field_index = action_board.trailing_zeros();
+            action_board.flip_bit(field_index);
+            let x = field_index as usize % 21;
+            let y = (field_index as usize - x) / 21;
+            let index = x + y * 20;
+            frequency_map[index] += 1.0;
+            value_map[index] += value;
         }
-        sum_plies += state.ply as u64;
-        games_played += 1;
-        let result = state.game_result();
-        match result {
-            0 => draws += 1,
-            r if r > 0 => one_wins += 1,
-            _ => {}
-        }
-        sum_results += result as i64;
-        save(
-            &states,
-            &mut actions,
-            state.game_result(),
-            &mut values,
-            "datasets/dataset.txt",
-        );
-        mcts1.on_reset();
-        mcts2.on_reset();
-        actions.clear();
-        states.truncate(0);
-
-        println!(
-            "Games: {} Searched: {} Average game length: {} plies Average result: {} Sum results: {} One: {} Draws: {} Two: {}",
-            games_played,
-            states_searched,
-            sum_plies as f64 / games_played as f64,
-            sum_results as f64 / games_played as f64,
-            sum_results,
-            one_wins,
-            draws,
-            games_played - one_wins - draws
-        );
     }
+    for (i, value) in value_map.iter_mut().enumerate() {
+        *value /= frequency_map[i];
+    }
+    let mut y: Vec<u16> = Vec::with_capacity(401);
+    for value in value_map.iter_mut() {
+        *value *= (std::u16::MAX) as f32;
+        y.push(*value as u16);
+    }
+    y.push((player.get_value() * (std::u16::MAX) as f32) as u16);
+    y
 }
 
-fn generate_opening_dataset() {
-    let mut mcts = Mcts::new(3_000);
-    let mut simple_client = Mcts::new(500); //SimpleClient::default();
-    let mut actions: ActionList = ActionList::default();
-    let mut values: [f32; 100] = [f32::NAN; 100];
-    let mut states: Vec<GameState> = Vec::with_capacity(100);
-    let mut states_searched: u64 = 0;
-    let mut games_played: usize = 0;
+fn generate_dataset(path: &str) {
+    let mut player = Mcts::default();
+    player.set_time_limit(None);
+    player.set_neural_network(None);
+    player.set_iteration_limit(Some(500_000));
+    let mut opponent = Mcts::default();
+    opponent.set_neural_network(None);
+    opponent.set_time_limit(None);
+    opponent.set_iteration_limit(Some(6_000));
 
+    let mut rng = SmallRng::from_entropy();
+    let mut examples: Vec<Example> = Vec::with_capacity(300);
+    let mut team = 0;
     loop {
         let mut state = GameState::random();
-        while !state.is_game_over() && state.ply < 24 {
-            println!("{}", state.to_fen());
-            if state.ply as usize & 0b1 == games_played & 0b1 {
-                let (action, _) = simple_client.search_action(&state);
-                //state.do_action(simple_client.search_action(&state));
-                state.do_action(action);
-                println!("{}", state);
-                continue;
-            }
-            let (action, _) = mcts.search_action(&state);
-            if action.is_skip() {
-                state.do_action(action);
-                continue;
-            }
-            states_searched += 1;
-            states.push(state.clone());
-            actions.push(action);
-            state.do_action(action);
+        while !state.is_game_over() && state.ply < 12 {
             println!("{}", state);
+            if state.ply % 2 != team
+                || state.ply < 4
+                || rng.next_u64() as f64 / (std::u64::MAX as f64) > 0.95
+            {
+                state.do_action(opponent.on_move_request(&state));
+                opponent.on_reset();
+                continue;
+            }
+            player.on_reset();
+            let action = player.on_move_request(&state);
+            if action.is_set() {
+                let y = get_y(&player);
+                examples.push(Example {
+                    state: state.clone(),
+                    value_map: y,
+                    best_action: action,
+                });
+            }
+            state.do_action(action);
+            //println!("{}", state);
+            save_examples(&mut examples, path);
+            //println!("Saved");
         }
-        games_played += 1;
-        let result = std::i16::MAX;
-        save(
-            &states,
-            &mut actions,
-            result,
-            &mut values,
-            "datasets/openings.txt",
-        );
-        actions.clear();
-        states.truncate(0);
-        println!("Searched: {} ", states_searched);
+        team = (team + 1) % 2;
     }
 }
 
 fn main() {
-    generate_dataset();
-    //generate_opening_dataset();
+    let mut path = "datasets/1.txt".to_string();
+    let mut threads = 3;
+    {
+        let mut parser = ArgumentParser::new();
+        parser
+            .refer(&mut path)
+            .add_option(&["-p", "--path"], Store, "Path");
+        parser
+            .refer(&mut threads)
+            .add_option(&["-t", "--threads"], Store, "Threads");
+        parser.parse_args_or_exit();
+    }
+
+    let mut children = vec![];
+    for _ in 0..threads {
+        let p = path.clone();
+        children.push(thread::spawn(move || {
+            generate_dataset(&p);
+        }));
+    }
+
+    for child in children {
+        let _ = child.join();
+    }
 }

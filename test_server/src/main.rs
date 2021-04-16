@@ -1,5 +1,5 @@
 use argparse::{ArgumentParser, Store};
-use game_sdk::{Action, GameState, Player};
+use game_sdk::{Action, ActionList, GameState, Player};
 use std::io::{BufRead, BufReader, Write};
 use std::process::{ChildStdin, ChildStdout, Command, Stdio};
 use std::time::Instant;
@@ -67,7 +67,13 @@ impl Player for Client {
 
 pub fn play_game(client_one: &mut Client, client_two: &mut Client, first: u8) {
     let mut state = GameState::random();
+    let mut al = ActionList::default();
     while !state.is_game_over() {
+        state.get_possible_actions(&mut al);
+        if al[0].is_skip() {
+            state.do_action(al[0]);
+            continue;
+        }
         let action = if state.ply % 2 == first {
             client_one.on_move_request(&state)
         } else {

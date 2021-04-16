@@ -56,7 +56,7 @@ fn rollout_perft() {
     }
     let elapsed = start_time.elapsed().as_millis() as f64;
     let mut sum_actions: usize = 0;
-    for values in rave_table.actions.iter() {
+    for values in rave_table.get_actions().iter() {
         let (_, n) = values;
         sum_actions += *n as usize;
     }
