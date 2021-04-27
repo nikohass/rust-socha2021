@@ -1,5 +1,7 @@
-use game_sdk::{ActionListStack, GameState};
+use game_sdk::{ActionList, ActionListStack, GameState};
+use player::float_stuff::{relu, sigmoid};
 use player::mcts::RaveTable;
+use player::neural_network::{state_to_vector, ConvolutionalLayer, DenseLayer, NeuralNetwork};
 use player::playout::playout;
 use rand::{rngs::SmallRng, SeedableRng};
 use std::time::Instant;
@@ -39,10 +41,10 @@ fn run_perft() {
 
     let time_elapsed = start_time.elapsed().as_micros();
     let nps = (nodes * 1_000) as f64 / time_elapsed as f64;
-    println!("Nodes/ms: {:.2} ({:.2}%)", nps, nps / current_best * 100.);
+    println!("{:.2} Nodes/ms ({:.2}%)", nps, nps / current_best * 100.);
 }
 
-fn rollout_perft() {
+fn playout_perft() {
     let mut rng = SmallRng::from_entropy();
     let mut rave_table = RaveTable::default();
     let start_time = Instant::now();
@@ -61,17 +63,44 @@ fn rollout_perft() {
         sum_actions += *n as usize;
     }
     println!(
-        "{:.3} rollouts/ms, {:.3} actions/ms",
+        "{:.3} playouts/ms, {:.3} actions/ms ({:.2}%)",
         playouts as f64 / elapsed,
         sum_actions as f64 / elapsed,
+        playouts as f64 / elapsed / 115.075 * 100.
     );
 }
 
-fn main() {
-    for _ in 0..10 {
-        rollout_perft();
+fn neural_network_perft() {
+    let mut al = ActionList::default();
+    let state = GameState::from_fen(TEST_FENS[0].to_string());
+    let input_vector = state_to_vector(&state, &mut al);
+    let mut neural_network = NeuralNetwork::default();
+    neural_network.add_convolutional_layer(ConvolutionalLayer::with_shape(7, 5, 128));
+    neural_network.add_convolutional_layer(ConvolutionalLayer::with_shape(5, 128, 32));
+    neural_network.add_convolutional_layer(ConvolutionalLayer::with_shape(3, 32, 32));
+    neural_network.add_convolutional_layer(ConvolutionalLayer::with_shape(3, 32, 32));
+    neural_network.add_convolutional_layer(ConvolutionalLayer::with_shape(3, 32, 1));
+    neural_network.add_dense_layer(DenseLayer::with_shape(400, 400, relu));
+    neural_network.add_dense_layer(DenseLayer::with_shape(400, 400, sigmoid));
+    let start_time = Instant::now();
+    for _ in 0..30 {
+        neural_network.feed_forward(input_vector.clone());
     }
-    for _ in 0..10 {
+    let elapsed = start_time.elapsed().as_millis();
+    let per_second = 30. / elapsed as f64 * 1000.;
+    println!(
+        "{:.5} feed forwards/s ({:.2}%)",
+        per_second,
+        per_second / 6.70391 * 100.
+    )
+}
+
+fn main() {
+    neural_network_perft();
+    for _ in 0..3 {
+        playout_perft();
+    }
+    for _ in 0..3 {
         run_perft();
     }
 }

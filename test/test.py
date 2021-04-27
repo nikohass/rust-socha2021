@@ -131,7 +131,7 @@ def main():
         one = "target/release/client.exe"
     if two.find(".exe") == -1:
         two = "target/release/client.exe"
-    t = 1980
+    t = 1600
     threads = 3
     if len(sys.argv) > 3:
         t = int(sys.argv[3].strip())
