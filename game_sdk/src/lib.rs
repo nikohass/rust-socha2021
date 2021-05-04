@@ -21,39 +21,13 @@ pub trait Player {
 
 #[cfg(test)]
 mod tests {
-    use super::{Action, ActionList, ActionListStack, Bitboard, GameState};
+    use super::{Action, ActionList, Bitboard, GameState};
     pub const TEST_FENS: [&str; 4] = [
         "9488 1813758321899637372028928 98304 31901482040045200628318736031602966529 162259508943118303423338611999184 10384593717069655257060992658440192 0 0 14680065 170141507979487117894522954291043368963 17179881472 996921076066887197892070253015345152 1952305837197645587728919239017365504 0 0 0 68719509504 9304611499219250726980198399157469184",
         "14096 6654190920398850590723072 98304 31901482040045200628318736031602966529 20282409835765575363979011887727056 93461620752214586704661989910642688 0 0 42535316147536582995760855127085285377 170141507984438882183735147901579427843 17179881472 996921076067189429491089201464125440 1952305854528819124263596185110970368 0 0 0 73014483968 9470764998692365211093174290282477568",
         "17168 6732109985381697757862914 884736 31901482040045200655988913714818449409 20282409835765575363979011887727056 93461620752214586704661989910642688 0 0 42535316147536582995760855127085285377 170141548549277432327859950371488137219 17179881472 996921076067190019787743985368344704 1952305854528819124263596185110970368 0 0 0 2535303278298107582477523524608 9470764998692365211093174290282477568",
         "18194 6732109985390493852982274 884736 31901482040045200655988913714818449409 20282409835765575363979011887727056 93461620752214586704661989910642688 0 131072 42535316147536582995760855127085285377 170141548549277432327859950371488137219 17179881472 996921076067190019787743985469008000 1952305854528819124263596185110970368 0 0 0 2535303278298107582477523524608 9470764998692365211093174290282477568",
     ];
-
-    fn count_actions(state: &mut GameState, depth: usize, als: &mut ActionListStack) -> u64 {
-        als[depth].clear();
-        state.get_possible_actions(&mut als[depth]);
-        if depth == 0 || state.is_game_over() {
-            return als[depth].size as u64;
-        }
-        let mut nodes: u64 = 0;
-        for i in 0..als[depth].size {
-            state.do_action(als[depth][i]);
-            nodes += count_actions(state, depth - 1, als);
-            state.undo_action(als[depth][i]);
-        }
-        nodes
-    }
-
-    #[test]
-    fn test_state() {
-        let mut als = ActionListStack::with_size(4);
-        let results: [u64; 4] = [96564378, 815135, 200870, 56253];
-        for (i, fen) in TEST_FENS.iter().enumerate() {
-            let mut state = GameState::from_fen(fen.to_string());
-            assert_eq!(results[i], count_actions(&mut state, 2, &mut als));
-            assert_eq!(state.hash, 0);
-        }
-    }
 
     #[test]
     fn test_action_serialization() {
@@ -95,15 +69,15 @@ mod tests {
         }
 
         for _ in 0..8 {
-            state.do_action(Action::skip());
+            state.do_action(Action::SKIP);
         }
         assert_eq!(state.skipped & 0b1111, 0b1111);
         for _ in 0..4 {
-            state.undo_action(Action::skip());
+            state.undo_action(Action::SKIP);
         }
         assert_eq!(state.skipped & 0b1111, 0b1111);
         for _ in 0..2 {
-            state.undo_action(Action::skip());
+            state.undo_action(Action::SKIP);
         }
         assert_eq!(state.skipped & 0b1111, 0b0011);
     }

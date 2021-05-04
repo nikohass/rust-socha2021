@@ -53,59 +53,44 @@ impl PieceType {
     }
 
     pub fn to_xml_name(&self) -> String {
-        match self {
-            PieceType::Monomino => "MONO",
-            PieceType::Domino => "DOMINO",
-            PieceType::ITromino => "TRIO_I",
-            PieceType::LTromino => "TRIO_L",
-            PieceType::ITetromino => "TETRO_I",
-            PieceType::LTetromino => "TETRO_L",
-            PieceType::TTetromino => "TETRO_T",
-            PieceType::OTetromino => "TETRO_O",
-            PieceType::ZTetromino => "TETRO_Z",
-            PieceType::FPentomino => "PENTO_R",
-            PieceType::IPentomino => "PENTO_I",
-            PieceType::LPentomino => "PENTO_L",
-            PieceType::NPentomino => "PENTO_S",
-            PieceType::PPentomino => "PENTO_P",
-            PieceType::TPentomino => "PENTO_T",
-            PieceType::UPentomino => "PENTO_U",
-            PieceType::VPentomino => "PENTO_V",
-            PieceType::WPentomino => "PENTO_W",
-            PieceType::XPentomino => "PENTO_X",
-            PieceType::YPentomino => "PENTO_Y",
-            PieceType::ZPentomino => "PENTO_Z",
-        }
-        .to_string()
+        NAMES[*self as usize].1.to_string()
     }
 
     pub fn to_short_name(&self) -> String {
-        match self {
-            PieceType::Monomino => "M",
-            PieceType::Domino => "D",
-            PieceType::ITromino => "I3",
-            PieceType::LTromino => "L3",
-            PieceType::ITetromino => "I4",
-            PieceType::LTetromino => "L4",
-            PieceType::TTetromino => "T4",
-            PieceType::OTetromino => "O4",
-            PieceType::ZTetromino => "Z4",
-            PieceType::FPentomino => "F5",
-            PieceType::IPentomino => "I5",
-            PieceType::LPentomino => "L5",
-            PieceType::NPentomino => "N5",
-            PieceType::PPentomino => "P5",
-            PieceType::TPentomino => "T5",
-            PieceType::UPentomino => "U5",
-            PieceType::VPentomino => "V5",
-            PieceType::WPentomino => "W5",
-            PieceType::XPentomino => "X5",
-            PieceType::YPentomino => "Y5",
-            PieceType::ZPentomino => "Z5",
-        }
-        .to_string()
+        NAMES[*self as usize].2.to_string()
     }
 }
+
+impl Display for PieceType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        write!(f, "{}", NAMES[*self as usize].0.to_string())
+    }
+}
+
+// full name, xml name, short name
+pub const NAMES: [(&str, &str, &str); 21] = [
+    ("Monomino", "MONO", "M"),
+    ("Domino", "DOMINO", "D"),
+    ("I-Tromino", "TRIO_I", "I3"),
+    ("L-Tromino", "TRIO_L", "L3"),
+    ("I-Tetromino", "TETRO_I", "I4"),
+    ("L-Tetromino", "TETRO_L", "L4"),
+    ("T-Tetromino", "TETRO_T", "T4"),
+    ("O-Tetromino", "TETRO_O", "O"),
+    ("Z-Tetromino", "TETRO_Z", "Z4"),
+    ("F-Pentomino", "PENTO_R", "F"),
+    ("I-Pentomino", "PENTO_I", "I5"),
+    ("L-Pentomino", "PENTO_L", "L5"),
+    ("N-Pentomino", "PENTO_S", "N"),
+    ("P-Pentomino", "PENTO_P", "P"),
+    ("T-Pentomino", "PENTO_T", "T5"),
+    ("U-Pentomino", "PENTO_U", "U"),
+    ("V-Pentomino", "PENTO_V", "V"),
+    ("W-Pentomino", "PENTO_W", "W"),
+    ("X-Pentomino", "PENTO_X", "X"),
+    ("Y-Pentomino", "PENTO_Y", "Y"),
+    ("Z-Pentomino", "PENTO_Z", "Z5"),
+];
 
 pub const FROM_SHAPE: [PieceType; 91] = [
     PieceType::Monomino,
@@ -238,36 +223,3 @@ pub const START_PIECE_TYPES: [PieceType; 11] = [
     PieceType::YPentomino,
     PieceType::ZPentomino,
 ];
-
-impl Display for PieceType {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                PieceType::Monomino => "Monomino",
-                PieceType::Domino => "Domino",
-                PieceType::ITromino => "I-Tromino",
-                PieceType::LTromino => "L-Tromino",
-                PieceType::ITetromino => "I-Tetromino",
-                PieceType::LTetromino => "L-Tetromino",
-                PieceType::TTetromino => "T-Tetromino",
-                PieceType::OTetromino => "O-Tetromino",
-                PieceType::ZTetromino => "Z-Tetromino",
-                PieceType::FPentomino => "F-Pentomino",
-                PieceType::IPentomino => "I-Pentomino",
-                PieceType::LPentomino => "L-Pentomino",
-                PieceType::NPentomino => "N-Pentomino",
-                PieceType::PPentomino => "P-Pentomino",
-                PieceType::TPentomino => "T-Pentomino",
-                PieceType::UPentomino => "U-Pentomino",
-                PieceType::VPentomino => "V-Pentomino",
-                PieceType::WPentomino => "W-Pentomino",
-                PieceType::XPentomino => "X-Pentomino",
-                PieceType::YPentomino => "Y-Pentomino",
-                PieceType::ZPentomino => "Z-Pentomino",
-            }
-            .to_string()
-        )
-    }
-}

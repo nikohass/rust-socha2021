@@ -181,9 +181,8 @@ impl GameState {
     pub fn get_possible_actions(&self, al: &mut ActionList) {
         let color = self.get_current_color();
         al.clear();
-
         if self.has_color_skipped(color) {
-            al.push(Action::skip());
+            al.push(Action::SKIP);
             return;
         }
         let own_fields = self.board[color];
@@ -194,297 +193,29 @@ impl GameState {
         } else {
             START_FIELDS & !other_fields
         };
+        let mut shortcuts: [Bitboard; 13] = [Bitboard::empty(); 13];
+        shortcuts[0] = legal_fields & (legal_fields >> 1 & VALID_FIELDS);
+        shortcuts[1] = legal_fields & (legal_fields << 1 & VALID_FIELDS);
+        shortcuts[2] = legal_fields & (legal_fields >> 21 & VALID_FIELDS);
+        shortcuts[3] = legal_fields & (legal_fields << 21 & VALID_FIELDS);
+        shortcuts[4] = shortcuts[0] & (legal_fields >> 2 & VALID_FIELDS);
+        shortcuts[5] = shortcuts[1] & (legal_fields << 2 & VALID_FIELDS);
+        shortcuts[6] = shortcuts[2] & (legal_fields >> 42 & VALID_FIELDS);
+        shortcuts[7] = shortcuts[3] & (legal_fields << 42 & VALID_FIELDS);
+        shortcuts[8] = shortcuts[4] & (legal_fields >> 3 & VALID_FIELDS);
+        shortcuts[9] = legal_fields;
+        shortcuts[10] = shortcuts[6] & (legal_fields >> 63 & VALID_FIELDS);
+        shortcuts[11] = shortcuts[0] & shortcuts[0] >> 21;
+        shortcuts[12] = p;
 
-        let r2 = legal_fields & (legal_fields >> 1 & VALID_FIELDS);
-        let l2 = legal_fields & (legal_fields << 1 & VALID_FIELDS);
-        let d2 = legal_fields & (legal_fields >> 21 & VALID_FIELDS);
-        let u2 = legal_fields & (legal_fields << 21 & VALID_FIELDS);
-
-        let r3 = r2 & (legal_fields >> 2 & VALID_FIELDS);
-        let l3 = l2 & (legal_fields << 2 & VALID_FIELDS);
-        let d3 = d2 & (legal_fields >> 42 & VALID_FIELDS);
-        let u3 = u2 & (legal_fields << 42 & VALID_FIELDS);
-
-        let r4 = r3 & (legal_fields >> 3 & VALID_FIELDS);
-        let l4 = l3 & (legal_fields << 3 & VALID_FIELDS);
-        let d4 = d3 & (legal_fields >> 63 & VALID_FIELDS);
-        let u4 = u3 & (legal_fields << 63 & VALID_FIELDS);
-
-        if self.pieces_left[PieceType::FPentomino as usize][color] {
-            al.append(
-                ((u3 & l2) >> 43 & legal_fields >> 23) & (p >> 1 | p >> 23 | p >> 42 | p >> 43),
-                51,
-            );
-            al.append(
-                (legal_fields >> 21 & (u3 & r2) >> 43) & (p >> 1 | p >> 21 | p >> 43 | p >> 44),
-                52,
-            );
-            al.append(
-                (((d3 & r2) & legal_fields >> 20) & (p | p >> 1 | p >> 20 | p >> 42)) >> 1,
-                53,
-            );
-            al.append(
-                ((d3 & l2) >> 1 & legal_fields >> 23) & (p | p >> 1 | p >> 23 | p >> 43),
-                54,
-            );
-            al.append(
-                ((l3 & u2) >> 23 & legal_fields >> 43) & (p >> 2 | p >> 21 | p >> 23 | p >> 43),
-                55,
-            );
-            al.append(
-                ((r3 & u2) >> 21 & legal_fields >> 43) & (p | p >> 21 | p >> 23 | p >> 43),
-                56,
-            );
-            al.append(
-                ((legal_fields & (l3 & d2) >> 22) & (p | p >> 20 | p >> 22 | p >> 43)) >> 1,
-                57,
-            );
-            al.append(
-                ((legal_fields & (r3 & d2) >> 20) & (p | p >> 20 | p >> 22 | p >> 41)) >> 1,
-                58,
-            );
+        for (piece_type, generator) in ACTION_GENERATORS.iter().enumerate() {
+            if self.pieces_left[piece_type + 1][color] {
+                generator(shortcuts, al);
+            }
         }
-
-        if self.pieces_left[PieceType::WPentomino as usize][color] {
-            al.append(
-                (d2 & (u2 & r2) >> 43) & (p | p >> 21 | p >> 22 | p >> 43 | p >> 44),
-                59,
-            );
-            al.append(
-                ((u2 & l2) >> 23 & r2 >> 42) & (p >> 2 | p >> 22 | p >> 23 | p >> 42 | p >> 43),
-                60,
-            );
-            al.append(
-                (r2 & (d2 & l2) >> 23) & (p | p >> 1 | p >> 22 | p >> 23 | p >> 44),
-                61,
-            );
-            al.append(
-                ((r2 & (r2 & d2) >> 20) & (p | p >> 1 | p >> 20 | p >> 21 | p >> 41)) >> 1,
-                62,
-            );
-        }
-
-        if self.pieces_left[PieceType::LPentomino as usize][color] {
-            al.append((r4 & legal_fields >> 24) & (p | p >> 3 | p >> 24), 23);
-            al.append((r4 & d2) & (p | p >> 3 | p >> 21), 24);
-            al.append((legal_fields & r4 >> 21) & (p | p >> 21 | p >> 24), 25);
-            al.append((l4 & u2) >> 24 & (p >> 3 | p >> 21 | p >> 24), 26);
-            al.append((r2 & d4) & (p | p >> 1 | p >> 63), 27);
-            al.append((d4 & legal_fields >> 64) & (p | p >> 63 | p >> 64), 28);
-            al.append((r2 & d4 >> 1) & (p | p >> 1 | p >> 64), 29);
-            al.append((u4 & l2) >> 64 & (p >> 1 | p >> 63 | p >> 64), 30);
-        }
-
-        if self.pieces_left[PieceType::TPentomino as usize][color] {
-            al.append((r3 & d3 >> 1) & (p | p >> 2 | p >> 43), 31);
-            al.append((l2 & r2 & u3) >> 43 & (p >> 1 | p >> 42 | p >> 44), 32);
-            al.append((d3 & r3 >> 21) & (p | p >> 23 | p >> 42), 33);
-            al.append((l3 & u2 & d2) >> 23 & (p >> 2 | p >> 21 | p >> 44), 34);
-        }
-
-        if self.pieces_left[PieceType::ZPentomino as usize][color] {
-            al.append(
-                (legal_fields & (l3 & d2) >> 23) & (p | p >> 21 | p >> 23 | p >> 44),
-                43,
-            );
-            al.append(
-                ((legal_fields & (r3 & d2) >> 19) & (p | p >> 19 | p >> 21 | p >> 40)) >> 2,
-                44,
-            );
-            al.append(
-                (legal_fields >> 2 & (u3 & l2) >> 43) & (p >> 1 | p >> 2 | p >> 42 | p >> 43),
-                45,
-            );
-            al.append(
-                (r2 & (r2 & u3) >> 43) & (p | p >> 1 | p >> 43 | p >> 44),
-                46,
-            );
-        }
-
-        if self.pieces_left[PieceType::Domino as usize][color] {
-            al.append((r2 & p) | (l2 & p) >> 1, 1);
-            al.append((d2 & p) | (u2 & p) >> 21, 2);
-        }
-
-        if self.pieces_left[PieceType::ITromino as usize][color] {
-            al.append((r3 & p) | (l3 & p) >> 2, 3);
-            al.append((u3 & p) >> 42 | (d3 & p), 4);
-        }
-
-        if self.pieces_left[PieceType::ITetromino as usize][color] {
-            al.append((r4 & p) | (l4 & p) >> 3, 5);
-            al.append((d4 & p) | (u4 & p) >> 63, 6);
-        }
-
-        if self.pieces_left[PieceType::IPentomino as usize][color] {
-            al.append(
-                (r4 & legal_fields >> 4 & p) | (l4 & legal_fields << 4 & p) >> 4,
-                7,
-            );
-            al.append(
-                (d4 & legal_fields >> 84 & p) | (u4 & legal_fields << 84 & p) >> 84,
-                8,
-            );
-        }
-
-        if self.pieces_left[PieceType::XPentomino as usize][color] {
-            al.append(
-                ((r3 >> 20 & d3) & (p | p >> 20 | p >> 22 | p >> 42)) >> 1,
-                10,
-            )
-        }
-
-        if self.pieces_left[PieceType::LTromino as usize][color] {
-            al.append((u2 & r2) >> 21 & (p | p >> 21 | p >> 22), 11);
-            al.append((d2 & r2) & (p | p >> 1 | p >> 21), 12);
-            al.append((d2 >> 1 & r2) & (p | p >> 1 | p >> 22), 13);
-            al.append((d2 >> 1 & r2 >> 21) & (p >> 1 | p >> 21 | p >> 22), 14);
-        }
-
-        if self.pieces_left[PieceType::UPentomino as usize][color] {
-            al.append(
-                (r3 & d2 & legal_fields >> 23) & (p | p >> 2 | p >> 21 | p >> 23),
-                47,
-            );
-            al.append(
-                (legal_fields & (l3 & u2) >> 23) & (p | p >> 2 | p >> 21 | p >> 23),
-                48,
-            );
-            al.append(
-                (d3 & r2 & legal_fields >> 43) & (p | p >> 1 | p >> 42 | p >> 43),
-                49,
-            );
-            al.append(
-                (r2 & (l2 & u3) >> 43) & (p | p >> 1 | p >> 42 | p >> 43),
-                50,
-            );
-        }
-
-        if self.pieces_left[PieceType::NPentomino as usize][color] {
-            al.append(
-                ((d3 & d2 >> 41) & (p | p >> 41 | p >> 42 | p >> 62)) >> 1,
-                63,
-            );
-            al.append((d3 & d2 >> 43) & (p | p >> 42 | p >> 43 | p >> 64), 64);
-            al.append(
-                ((d2 & d3 >> 20) & (p | p >> 20 | p >> 21 | p >> 62)) >> 1,
-                65,
-            );
-            al.append((d2 & d3 >> 22) & (p | p >> 21 | p >> 22 | p >> 64), 66);
-            al.append(
-                ((r2 & r3 >> 19) & (p | p >> 1 | p >> 19 | p >> 21)) >> 2,
-                67,
-            );
-            al.append((r3 & r2 >> 23) & (p | p >> 2 | p >> 23 | p >> 24), 68);
-            al.append((r2 & r3 >> 22) & (p | p >> 1 | p >> 22 | p >> 24), 69);
-            al.append(
-                ((r3 & r2 >> 20) & (p | p >> 2 | p >> 20 | p >> 21)) >> 1,
-                70,
-            );
-        }
-
-        if self.pieces_left[PieceType::VPentomino as usize][color] {
-            al.append((r3 & d3) & (p | p >> 2 | p >> 42), 71);
-            al.append((u3 & l3) >> 44 & (p >> 2 | p >> 42 | p >> 44), 72);
-            al.append((r3 & d3 >> 2) & (p | p >> 2 | p >> 44), 73);
-            al.append((d3 & r3 >> 42) & (p | p >> 42 | p >> 44), 74);
-        }
-
-        if self.pieces_left[PieceType::YPentomino as usize][color] {
-            al.append((d4 & legal_fields >> 22) & (p | p >> 22 | p >> 63), 83);
-            al.append((d4 & legal_fields >> 43) & (p | p >> 43 | p >> 63), 84);
-            al.append(
-                ((d4 & legal_fields >> 41) & (p | p >> 41 | p >> 63)) >> 1,
-                85,
-            );
-            al.append(
-                ((d4 & legal_fields >> 20) & (p | p >> 20 | p >> 63)) >> 1,
-                86,
-            );
-            al.append((r4 & legal_fields >> 23) & (p | p >> 3 | p >> 23), 87);
-            al.append((r4 & legal_fields >> 22) & (p | p >> 3 | p >> 22), 88);
-            al.append((u2 & r2 & l3) >> 23 & (p >> 2 | p >> 21 | p >> 24), 89);
-            al.append(
-                ((legal_fields & r4 >> 20) & (p | p >> 20 | p >> 23)) >> 1,
-                90,
-            );
-        }
-
-        if self.pieces_left[PieceType::TTetromino as usize][color] {
-            al.append((r3 & legal_fields >> 22) & (p | p >> 2 | p >> 22), 35);
-            al.append((u2 & r2 & l2) >> 22 & (p >> 1 | p >> 21 | p >> 23), 36);
-            al.append((d3 & legal_fields >> 22) & (p | p >> 22 | p >> 42), 37);
-            al.append((u2 & d2 & l2) >> 22 & (p >> 1 | p >> 21 | p >> 43), 38);
-        }
-
-        let sq = r2 & r2 >> 21;
-        if self.pieces_left[PieceType::OTetromino as usize][color] {
-            al.append(sq & (p | p >> 1 | p >> 21 | p >> 22), 9)
-        }
-
-        if self.pieces_left[PieceType::PPentomino as usize][color] {
-            al.append(
-                (sq & legal_fields >> 42) & (p | p >> 1 | p >> 22 | p >> 42),
-                75,
-            );
-            al.append(
-                (sq & legal_fields >> 43) & (p | p >> 1 | p >> 21 | p >> 43),
-                76,
-            );
-            al.append(
-                (sq & legal_fields >> 23) & (p | p >> 1 | p >> 21 | p >> 23),
-                77,
-            );
-            al.append(
-                (sq & legal_fields >> 2) & (p | p >> 2 | p >> 21 | p >> 22),
-                78,
-            );
-            al.append(
-                (sq >> 1 & legal_fields) & (p | p >> 2 | p >> 22 | p >> 23),
-                79,
-            );
-            al.append(
-                ((sq & legal_fields >> 20) & (p | p >> 1 | p >> 20 | p >> 22)) >> 1,
-                80,
-            );
-            al.append(
-                ((legal_fields & sq >> 20) & (p | p >> 20 | p >> 41 | p >> 42)) >> 1,
-                81,
-            );
-            al.append(
-                (legal_fields & sq >> 21) & (p | p >> 22 | p >> 42 | p >> 43),
-                82,
-            );
-        }
-
-        if self.pieces_left[PieceType::ZTetromino as usize][color] {
-            al.append(
-                ((r2 & r2 >> 20) & (p | p >> 1 | p >> 20 | p >> 21)) >> 1,
-                39,
-            );
-            al.append((r2 & r2 >> 22) & (p | p >> 1 | p >> 22 | p >> 23), 40);
-            al.append(
-                ((d2 & d2 >> 20) & (p | p >> 20 | p >> 21 | p >> 41)) >> 1,
-                41,
-            );
-            al.append((d2 & d2 >> 22) & (p | p >> 21 | p >> 22 | p >> 43), 42);
-        }
-
-        if self.pieces_left[PieceType::LTetromino as usize][color] {
-            al.append((d3 & r2) & (p | p >> 1 | p >> 42), 15);
-            al.append((r2 & d3 >> 1) & (p | p >> 1 | p >> 43), 16);
-            al.append(((d3 & r2 >> 41) & (p | p >> 41 | p >> 42)) >> 1, 17);
-            al.append((d3 & r2 >> 42) & (p | p >> 42 | p >> 43), 18);
-            al.append((legal_fields & r3 >> 21) & (p | p >> 21 | p >> 23), 19);
-            al.append((r3 & legal_fields >> 21) & (p | p >> 2 | p >> 21), 20);
-            al.append((r3 & legal_fields >> 23) & (p | p >> 2 | p >> 23), 21);
-            al.append((u2 & l3) >> 23 & (p >> 2 | p >> 21 | p >> 23), 22);
-        }
-
         if self.pieces_left[PieceType::Monomino as usize][color] {
             al.append(p, 0);
         }
-
         if self.ply < 4 {
             let mut idx = 0;
             for i in 0..al.size {
@@ -497,9 +228,8 @@ impl GameState {
             }
             al.size = idx;
         }
-
         if al.size == 0 {
-            al.push(Action::skip());
+            al.push(Action::SKIP);
         }
     }
 
@@ -568,10 +298,8 @@ impl GameState {
         }
         state
     }
-}
 
-impl Display for GameState {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+    pub fn display_board(&self, board: Bitboard) -> String {
         let mut string = String::new();
         string.push('╔');
         for _ in 0..40 {
@@ -610,6 +338,8 @@ impl Display for GameState {
                     string.push('🟥');
                 } else if self.board[3].check_bit(field) {
                     string.push('🟩');
+                } else if board.check_bit(field) {
+                    string.push('🟧');
                 } else {
                     string.push_str("▪️");
                 }
@@ -621,7 +351,13 @@ impl Display for GameState {
             string.push('═');
         }
         string.push('╝');
-        write!(f, "{}", string)
+        string
+    }
+}
+
+impl Display for GameState {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        write!(f, "{}", self.display_board(Bitboard::empty()))
     }
 }
 
@@ -638,3 +374,298 @@ impl Default for GameState {
         }
     }
 }
+
+fn domino(s: [Bitboard; 13], al: &mut ActionList) {
+    let p = s[12];
+    al.append(s[0] & (p | p >> 1), 1);
+    al.append(s[2] & (p | p >> 21), 2);
+}
+
+fn i_tromino(s: [Bitboard; 13], al: &mut ActionList) {
+    let p = s[12];
+    al.append(s[4] & (p | p >> 2), 3);
+    al.append(s[6] & (p | p >> 42), 4);
+}
+
+fn l_tromino(s: [Bitboard; 13], al: &mut ActionList) {
+    let p = s[12];
+    al.append((s[3] & s[0]) >> 21 & (p | p >> 21 | p >> 22), 11);
+    al.append((s[2] & s[0]) & (p | p >> 1 | p >> 21), 12);
+    al.append((s[2] >> 1 & s[0]) & (p | p >> 1 | p >> 22), 13);
+    al.append((s[2] >> 1 & s[0] >> 21) & (p >> 1 | p >> 21 | p >> 22), 14);
+}
+
+fn i_tetromino(s: [Bitboard; 13], al: &mut ActionList) {
+    let p = s[12];
+    al.append(s[8] & (p | p >> 3), 5);
+    al.append(s[10] & (p | p >> 63), 6);
+}
+
+fn l_tetromino(s: [Bitboard; 13], al: &mut ActionList) {
+    let p = s[12];
+    al.append((s[6] & s[0]) & (p | p >> 1 | p >> 42), 15);
+    al.append((s[0] & s[6] >> 1) & (p | p >> 1 | p >> 43), 16);
+    al.append(((s[6] & s[0] >> 41) & (p | p >> 41 | p >> 42)) >> 1, 17);
+    al.append((s[6] & s[0] >> 42) & (p | p >> 42 | p >> 43), 18);
+    al.append((s[9] & s[4] >> 21) & (p | p >> 21 | p >> 23), 19);
+    al.append((s[4] & s[9] >> 21) & (p | p >> 2 | p >> 21), 20);
+    al.append((s[4] & s[9] >> 23) & (p | p >> 2 | p >> 23), 21);
+    al.append((s[3] & s[5]) >> 23 & (p >> 2 | p >> 21 | p >> 23), 22);
+}
+
+fn t_tetromino(s: [Bitboard; 13], al: &mut ActionList) {
+    let p = s[12];
+    al.append((s[4] & s[9] >> 22) & (p | p >> 2 | p >> 22), 35);
+    al.append(
+        (s[3] & s[0] & s[1]) >> 22 & (p >> 1 | p >> 21 | p >> 23),
+        36,
+    );
+    al.append((s[6] & s[9] >> 22) & (p | p >> 22 | p >> 42), 37);
+    al.append(
+        (s[3] & s[2] & s[1]) >> 22 & (p >> 1 | p >> 21 | p >> 43),
+        38,
+    );
+}
+
+fn o_tetromino(s: [Bitboard; 13], al: &mut ActionList) {
+    let p = s[12];
+    al.append(s[11] & (p | p >> 1 | p >> 21 | p >> 22), 9)
+}
+
+fn z_tetromino(s: [Bitboard; 13], al: &mut ActionList) {
+    let p = s[12];
+    al.append(
+        ((s[0] & s[0] >> 20) & (p | p >> 1 | p >> 20 | p >> 21)) >> 1,
+        39,
+    );
+    al.append((s[0] & s[0] >> 22) & (p | p >> 1 | p >> 22 | p >> 23), 40);
+    al.append(
+        ((s[2] & s[2] >> 20) & (p | p >> 20 | p >> 21 | p >> 41)) >> 1,
+        41,
+    );
+    al.append((s[2] & s[2] >> 22) & (p | p >> 21 | p >> 22 | p >> 43), 42);
+}
+
+fn f_pentomino(s: [Bitboard; 13], al: &mut ActionList) {
+    let p = s[12];
+    al.append(
+        ((s[7] & s[1]) >> 43 & s[9] >> 23) & (p >> 1 | p >> 23 | p >> 42 | p >> 43),
+        51,
+    );
+    al.append(
+        (s[9] >> 21 & (s[7] & s[0]) >> 43) & (p >> 1 | p >> 21 | p >> 43 | p >> 44),
+        52,
+    );
+    al.append(
+        (((s[6] & s[0]) & s[9] >> 20) & (p | p >> 1 | p >> 20 | p >> 42)) >> 1,
+        53,
+    );
+    al.append(
+        ((s[6] & s[1]) >> 1 & s[9] >> 23) & (p | p >> 1 | p >> 23 | p >> 43),
+        54,
+    );
+    al.append(
+        ((s[5] & s[3]) >> 23 & s[9] >> 43) & (p >> 2 | p >> 21 | p >> 23 | p >> 43),
+        55,
+    );
+    al.append(
+        ((s[4] & s[3]) >> 21 & s[9] >> 43) & (p | p >> 21 | p >> 23 | p >> 43),
+        56,
+    );
+    al.append(
+        ((s[9] & (s[5] & s[2]) >> 22) & (p | p >> 20 | p >> 22 | p >> 43)) >> 1,
+        57,
+    );
+    al.append(
+        ((s[9] & (s[4] & s[2]) >> 20) & (p | p >> 20 | p >> 22 | p >> 41)) >> 1,
+        58,
+    );
+}
+
+fn i_pentomino(s: [Bitboard; 13], al: &mut ActionList) {
+    let p = s[12];
+    al.append((s[8] & s[9] >> 4) & (p | p >> 4), 7);
+    al.append((s[10] & s[9] >> 84) & (p | p >> 84), 8);
+}
+
+fn l_pentomino(s: [Bitboard; 13], al: &mut ActionList) {
+    let p = s[12];
+    al.append((s[8] & s[9] >> 24) & (p | p >> 3 | p >> 24), 23);
+    al.append((s[8] & s[2]) & (p | p >> 3 | p >> 21), 24);
+    al.append((s[9] & s[8] >> 21) & (p | p >> 21 | p >> 24), 25);
+    al.append((s[8] << 3 & s[3]) >> 24 & (p >> 3 | p >> 21 | p >> 24), 26);
+    al.append((s[0] & s[10]) & (p | p >> 1 | p >> 63), 27);
+    al.append((s[10] & s[9] >> 64) & (p | p >> 63 | p >> 64), 28);
+    al.append((s[0] & s[10] >> 1) & (p | p >> 1 | p >> 64), 29);
+    al.append((s[10] >> 1 & s[1] >> 64) & (p >> 1 | p >> 63 | p >> 64), 30);
+}
+
+fn n_pentomino(s: [Bitboard; 13], al: &mut ActionList) {
+    let p = s[12];
+    al.append(
+        ((s[6] & s[2] >> 41) & (p | p >> 41 | p >> 42 | p >> 62)) >> 1,
+        63,
+    );
+    al.append((s[6] & s[2] >> 43) & (p | p >> 42 | p >> 43 | p >> 64), 64);
+    al.append(
+        ((s[2] & s[6] >> 20) & (p | p >> 20 | p >> 21 | p >> 62)) >> 1,
+        65,
+    );
+    al.append((s[2] & s[6] >> 22) & (p | p >> 21 | p >> 22 | p >> 64), 66);
+    al.append(
+        ((s[0] & s[4] >> 19) & (p | p >> 1 | p >> 19 | p >> 21)) >> 2,
+        67,
+    );
+    al.append((s[4] & s[0] >> 23) & (p | p >> 2 | p >> 23 | p >> 24), 68);
+    al.append((s[0] & s[4] >> 22) & (p | p >> 1 | p >> 22 | p >> 24), 69);
+    al.append(
+        ((s[4] & s[0] >> 20) & (p | p >> 2 | p >> 20 | p >> 21)) >> 1,
+        70,
+    );
+}
+
+fn p_pentomino(s: [Bitboard; 13], al: &mut ActionList) {
+    let p = s[12];
+    al.append((s[11] & s[9] >> 42) & (p | p >> 1 | p >> 22 | p >> 42), 75);
+    al.append((s[11] & s[9] >> 43) & (p | p >> 1 | p >> 21 | p >> 43), 76);
+    al.append((s[11] & s[9] >> 23) & (p | p >> 1 | p >> 21 | p >> 23), 77);
+    al.append((s[11] & s[9] >> 2) & (p | p >> 2 | p >> 21 | p >> 22), 78);
+    al.append((s[11] >> 1 & s[9]) & (p | p >> 2 | p >> 22 | p >> 23), 79);
+    al.append(
+        ((s[11] & s[9] >> 20) & (p | p >> 1 | p >> 20 | p >> 22)) >> 1,
+        80,
+    );
+    al.append(
+        ((s[9] & s[11] >> 20) & (p | p >> 20 | p >> 41 | p >> 42)) >> 1,
+        81,
+    );
+    al.append((s[9] & s[11] >> 21) & (p | p >> 22 | p >> 42 | p >> 43), 82);
+}
+
+fn t_pentomino(s: [Bitboard; 13], al: &mut ActionList) {
+    let p = s[12];
+    al.append((s[4] & s[6] >> 1) & (p | p >> 2 | p >> 43), 31);
+    al.append(
+        (s[1] & s[0] & s[7]) >> 43 & (p >> 1 | p >> 42 | p >> 44),
+        32,
+    );
+    al.append((s[6] & s[4] >> 21) & (p | p >> 23 | p >> 42), 33);
+    al.append(
+        (s[5] & s[3] & s[2]) >> 23 & (p >> 2 | p >> 21 | p >> 44),
+        34,
+    );
+}
+
+fn u_pentomino(s: [Bitboard; 13], al: &mut ActionList) {
+    let p = s[12];
+    al.append(
+        (s[4] & s[2] & s[9] >> 23) & (p | p >> 2 | p >> 21 | p >> 23),
+        47,
+    );
+    al.append(
+        (s[9] & (s[5] & s[3]) >> 23) & (p | p >> 2 | p >> 21 | p >> 23),
+        48,
+    );
+    al.append(
+        (s[6] & s[0] & s[9] >> 43) & (p | p >> 1 | p >> 42 | p >> 43),
+        49,
+    );
+    al.append(
+        (s[0] & (s[1] & s[7]) >> 43) & (p | p >> 1 | p >> 42 | p >> 43),
+        50,
+    );
+}
+
+fn v_pentomino(s: [Bitboard; 13], al: &mut ActionList) {
+    let p = s[12];
+    al.append((s[4] & s[6]) & (p | p >> 2 | p >> 42), 71);
+    al.append((s[7] & s[5]) >> 44 & (p >> 2 | p >> 42 | p >> 44), 72);
+    al.append((s[4] & s[6] >> 2) & (p | p >> 2 | p >> 44), 73);
+    al.append((s[6] & s[4] >> 42) & (p | p >> 42 | p >> 44), 74);
+}
+
+fn w_pentomino(s: [Bitboard; 13], al: &mut ActionList) {
+    let p = s[12];
+    al.append(
+        (s[2] & (s[3] & s[0]) >> 43) & (p | p >> 21 | p >> 22 | p >> 43 | p >> 44),
+        59,
+    );
+    al.append(
+        ((s[3] & s[1]) >> 23 & s[0] >> 42) & (p >> 2 | p >> 22 | p >> 23 | p >> 42 | p >> 43),
+        60,
+    );
+    al.append(
+        (s[0] & (s[2] & s[1]) >> 23) & (p | p >> 1 | p >> 22 | p >> 23 | p >> 44),
+        61,
+    );
+    al.append(
+        ((s[0] & (s[0] & s[2]) >> 20) & (p | p >> 1 | p >> 20 | p >> 21 | p >> 41)) >> 1,
+        62,
+    );
+}
+
+fn x_pentomino(s: [Bitboard; 13], al: &mut ActionList) {
+    let p = s[12];
+    al.append(
+        ((s[4] >> 20 & s[6]) & (p | p >> 20 | p >> 22 | p >> 42)) >> 1,
+        10,
+    )
+}
+
+fn y_pentomino(s: [Bitboard; 13], al: &mut ActionList) {
+    let p = s[12];
+    al.append((s[10] & s[9] >> 22) & (p | p >> 22 | p >> 63), 83);
+    al.append((s[10] & s[9] >> 43) & (p | p >> 43 | p >> 63), 84);
+    al.append(((s[10] & s[9] >> 41) & (p | p >> 41 | p >> 63)) >> 1, 85);
+    al.append(((s[10] & s[9] >> 20) & (p | p >> 20 | p >> 63)) >> 1, 86);
+    al.append((s[8] & s[9] >> 23) & (p | p >> 3 | p >> 23), 87);
+    al.append((s[8] & s[9] >> 22) & (p | p >> 3 | p >> 22), 88);
+    al.append(
+        (s[3] & s[0] & s[5]) >> 23 & (p >> 2 | p >> 21 | p >> 24),
+        89,
+    );
+    al.append(((s[9] & s[8] >> 20) & (p | p >> 20 | p >> 23)) >> 1, 90);
+}
+
+fn z_pentomino(s: [Bitboard; 13], al: &mut ActionList) {
+    let p = s[12];
+    al.append(
+        (s[9] & (s[5] & s[2]) >> 23) & (p | p >> 21 | p >> 23 | p >> 44),
+        43,
+    );
+    al.append(
+        ((s[9] & (s[4] & s[2]) >> 19) & (p | p >> 19 | p >> 21 | p >> 40)) >> 2,
+        44,
+    );
+    al.append(
+        (s[9] >> 2 & (s[7] & s[1]) >> 43) & (p >> 1 | p >> 2 | p >> 42 | p >> 43),
+        45,
+    );
+    al.append(
+        (s[0] & (s[0] & s[7]) >> 43) & (p | p >> 1 | p >> 43 | p >> 44),
+        46,
+    );
+}
+
+const ACTION_GENERATORS: [fn([Bitboard; 13], &mut ActionList); 20] = [
+    domino,
+    i_tromino,
+    l_tromino,
+    i_tetromino,
+    l_tetromino,
+    t_tetromino,
+    o_tetromino,
+    z_tetromino,
+    f_pentomino,
+    i_pentomino,
+    l_pentomino,
+    n_pentomino,
+    p_pentomino,
+    t_pentomino,
+    u_pentomino,
+    v_pentomino,
+    w_pentomino,
+    x_pentomino,
+    y_pentomino,
+    z_pentomino,
+];

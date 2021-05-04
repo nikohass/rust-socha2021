@@ -13,7 +13,7 @@ fn main() {
     let mut host = "localhost".to_string();
     let mut port = "13050".to_string();
     let mut reservation = "".to_string();
-    let mut time: i64 = 1980;
+    let mut time: i64 = 1960;
     let mut test = false;
 
     {
@@ -47,7 +47,7 @@ fn main() {
 
     let mut player = Box::new(Player::default());
     player.set_time_limit(Some(time));
-    player.set_neural_network(None);
+    //player.set_neural_network(None);
 
     if test {
         run_test_client(player);

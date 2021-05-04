@@ -27,7 +27,7 @@ pub fn playout(state: &mut GameState, rng: &mut SmallRng, rave_table: &mut RaveT
 pub fn random_action(state: &GameState, rng: &mut SmallRng, pentomino_only: bool) -> Action {
     let color = state.get_current_color() as usize;
     if state.has_color_skipped(color) {
-        return Action::skip();
+        return Action::SKIP;
     }
     let own_fields = state.board[color];
     let other_fields = state.get_occupied_fields() & !own_fields;
@@ -38,7 +38,7 @@ pub fn random_action(state: &GameState, rng: &mut SmallRng, pentomino_only: bool
         START_FIELDS & !other_fields
     };
     if p.is_zero() {
-        return Action::skip();
+        return Action::SKIP;
     }
     for _ in 0..MOVEGEN_RETRIES {
         let mut shape = if pentomino_only {
@@ -59,7 +59,7 @@ pub fn random_action(state: &GameState, rng: &mut SmallRng, pentomino_only: bool
             return Action::set(destinations.random_field(rng), shape as u16);
         }
     }
-    Action::skip()
+    Action::SKIP
 }
 
 fn shape_0(_l: Bitboard, p: Bitboard) -> Bitboard {
@@ -451,7 +451,7 @@ mod test {
         let mut rng = SmallRng::from_entropy();
         for _ in 0..300_000 {
             let mut state = GameState::random();
-            let mut action = Action::skip();
+            let mut action = Action::SKIP;
             state.get_possible_actions(&mut al);
             for _ in 0..100 {
                 action = random_action(&state, &mut rng, false);

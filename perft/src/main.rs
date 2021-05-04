@@ -28,7 +28,7 @@ fn perft(state: &mut GameState, depth: usize, als: &mut ActionListStack) -> u64 
 }
 
 fn run_perft() {
-    let current_best: f64 = 22_415.25;
+    let current_best: f64 = 21_781.25;
     let depth = 3;
     let start_time = Instant::now();
     let mut als = ActionListStack::with_size(depth + 1);
@@ -102,5 +102,16 @@ fn main() {
     }
     for _ in 0..3 {
         run_perft();
+    }
+}
+
+#[test]
+fn test() {
+    let mut als = ActionListStack::with_size(4);
+    let results: [u64; 4] = [96564378, 815135, 200870, 56253];
+    for (i, fen) in TEST_FENS.iter().enumerate() {
+        let mut state = GameState::from_fen(fen.to_string());
+        assert_eq!(results[i], perft(&mut state, 3, &mut als));
+        assert_eq!(state.hash, 0);
     }
 }

@@ -1,5 +1,6 @@
 pub mod cache;
 pub mod evaluation;
+pub mod heuristics;
 pub mod mcts;
 pub mod neural_network;
 pub mod playout;

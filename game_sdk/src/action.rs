@@ -1,20 +1,15 @@
 use super::{Bitboard, PieceType, PIECE_ORIENTATIONS};
 use std::fmt::{Display, Formatter, Result};
 
-const SKIP: u16 = std::u16::MAX;
-
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub struct Action(u16);
 
 impl Action {
+    pub const SKIP: Self = Self(std::u16::MAX);
+
     #[inline(always)]
     pub fn set(destination: u16, shape: u16) -> Self {
         Self(destination << 7 | shape)
-    }
-
-    #[inline(always)]
-    pub fn skip() -> Self {
-        Self(SKIP)
     }
 
     #[inline(always)]
@@ -29,12 +24,12 @@ impl Action {
 
     #[inline(always)]
     pub fn is_skip(self) -> bool {
-        self.0 == SKIP
+        self == Self::SKIP
     }
 
     #[inline(always)]
     pub fn is_set(self) -> bool {
-        self.0 != SKIP
+        self != Self::SKIP
     }
 
     pub fn serialize(self) -> String {
@@ -47,7 +42,7 @@ impl Action {
 
     pub fn from_bitboard(board: Bitboard) -> Self {
         if board.is_zero() {
-            return Self::skip();
+            return Self::SKIP;
         }
         let mut board_copy = board;
         let mut left = 21;
@@ -76,7 +71,7 @@ impl Action {
                 board.to_string()
             );
         }
-        Self::skip()
+        Self::SKIP
     }
 
     pub fn to_xml(self, color: usize) -> String {

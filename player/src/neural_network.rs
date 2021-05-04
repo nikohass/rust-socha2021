@@ -340,11 +340,11 @@ impl Player for NeuralNetwork {
             let mut value: f32 = 0.;
             let destination = action.get_destination();
             let shape = action.get_shape() as usize;
-            let mut action_board = Bitboard::with_piece(destination, shape);
-            action_board = r.rotate_bitboard(action_board);
-            while action_board.not_zero() {
-                let field_index = action_board.trailing_zeros();
-                action_board.flip_bit(field_index);
+            let mut piece = Bitboard::with_piece(destination, shape);
+            piece = r.rotate_bitboard(piece);
+            while piece.not_zero() {
+                let field_index = piece.trailing_zeros();
+                piece.flip_bit(field_index);
                 let x = field_index % 21;
                 let y = (field_index - x) / 21;
                 value += output[(x + y * 20) as usize];

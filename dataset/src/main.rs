@@ -1,7 +1,8 @@
+#![allow(unused_imports)]
 use argparse::{ArgumentParser, Store};
 use game_sdk::{Action, Bitboard, GameState, Player};
 use player::mcts::Mcts;
-use rand::{rngs::SmallRng, RngCore, SeedableRng};
+/*use rand::{rngs::SmallRng, RngCore, SeedableRng};
 use std::fs::OpenOptions;
 use std::io::prelude::*;
 use std::thread;
@@ -85,11 +86,11 @@ fn generate_dataset(path: &str) {
     let mut player = Mcts::default();
     player.set_time_limit(None);
     player.set_neural_network(None);
-    player.set_iteration_limit(Some(500_000));
+    player.set_iteration_limit(Some(200_000));
     let mut opponent = Mcts::default();
     opponent.set_neural_network(None);
     opponent.set_time_limit(None);
-    opponent.set_iteration_limit(Some(6_000));
+    opponent.set_iteration_limit(Some(20_000));
 
     let mut rng = SmallRng::from_entropy();
     let mut examples: Vec<Example> = Vec::with_capacity(300);
@@ -123,9 +124,35 @@ fn generate_dataset(path: &str) {
         }
         team = (team + 1) % 2;
     }
-}
+}*/
 
 fn main() {
+    let mut fen = "".to_string();
+    let mut iterations = 500_000;
+    {
+        let mut parser = ArgumentParser::new();
+        parser
+            .refer(&mut fen)
+            .add_option(&["-f", "--fen"], Store, "Fen");
+        parser
+            .refer(&mut iterations)
+            .add_option(&["-i", "--iterations"], Store, "iterations");
+        parser.parse_args_or_exit();
+    }
+    let mut mcts = Mcts::default();
+    //mcts.set_neural_network(None);
+    mcts.set_time_limit(None);
+    mcts.set_iteration_limit(Some(iterations));
+    let state = GameState::from_fen(fen);
+    println!("{}", state);
+    let action = mcts.search_action(&state);
+    println!(
+        "result: {} {:?} {}",
+        action.serialize(),
+        mcts.get_action_value_pairs(),
+        mcts.get_value()
+    );
+    /*
     let mut path = "datasets/1.txt".to_string();
     let mut threads = 3;
     {
@@ -149,5 +176,5 @@ fn main() {
 
     for child in children {
         let _ = child.join();
-    }
+    }*/
 }

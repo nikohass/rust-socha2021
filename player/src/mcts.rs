@@ -1,14 +1,15 @@
 use super::float_stuff::{ln, sqrt};
-use super::neural_network::{state_to_vector, BoardRotation, NeuralNetwork};
+//use super::neural_network::{state_to_vector, BoardRotation, NeuralNetwork};
+//use super::heuristics::Heuristic;
 use super::playout::playout;
-use game_sdk::{Action, ActionList, Bitboard, GameState, Player};
+use game_sdk::{Action, ActionList, GameState, Player};
 use rand::{rngs::SmallRng, SeedableRng};
 use std::time::Instant;
 
 const C: f32 = 0.0;
-const C_BASE: f32 = 9000.0;
-const C_FACTOR: f32 = 30.0;
-const VISITS_BEFORE_EXPANSION: usize = 50;
+const C_BASE: f32 = 200.0;
+const C_FACTOR: f32 = std::f32::consts::SQRT_2;
+const VISITS_BEFORE_EXPANSION: usize = 80;
 const B_SQUARED: f32 = 0.7;
 const FPU_R: f32 = 0.1;
 
@@ -54,19 +55,21 @@ impl Default for RaveTable {
 }
 
 pub struct Node {
-    children: Vec<Node>,
-    action: Action,
-    n: f32,
-    q: f32,
+    pub children: Vec<Node>,
+    pub action: Action,
+    pub n: f32,
+    pub q: f32,
+    //pub h: f32,
 }
 
 impl Node {
     pub fn empty() -> Self {
         Self {
             children: Vec::new(),
-            action: Action::skip(),
+            action: Action::SKIP,
             n: 0.,
             q: 0.,
+            //h: 0.,
         }
     }
 
@@ -104,6 +107,7 @@ impl Node {
                 + c * sqrt(ln(parent_n) / self.n)
         } else {
             beta * rave_q / rave_n + (1. - beta) * fpu_base + c * sqrt(ln(parent_n))
+            //            beta * rave_q / rave_n + self.h + (1. - beta) * fpu_base + c * sqrt(ln(parent_n))
         }
     }
 
@@ -136,13 +140,17 @@ impl Node {
 
     fn expand(&mut self, state: &GameState, al: &mut ActionList) {
         state.get_possible_actions(al);
+        //let heuristic = Heuristic::for_state(state);
         self.children = Vec::with_capacity(al.size);
         for i in 0..al.size {
+            let action = al[i];
+            //let h = heuristic.evaluate_action(action);
             self.children.push(Node {
                 children: Vec::new(),
-                action: al[i],
-                n: 0.,
-                q: 0.,
+                action,
+                n: 0., //10.,
+                q: 0., //h / 7. * 10.,
+                       //h: h,
             });
         }
     }
@@ -220,13 +228,24 @@ impl Node {
 
     pub fn best_action(&mut self) -> Action {
         if self.children.is_empty() {
-            Action::skip()
+            Action::SKIP
         } else {
             self.best_child().action
         }
     }
 
-    pub fn search_seeding(
+    pub fn count_children(&self) -> usize {
+        let mut children = 0;
+        for child in self.children.iter() {
+            if !child.children.is_empty() {
+                children += 1;
+                children += child.count_children();
+            }
+        }
+        children
+    }
+
+    /*pub fn search_seeding(
         &mut self,
         state: &GameState,
         al: &mut ActionList,
@@ -259,11 +278,31 @@ impl Node {
                 child.backpropagate(value / 5.);
             }
         }
-    }
-
-    pub fn get_children(&self) -> &Vec<Node> {
-        &self.children
-    }
+    }*/
+    /*
+    pub fn heuristic(&mut self, state: &mut GameState, al: &mut ActionList, rave_table: &RaveTable, is_root: bool, depth: u8) {
+        if self.children.is_empty() {
+            self.expand(state, al);
+            let h = GameHeuristic::for_state(&state);
+            for child in self.children.iter_mut() {
+                let value = h.evaluate_action(child.action) / 7.;
+                self.n += 7.;
+                if depth & 0b1 == 0 {
+                    self.q += value;
+                } else {
+                    self.q += 1. - value;
+                }
+            }
+        } else {
+            let mut child = self.child_with_max_uct_value(state.get_current_color(), rave_table, is_root);
+            if child.action.is_skip() {
+                return;
+            }
+            state.do_action(child.action);
+            child.heuristic(state, al, rave_table, false, depth + 1);
+            state.undo_action(child.action);
+        }
+    }*/
 }
 
 pub struct Mcts {
@@ -272,7 +311,7 @@ pub struct Mcts {
     time_limit: Option<i64>,
     iteration_limit: Option<usize>,
     rave_table: RaveTable,
-    neural_network: Option<NeuralNetwork>,
+    //neural_network: Option<NeuralNetwork>,
 }
 
 impl Mcts {
@@ -284,13 +323,13 @@ impl Mcts {
         self.time_limit = time_limit;
     }
 
-    pub fn set_neural_network(&mut self, neural_network: Option<NeuralNetwork>) {
-        self.neural_network = neural_network;
-    }
+    /*pub fn set_neural_network(&mut self, _neural_network: Option<NeuralNetwork>) {
+        //self.neural_network = neural_network;
+    }*/
 
     pub fn get_action_value_pairs(&self) -> Vec<(Action, f32)> {
         let mut ret: Vec<(Action, f32)> = Vec::with_capacity(1300);
-        for child in self.root_node.get_children().iter() {
+        for child in self.root_node.children.iter() {
             ret.push((child.action, child.get_value()));
         }
         ret
@@ -353,7 +392,7 @@ impl Mcts {
         let mut iterations_per_ms = 5.;
         let mut iterations: usize = 0;
 
-        if state.ply >= 4 && state.ply < 12 {
+        /*if state.ply >= 4 && state.ply < 20 {
             if let Some(neural_network) = &mut self.neural_network {
                 print!("Neural Network prediction... ");
                 let nn_start_time = Instant::now();
@@ -361,7 +400,7 @@ impl Mcts {
                     .search_seeding(&self.root_state, &mut pv, neural_network);
                 println!("finished after {}ms", nn_start_time.elapsed().as_millis());
             }
-        }
+        }*/
 
         println!("    Left Depth Iterations Value PV");
         let search_start_time = Instant::now();
@@ -399,8 +438,7 @@ impl Mcts {
                     (next_iterations, next_iterations < 100)
                 }
             } else {
-                println!("Mcts has neither a time limit nor a node limit");
-                (0, true)
+                panic!("Mcts has neither a time limit nor a node limit");
             };
             if stop {
                 break;
@@ -412,6 +450,10 @@ impl Mcts {
                 iterations_per_ms = iterations as f64 / elapsed * 1000.;
             }
         }
+
+        /*for child in self.root_node.children.iter() {
+            println!("{:6} {:6} {:5}", child.n, child.get_value(), child.action);
+        }*/
         println!(
             "Search finished after {}ms. Value: {:.0}% PV-Depth: {} Iterations: {} Iterations/s: {:.2} PV: {}",
             start_time.elapsed().as_millis(),
@@ -421,8 +463,14 @@ impl Mcts {
             iterations_per_ms * 1000.,
             pv,
         );
+        //self.tree_statistics();
         self.root_node.best_action()
     }
+
+    /*pub fn tree_statistics(&self) {
+        let nodes = self.root_node.count_children();
+        println!("{}", nodes);
+    }*/
 }
 
 impl Player for Mcts {
@@ -441,10 +489,10 @@ impl Default for Mcts {
         Self {
             root_node: Node::empty(),
             root_state: GameState::default(),
-            time_limit: Some(1980),
+            time_limit: Some(1960),
             iteration_limit: None,
             rave_table: RaveTable::default(),
-            neural_network: NeuralNetwork::new("weights"),
+            //neural_network: NeuralNetwork::new("weights"),
         }
     }
 }
