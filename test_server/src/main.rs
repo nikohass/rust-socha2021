@@ -105,7 +105,7 @@ fn main() {
     let mut client_one_path = String::new();
     let mut client_two_path = String::new();
     let mut games: u64 = 1000;
-    let mut time: u64 = 1980;
+    let mut time: u64 = 1600;
 
     {
         let mut parser = ArgumentParser::new();

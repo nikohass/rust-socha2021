@@ -1,11 +1,14 @@
+/*
 use game_sdk::*;
-use player::heuristics::*;
-use player::mcts::Mcts;
-//use player::simple_client::SimpleClient;
+//use player::heuristics::*;
+use player::mcts::*;
+use player::playout::*;
+use rand::{rngs::SmallRng, SeedableRng};
+*///use player::simple_client::SimpleClient;
 //use std::time::Instant;
 
 fn main() {
-    let mut games: f64 = 0.;
+    /*
     let mut sum_results: f64 = 0.;
     let mut color: u8 = 0;
     //let mut sc = SimpleClient::default();
@@ -60,7 +63,7 @@ fn main() {
         games += 1.;
         //println!("{}", state);
         println!("{}", sum_results / games);
-    }
+    }*/
 }
 
 //use packed_simd::*;

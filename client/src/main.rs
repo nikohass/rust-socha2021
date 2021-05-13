@@ -47,7 +47,6 @@ fn main() {
 
     let mut player = Box::new(Player::default());
     player.set_time_limit(Some(time));
-    //player.set_neural_network(None);
 
     if test {
         run_test_client(player);
