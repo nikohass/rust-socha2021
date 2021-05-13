@@ -35,20 +35,17 @@ impl XmlClient {
             .expect("Could not connect to server");
         println!("Connected");
         Self::write_to(&stream, "<protocol>");
-
         let join_xml = match self.reservation.as_str() {
             "" => "<join gameType=\"swc_2021_blokus\"/>".to_string(),
             _ => format!("<joinPrepared reservationCode=\"{}\" />", self.reservation),
         };
         print!("Sending join message ");
         Self::write_to(&stream, join_xml.as_str());
-
         self.handle_stream(&stream);
     }
 
     fn handle_stream(&mut self, stream: &TcpStream) {
         let mut parser = EventReader::new(BufReader::new(stream));
-
         loop {
             let node = XmlNode::read_from(&mut parser);
             match node.name.as_str() {

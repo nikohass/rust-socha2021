@@ -1,5 +1,5 @@
 use super::mcts::Node;
-use game_sdk::{Action, ActionList, Bitboard, GameState};
+use game_sdk::{Action, ActionList, Bitboard, GameState, Player};
 use game_sdk::{START_FIELDS, VALID_FIELDS};
 
 const LEAK_FACTOR: f32 = 1.0;
@@ -142,85 +142,29 @@ impl Heuristic {
             })
         }
     }
-
-    pub fn get_num_groups(&self) -> usize {
-        self.placement_fields[self.state.get_current_color()].count_ones() as usize
-            + self.blockable_placement_fields[self.state.get_current_color()].count_ones() as usize
-            + self.leaks[self.state.get_current_color()].count_ones() as usize
-    }
-
-    pub fn group(&self, action: Action) -> Vec<usize> {
-        let mut groups = Vec::new();
-        if action.is_skip() {
-            return groups;
-        }
-        let color = self.state.get_current_color();
-        let piece = Bitboard::with_piece(action.get_destination(), action.get_shape() as usize);
-        let hit = piece & self.placement_fields[color];
-        let mut copy = self.placement_fields[color];
-        let mut i = 0;
-        while copy.not_zero() {
-            let to = copy.trailing_zeros();
-            let bit = Bitboard::bit(to);
-            if hit & bit == bit {
-                groups.push(i)
-            }
-            copy ^= bit;
-            i += 1;
-        }
-
-        let a = self.placement_fields[self.state.get_current_color()].count_ones() as usize;
-        let hit = piece & self.blockable_placement_fields[color];
-        let mut copy = self.blockable_placement_fields[color];
-        let mut i = 0;
-        while copy.not_zero() {
-            let to = copy.trailing_zeros();
-            let bit = Bitboard::bit(to);
-            if hit & bit == bit {
-                groups.push(i + a)
-            }
-            copy ^= bit;
-            i += 1;
-        }
-
-        let b =
-            self.blockable_placement_fields[self.state.get_current_color()].count_ones() as usize;
-        let hit = piece & self.leaks[color];
-        let mut copy = self.leaks[color];
-        let mut i = 0;
-        while copy.not_zero() {
-            let to = copy.trailing_zeros();
-            let bit = Bitboard::bit(to);
-            if hit & bit == bit {
-                groups.push(i + a + b)
-            }
-            copy ^= bit;
-            i += 1;
-        }
-        groups
-    }
 }
 
-/*
 pub struct HeuristicPlayer {
     al: ActionList,
 }
 
 impl Player for HeuristicPlayer {
     fn on_move_request(&mut self, state: &GameState) -> Action {
-        let h = Heuristic::for_state(state);
+        let heuristic = Heuristic::for_state(state);
+        let mut node = Node::empty();
         state.get_possible_actions(&mut self.al);
+        if self.al[0].is_skip() {
+            return self.al[0];
+        }
+        node.children = Vec::with_capacity(self.al.size);
+        heuristic.expand_node(&mut self.al, &mut node);
         let mut best_action = self.al[0];
         let mut best_value = std::f32::NEG_INFINITY;
-        for i in 0..self.al.size {
-            let action = self.al[i];
-            if action.is_skip() {
-                return action;
-            }
-            let heuristic_value = h.evaluate_action(action);
+        for child_node in node.children.iter() {
+            let heuristic_value = child_node.get_value();
             if heuristic_value > best_value {
                 best_value = heuristic_value;
-                best_action = action;
+                best_action = child_node.action;
             }
         }
         //let c = state.get_current_color();
@@ -237,4 +181,4 @@ impl Default for HeuristicPlayer {
             al: ActionList::default(),
         }
     }
-}*/
+}

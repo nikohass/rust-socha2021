@@ -449,7 +449,7 @@ mod test {
     fn test_random_actions() {
         let mut al = ActionList::default();
         let mut rng = SmallRng::from_entropy();
-        for _ in 0..300_000 {
+        for _ in 0..300 {
             let mut state = GameState::random();
             let mut action = Action::SKIP;
             state.get_possible_actions(&mut al);

@@ -3,8 +3,6 @@ use super::heuristics::Heuristic;
 use super::playout::playout;
 use game_sdk::{Action, ActionList, GameState, Player};
 use rand::{rngs::SmallRng, SeedableRng};
-//use std::fs::File;
-//use std::io::prelude::*;
 use std::time::Instant;
 
 const C: f32 = 0.0;
@@ -42,51 +40,6 @@ impl RaveTable {
         entry.0 += value;
         entry.1 += 1.;
     }
-    /*
-    pub fn save(&self, piece_type: PieceType) {
-        let mut data: Vec<u8> = Vec::with_capacity(153832 * 2 * 4);
-        for (q, n) in self.actions.iter() {
-            for byte in n.to_be_bytes().iter() {
-                data.push(*byte)
-            }
-            for byte in q.to_be_bytes().iter() {
-                data.push(*byte)
-            }
-        }
-        {
-            let mut file = File::create(&format!("rave_{}", piece_type.to_short_name())).unwrap();
-            file.write_all(&data).unwrap();
-        }
-    }
-
-    pub fn load(&mut self, piece_type: PieceType) {
-        println!("Loading RAVE table...");
-        let file = File::open(&format!("rave_{}", piece_type.to_short_name()));
-        let mut bytes = Vec::new();
-        match file {
-            Ok(mut file) => file.read_to_end(&mut bytes).unwrap(),
-            Err(error) => {
-                println!("Unable to load file: {}", error);
-                0
-            }
-        };
-        for i in 0..153832 {
-            let index = i * 2 * 4;
-            let q = f32::from_le_bytes([
-                bytes[index],
-                bytes[index + 1],
-                bytes[index + 2],
-                bytes[index + 3],
-            ]);
-            let n = f32::from_le_bytes([
-                bytes[index + 4],
-                bytes[index + 5],
-                bytes[index + 6],
-                bytes[index + 7],
-            ]);
-            self.actions[i] = (q, n);
-        }
-    }*/
 }
 
 impl Default for RaveTable {
@@ -273,17 +226,6 @@ impl Node {
             self.best_child().action
         }
     }
-    /*
-    pub fn count_children(&self) -> usize {
-        let mut children = 0;
-        for child in self.children.iter() {
-            if !child.children.is_empty() {
-                children += 1;
-                children += child.count_children();
-            }
-        }
-        children
-    }*/
 }
 
 pub struct Mcts {
@@ -296,10 +238,12 @@ pub struct Mcts {
 
 impl Mcts {
     pub fn set_iteration_limit(&mut self, iteration_limit: Option<usize>) {
+        self.time_limit = None;
         self.iteration_limit = iteration_limit;
     }
 
     pub fn set_time_limit(&mut self, time_limit: Option<i64>) {
+        self.iteration_limit = None;
         self.time_limit = time_limit;
     }
 
@@ -361,6 +305,7 @@ impl Mcts {
 
     pub fn search_action(&mut self, state: &GameState) -> Action {
         println!("Searching action using MCTS. Fen: {}", state.to_fen());
+        println!("    Left Depth Iterations Value PV");
         let start_time = Instant::now();
         self.set_root(&state);
         let mut rng = SmallRng::from_entropy();
@@ -368,11 +313,6 @@ impl Mcts {
         let mut iterations_per_ms = 5.;
         let mut iterations: usize = 0;
 
-        /*if state.ply < 2 {
-            self.rave_table.load(state.start_piece_type);
-        }*/
-
-        println!("    Left Depth Iterations Value PV");
         let search_start_time = Instant::now();
         loop {
             pv.clear();
@@ -430,14 +370,8 @@ impl Mcts {
             iterations_per_ms * 1000.,
             pv,
         );
-        //self.tree_statistics();
         self.root_node.best_action()
     }
-
-    /*pub fn tree_statistics(&self) {
-        let nodes = self.root_node.count_children();
-        println!("{}", nodes);
-    }*/
 }
 
 impl Player for Mcts {

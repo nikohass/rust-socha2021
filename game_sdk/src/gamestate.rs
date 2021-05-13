@@ -235,7 +235,7 @@ impl GameState {
 
     #[inline(always)]
     pub fn is_game_over(&self) -> bool {
-        self.skipped & 0b1111 == 0b1111 || self.ply > 100 // the game is over when all colors skipped or after round 25 / ply 100
+        self.skipped & 0b1111 == 0b1111 || self.ply > 100
     }
 
     pub fn game_result(&self) -> i16 {

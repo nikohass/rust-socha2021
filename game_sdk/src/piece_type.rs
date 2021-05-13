@@ -33,8 +33,17 @@ impl PieceType {
         START_PIECE_TYPES[rng.next_u64() as usize % 11]
     }
 
+    #[inline(always)]
     pub fn from_shape(shape: usize) -> Self {
         FROM_SHAPE[shape]
+    }
+
+    pub fn to_xml_name(&self) -> String {
+        NAMES[*self as usize].1.to_string()
+    }
+
+    pub fn to_short_name(&self) -> String {
+        NAMES[*self as usize].2.to_string()
     }
 
     pub fn piece_size(&self) -> u8 {
@@ -50,14 +59,6 @@ impl PieceType {
             PieceType::ZTetromino => 4,
             _ => 5,
         }
-    }
-
-    pub fn to_xml_name(&self) -> String {
-        NAMES[*self as usize].1.to_string()
-    }
-
-    pub fn to_short_name(&self) -> String {
-        NAMES[*self as usize].2.to_string()
     }
 }
 

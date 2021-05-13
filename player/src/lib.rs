@@ -2,7 +2,6 @@ pub mod cache;
 pub mod evaluation;
 pub mod heuristics;
 pub mod mcts;
-pub mod mcts2;
 pub mod neural_network;
 pub mod playout;
 pub mod search;
