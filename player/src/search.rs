@@ -118,6 +118,10 @@ impl Player for Searcher {
     fn on_reset(&mut self) {
         self.reset();
     }
+
+    fn set_time_limit(&mut self, time: u128) {
+        self.time_limit = time;
+    }
 }
 
 pub fn principal_variation_search(

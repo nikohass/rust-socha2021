@@ -364,7 +364,7 @@ pub struct BoardRotation {
 
 impl BoardRotation {
     pub fn rotate_state(state: &mut GameState) -> BoardRotation {
-        let board = state.board[state.get_current_color() as usize];
+        let board = state.board[state.get_current_color()];
         let top_left_corner = if board.check_bit(0) {
             0
         } else if board.check_bit(19) {
@@ -401,9 +401,11 @@ impl BoardRotation {
 
     pub fn rotate_action(&self, action: Action) -> Action {
         if action.is_set() {
-            let to = action.get_destination();
+            let destination = action.get_destination();
             let shape = action.get_shape() as usize;
-            Action::from_bitboard(self.rotate_bitboard_back(Bitboard::with_piece(to, shape)))
+            Action::from_bitboard(
+                self.rotate_bitboard_back(Bitboard::with_piece(destination, shape)),
+            )
         } else {
             action
         }

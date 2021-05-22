@@ -132,7 +132,7 @@ def main():
     if two.find(".exe") == -1:
         two = "target/release/client.exe"
     t = 1600
-    threads = 3
+    threads = 10
     if len(sys.argv) > 3:
         t = int(sys.argv[3].strip())
     if len(sys.argv) > 4:

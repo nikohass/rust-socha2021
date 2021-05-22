@@ -28,20 +28,18 @@ fn perft(state: &mut GameState, depth: usize, als: &mut ActionListStack) -> u64 
 }
 
 fn run_perft() {
-    let current_best: f64 = 21_781.25;
+    let current_best: f64 = 21_839.25;
     let depth = 3;
     let start_time = Instant::now();
     let mut als = ActionListStack::with_size(depth + 1);
     let mut nodes: u64 = 0;
-
     for fen in TEST_FENS.iter() {
         let mut state = GameState::from_fen((*fen).to_string());
         nodes += perft(&mut state, depth, &mut als);
     }
-
     let time_elapsed = start_time.elapsed().as_micros();
-    let nps = (nodes * 1_000) as f64 / time_elapsed as f64;
-    println!("{:.2} Nodes/ms ({:.2}%)", nps, nps / current_best * 100.);
+    let npms = (nodes * 1_000) as f64 / time_elapsed as f64;
+    println!("{:.2} Nodes/ms ({:.2}%)", npms, npms / current_best * 100.);
 }
 
 fn playout_perft() {
@@ -66,7 +64,7 @@ fn playout_perft() {
         "{:.3} playouts/ms, {:.3} actions/ms ({:.2}%)",
         playouts as f64 / elapsed,
         sum_actions as f64 / elapsed,
-        playouts as f64 / elapsed / 115.075 * 100.
+        playouts as f64 / elapsed / 85.361 * 100.
     );
 }
 
@@ -91,7 +89,7 @@ fn neural_network_perft() {
     println!(
         "{:.5} feed forwards/s ({:.2}%)",
         per_second,
-        per_second / 6.70391 * 100.
+        per_second / 9.08540 * 100.
     )
 }
 

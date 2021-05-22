@@ -16,7 +16,7 @@ fn main() {
         parser.parse_args_or_exit();
     }
     let mut mcts = Mcts::default();
-    mcts.set_iteration_limit(Some(iterations));
+    mcts.set_iteration_limit(iterations);
     let state = GameState::from_fen(fen);
     println!("{}", state);
     let action = mcts.search_action(&state);

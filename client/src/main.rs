@@ -2,10 +2,12 @@ use argparse::{ArgumentParser, Store};
 mod test_client;
 mod xml_client;
 mod xml_node;
-//use player::simple_client::SimpleClient as Player;
-use player::mcts::Mcts as Player;
-//use player::neural_network::NeuralNetwork as Player;
-//use player::search::Searcher as Player;
+use game_sdk::Player;
+//use player::simple_client::SimpleClient as Searcher;
+use player::mcts::Mcts as Searcher;
+//use player::heuristics::HeuristicPlayer as Searcher;
+//use player::neural_network::NeuralNetwork as Searcher;
+//use player::search::Searcher;
 use test_client::run_test_client;
 use xml_client::XmlClient;
 
@@ -13,7 +15,7 @@ fn main() {
     let mut host = "localhost".to_string();
     let mut port = "13050".to_string();
     let mut reservation = "".to_string();
-    let mut time: i64 = 1960;
+    let mut time: u128 = 1960;
     let mut test = false;
 
     {
@@ -43,10 +45,8 @@ fn main() {
         host, port, reservation, time, test
     );
 
-    //let player = Box::new(Player::new("weights").unwrap());
-
-    let mut player = Box::new(Player::default());
-    player.set_time_limit(Some(time));
+    let mut player = Box::new(Searcher::default());
+    player.set_time_limit(time);
 
     if test {
         run_test_client(player);

@@ -1,5 +1,5 @@
 use super::float_stuff::{ln, sqrt};
-use super::heuristics::Heuristic;
+use super::heuristics;
 use super::playout::playout;
 use game_sdk::{Action, ActionList, GameState, Player};
 use rand::{rngs::SmallRng, SeedableRng};
@@ -25,7 +25,7 @@ impl RaveTable {
         } else {
             153828 + color
         };
-        *self.actions.get(index).unwrap()
+        self.actions[index]
     }
 
     pub fn add_value(&mut self, action: Action, color: usize, value: f32) {
@@ -134,8 +134,7 @@ impl Node {
         state.get_possible_actions(al);
         self.children = Vec::with_capacity(al.size);
         if state.ply < 32 && !al[0].is_skip() {
-            let heuristic = Heuristic::for_state(state);
-            heuristic.expand_node(al, self);
+            heuristics::expand_node(self, state, al, &heuristics::DEFAULT_HEURISTIC_PARAMETERS);
         } else {
             for i in 0..al.size {
                 self.children.push(Node {
@@ -184,7 +183,7 @@ impl Node {
             return 1. - delta;
         }
         let next_child =
-            self.child_with_max_uct_value(state.get_current_color() as usize, &rave_table, is_root);
+            self.child_with_max_uct_value(state.get_current_color(), &rave_table, is_root);
         state.do_action(next_child.action);
         delta = next_child.iteration(al, state, rng, rave_table, false);
         self.backpropagate(delta);
@@ -237,14 +236,9 @@ pub struct Mcts {
 }
 
 impl Mcts {
-    pub fn set_iteration_limit(&mut self, iteration_limit: Option<usize>) {
+    pub fn set_iteration_limit(&mut self, iteration_limit: usize) {
         self.time_limit = None;
-        self.iteration_limit = iteration_limit;
-    }
-
-    pub fn set_time_limit(&mut self, time_limit: Option<i64>) {
-        self.iteration_limit = None;
-        self.time_limit = time_limit;
+        self.iteration_limit = Some(iteration_limit);
     }
 
     pub fn get_action_value_pairs(&self) -> Vec<(Action, f32)> {
@@ -265,9 +259,9 @@ impl Mcts {
 
     fn set_root(&mut self, state: &GameState) {
         loop {
-            let last_board = self.root_state.board[self.root_state.get_current_color() as usize];
-            let changed_fields =
-                state.board[self.root_state.get_current_color() as usize] & !last_board;
+            let color = self.root_state.get_current_color();
+            let last_board = self.root_state.board[color];
+            let changed_fields = state.board[color] & !last_board;
             let action = Action::from_bitboard(changed_fields);
             let mut found = false;
             for (i, child) in self.root_node.children.iter().enumerate() {
@@ -282,7 +276,6 @@ impl Mcts {
                 break;
             }
             if !found {
-                self.root_state = state.clone();
                 self.root_node = Node::empty();
                 break;
             }
@@ -382,6 +375,11 @@ impl Player for Mcts {
     fn on_reset(&mut self) {
         self.root_node = Node::empty();
         self.rave_table = RaveTable::default();
+    }
+
+    fn set_time_limit(&mut self, time_limit: u128) {
+        self.iteration_limit = None;
+        self.time_limit = Some(time_limit as i64);
     }
 }
 

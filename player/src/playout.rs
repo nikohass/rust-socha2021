@@ -15,7 +15,7 @@ pub fn playout(state: &mut GameState, rng: &mut SmallRng, rave_table: &mut RaveT
             _ => 0.5,
         }
     } else {
-        let color = state.get_current_color() as usize;
+        let color = state.get_current_color();
         let action = random_action(&state, rng, state.ply < 12);
         state.do_action(action);
         let result = playout(state, rng, rave_table);
@@ -25,7 +25,7 @@ pub fn playout(state: &mut GameState, rng: &mut SmallRng, rave_table: &mut RaveT
 }
 
 pub fn random_action(state: &GameState, rng: &mut SmallRng, pentomino_only: bool) -> Action {
-    let color = state.get_current_color() as usize;
+    let color = state.get_current_color();
     if state.has_color_skipped(color) {
         return Action::SKIP;
     }
@@ -48,10 +48,10 @@ pub fn random_action(state: &GameState, rng: &mut SmallRng, pentomino_only: bool
         };
         if state.ply < 4 {
             while PieceType::from_shape(shape as usize) != state.start_piece_type {
-                shape = PENTOMINO_SHAPES[(rng.next_u64() % 63) as usize]
+                shape = PENTOMINO_SHAPES[(rng.next_u32() % 63) as usize]
             }
         }
-        if !state.pieces_left[PieceType::from_shape(shape as usize) as usize][color] {
+        if !state.pieces_left[PieceType::from_shape(shape) as usize][color] {
             continue;
         }
         let mut destinations = SHAPE_FUNCTIONS[shape](legal_fields, p);

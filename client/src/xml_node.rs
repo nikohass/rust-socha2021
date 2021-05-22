@@ -138,8 +138,6 @@ impl XmlNode {
                 .expect("Error while reading y")
                 .parse::<u16>()
                 .expect("Error while parsing y");
-            let to = x + y * 21;
-
             let board_index = match field
                 .get_attribute("content")
                 .expect("Error while reading field content")
@@ -150,13 +148,13 @@ impl XmlNode {
                 "RED" => 2,
                 _ => 3,
             };
-            new_board[board_index].flip_bit(to);
+            new_board[board_index].flip_bit(x + y * 21);
         }
 
         // find the actions that lead to the new state and update the GameState
         loop {
-            let last_board = state.board[state.get_current_color() as usize];
-            let changed_fields = new_board[state.get_current_color() as usize] & !last_board;
+            let last_board = state.board[state.get_current_color()];
+            let changed_fields = new_board[state.get_current_color()] & !last_board;
             let action = Action::from_bitboard(changed_fields);
             println!(
                 "{}: {}",
