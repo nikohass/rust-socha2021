@@ -110,6 +110,12 @@ impl Searcher {
     }
 }
 
+impl Default for Searcher {
+    fn default() -> Self {
+        Self::new(1960)
+    }
+}
+
 impl Player for Searcher {
     fn on_move_request(&mut self, state: &GameState) -> Action {
         self.search_action(state)

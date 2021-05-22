@@ -1,4 +1,4 @@
-use super::mcts::Node;
+use super::node::Node;
 use game_sdk::{Action, ActionList, Bitboard, GameState, PieceType, Player};
 use game_sdk::{START_FIELDS, VALID_FIELDS};
 

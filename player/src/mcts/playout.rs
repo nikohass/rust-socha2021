@@ -1,4 +1,4 @@
-use super::mcts::RaveTable;
+use super::rave::RaveTable;
 use game_sdk::{Action, Bitboard, GameState, PieceType};
 use game_sdk::{PENTOMINO_SHAPES, START_FIELDS, VALID_FIELDS};
 use rand::{rngs::SmallRng, RngCore};

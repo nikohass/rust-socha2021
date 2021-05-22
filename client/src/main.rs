@@ -3,11 +3,13 @@ mod test_client;
 mod xml_client;
 mod xml_node;
 use game_sdk::Player;
-//use player::simple_client::SimpleClient as Searcher;
-use player::mcts::Mcts as Searcher;
-//use player::heuristics::HeuristicPlayer as Searcher;
-//use player::neural_network::NeuralNetwork as Searcher;
-//use player::search::Searcher;
+
+//use player::simple_client::SimpleClient as Algorithm;
+use player::mcts::search::Mcts as Algorithm;
+//use player::mcts::heuristics::HeuristicPlayer as Algorithm;
+//use player::neural_network::cnn::NeuralNetwork as Algorithm;
+//use player::minimax::search::Searcher as Algorithm;
+
 use test_client::run_test_client;
 use xml_client::XmlClient;
 
@@ -45,7 +47,7 @@ fn main() {
         host, port, reservation, time, test
     );
 
-    let mut player = Box::new(Searcher::default());
+    let mut player = Box::new(Algorithm::default());
     player.set_time_limit(time);
 
     if test {

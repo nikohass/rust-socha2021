@@ -1,8 +1,10 @@
 use game_sdk::{ActionList, ActionListStack, GameState};
-use player::float_stuff::{relu, sigmoid};
-use player::mcts::RaveTable;
-use player::neural_network::{state_to_vector, ConvolutionalLayer, DenseLayer, NeuralNetwork};
-use player::playout::playout;
+use player::mcts::float_stuff::{relu, sigmoid};
+use player::mcts::playout::playout;
+use player::mcts::rave::RaveTable;
+use player::neural_network::cnn::*;
+use player::neural_network::convolutional_layer::ConvolutionalLayer;
+use player::neural_network::dense_layer::DenseLayer;
 use rand::{rngs::SmallRng, SeedableRng};
 use std::time::Instant;
 
@@ -72,7 +74,7 @@ fn neural_network_perft() {
     let mut al = ActionList::default();
     let state = GameState::from_fen(TEST_FENS[0].to_string());
     let input_vector = state_to_vector(&state, &mut al);
-    let mut neural_network = NeuralNetwork::default();
+    let mut neural_network = NeuralNetwork::empty();
     neural_network.add_convolutional_layer(ConvolutionalLayer::with_shape(7, 5, 128));
     neural_network.add_convolutional_layer(ConvolutionalLayer::with_shape(5, 128, 32));
     neural_network.add_convolutional_layer(ConvolutionalLayer::with_shape(3, 32, 32));

@@ -99,7 +99,6 @@ class ThreadManager:
         for t in self.threads:
             if t.stop:
                 self.stop()
-                print("A thread stopped")
 
     def stop(self):
         for thread in self.threads:

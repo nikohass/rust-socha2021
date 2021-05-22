@@ -1,10 +1,6 @@
-pub mod cache;
-pub mod evaluation;
-pub mod heuristics;
 pub mod mcts;
+pub mod minimax;
 pub mod neural_network;
-pub mod playout;
-pub mod search;
 
 pub mod simple_client {
     use game_sdk::Player;

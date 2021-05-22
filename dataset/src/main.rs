@@ -1,6 +1,6 @@
 use argparse::{ArgumentParser, Store};
 use game_sdk::GameState;
-use player::mcts::Mcts;
+use player::mcts::search::Mcts;
 
 fn main() {
     let mut fen = "".to_string();

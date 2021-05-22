@@ -1,6 +1,6 @@
-use game_sdk::*;
-use player::heuristics::*;
-use player::mcts::*;
+use game_sdk::{Action, ActionList, GameState};
+use player::mcts::heuristics::*;
+use player::mcts::node::Node;
 use std::thread;
 
 const THREADS: usize = 10;
