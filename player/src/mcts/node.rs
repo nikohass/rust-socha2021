@@ -1,6 +1,6 @@
 use super::float_stuff::{ln, sqrt};
 use super::heuristics;
-use super::playout::playout;
+use super::playout::{playout, result_to_value};
 use super::rave::RaveTable;
 use game_sdk::{Action, ActionList, GameState};
 use rand::rngs::SmallRng;
@@ -8,7 +8,6 @@ use rand::rngs::SmallRng;
 const C: f32 = 0.0;
 const C_BASE: f32 = 220.0;
 const C_FACTOR: f32 = std::f32::consts::SQRT_2;
-const VISITS_BEFORE_EXPANSION: usize = 40;
 const B_SQUARED: f32 = 0.8;
 const FPU_R: f32 = 0.1;
 
@@ -121,7 +120,9 @@ impl Node {
         let delta;
         if self.children.is_empty() {
             if !state.is_game_over() {
-                if self.n as usize % VISITS_BEFORE_EXPANSION == 1 {
+                #[allow(clippy::float_cmp)]
+                // There are no precision errors
+                if self.n == 1. {
                     self.expand(state, al);
                 }
                 let result = playout(&mut state.clone(), rng, rave_table);
@@ -131,14 +132,10 @@ impl Node {
                     result
                 };
             } else if self.n == 0. {
-                let result = state.game_result();
-                self.q = match result * state.get_team() {
-                    r if r > 0 => 0.999 + (result.abs() as f32) / 100_000.,
-                    r if r < 0 => 0.001 - (result.abs() as f32) / 100_000.,
-                    _ => 0.5,
-                };
+                let result = state.game_result() * state.get_team();
+                self.q = result_to_value(result);
                 self.n = 1.;
-                delta = self.q / self.n;
+                delta = self.q;
             } else {
                 delta = self.q / self.n;
             }

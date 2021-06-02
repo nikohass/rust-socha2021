@@ -20,10 +20,14 @@ fn main() {
     let state = GameState::from_fen(fen);
     println!("{}", state);
     let action = mcts.search_action(&state);
+    let mut string = "".to_string();
+    for pair in mcts.get_action_value_pairs().iter() {
+        string.push_str(&format!("{} {} ", pair.0.serialize(), pair.1));
+    }
     println!(
-        "result: {} {:?} {}",
+        "result: {} {}{}",
         action.serialize(),
-        mcts.get_action_value_pairs(),
+        string,
         mcts.get_value()
     );
 }

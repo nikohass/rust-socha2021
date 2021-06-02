@@ -6,14 +6,19 @@ use rand::{rngs::SmallRng, RngCore};
 type ShapeFunction = fn(Bitboard, Bitboard) -> Bitboard;
 const MOVEGEN_RETRIES: usize = 40;
 
+pub fn result_to_value(result: i16) -> f32 {
+    let abs = result.abs() as f32 / 100_000.;
+    match result {
+        r if r > 0 => 0.999 + abs,
+        r if r < 0 => 0.001 - abs,
+        _ => 0.5,
+    }
+}
+
 pub fn playout(state: &mut GameState, rng: &mut SmallRng, rave_table: &mut RaveTable) -> f32 {
     if state.is_game_over() {
         let result = state.game_result();
-        match result {
-            r if r > 0 => 0.999 + (result.abs() as f32) / 100_000.,
-            r if r < 0 => 0.001 - (result.abs() as f32) / 100_000.,
-            _ => 0.5,
-        }
+        result_to_value(result)
     } else {
         let color = state.get_current_color();
         let action = random_action(&state, rng, state.ply < 12);

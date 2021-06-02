@@ -19,7 +19,7 @@ impl Mcts {
     }
 
     pub fn get_action_value_pairs(&self) -> Vec<(Action, f32)> {
-        let mut ret: Vec<(Action, f32)> = Vec::with_capacity(1300);
+        let mut ret: Vec<(Action, f32)> = Vec::with_capacity(self.root_node.children.len());
         for child in self.root_node.children.iter() {
             ret.push((child.action, child.get_value()));
         }
