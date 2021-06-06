@@ -58,6 +58,7 @@ impl NeuralNetwork {
             dense_layers: Vec::new(),
         }
     }
+
     pub fn new(weights_file: &str) -> Option<Self> {
         let mut nn = Self::empty();
         nn.add_convolutional_layer(ConvolutionalLayer::with_shape(7, 5, 128));

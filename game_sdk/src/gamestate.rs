@@ -10,7 +10,7 @@ pub struct GameState {
     pub pieces_left: [[bool; 4]; 21], // Array that stores which player has which pieces left (indexed by piece_type, color)
     pub monomino_placed_last: [bool; 4], // Saves whether a player's last action was a Monomino (indexed by color)
     pub skipped: u64,                    // Keeps track of which player skipped
-    pub start_piece_type: PieceType, // The start piece type that each player has to place in the first round
+    pub start_piece_type: PieceType, // The piece type that each player has to place in the first round
     pub hash: u64,                   // Hash of the current state. Only used in Minimax
 }
 

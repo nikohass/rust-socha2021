@@ -63,7 +63,7 @@ pub mod float_stuff {
     }
 
     #[inline]
-    fn pow2(p: f32) -> f32 {
+    pub fn pow2(p: f32) -> f32 {
         let offset = if p < 0.0 { 1.0_f32 } else { 0.0_f32 };
         let clipp = if p < -126.0 { -126.0_f32 } else { p };
         let w = clipp as i32;

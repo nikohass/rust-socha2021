@@ -97,7 +97,7 @@ impl Node {
         self.children = Vec::with_capacity(al.size);
         if state.ply < 32 && !al[0].is_skip() {
             // Use heuristics to expand the node
-            heuristics::expand_node(self, state, al, &heuristics::DEFAULT_HEURISTIC_PARAMETERS);
+            heuristics::expand_node(self, state, al);
         } else {
             // Expand the node without heuristics
             for i in 0..al.size {
@@ -169,7 +169,7 @@ impl Node {
         for (i, child) in self.children.iter().enumerate() {
             let mut child_value = child.get_value();
             if value > 0.99 && child.action.is_set() && child.action.get_shape() == 0 {
-                child_value -= 0.05;
+                child_value -= 0.05; // Encourage the player to keep the Monomino if there are other actions with a similar value.
             }
             if child_value > best_value {
                 best_value = child_value;

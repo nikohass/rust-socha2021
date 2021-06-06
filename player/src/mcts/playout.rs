@@ -62,7 +62,7 @@ pub fn random_action(state: &GameState, rng: &mut SmallRng, pentomino_only: bool
             // Generate all possible destination for this shape
             let mut destinations = SHAPE_FUNCTIONS[shape](legal_fields, p);
             if destinations.not_empty() {
-                // Return an Action with one of the possible destinations
+                // Return an action with one of the possible destinations
                 return Action::set(destinations.random_field(rng), shape as u16);
             }
         }

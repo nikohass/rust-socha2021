@@ -1,25 +1,26 @@
+use super::float_stuff::{pow2, sqrt};
 use super::node::Node;
 use game_sdk::{Action, ActionList, Bitboard, GameState, PieceType, Player};
 use game_sdk::{START_FIELDS, VALID_FIELDS};
 
-pub const SEARCH_SEEDING_VISITS: f32 = 18.; // Number of visits that each child node is initialized with
-pub const N_PARAMS: usize = 12;
+pub const SEARCH_SEEDING_VISITS: f32 = 23.; // Number of visits that each child node is initialized with
 // Tuned using python-socha2021/socha2021/tuning.py
-pub const DEFAULT_HEURISTIC_PARAMETERS: [f32; N_PARAMS] = [
-    0.065682136,
-    0.038310498,
-    0.01574417,
-    0.030436145,
-    0.01995041,
-    0.036473826,
-    -0.010762639,
-    0.024047518,
-    0.030282501,
-    0.023115464,
-    0.015850237,
-    0.037867717,
+pub const HEURISTIC_PARAMETERS: [f32; 13] = [
+    0.06641941,
+    0.028256172,
+    0.0095456615,
+    0.030729104,
+    0.02124141,
+    0.04227866,
+    -0.012251605,
+    0.020753082,
+    0.027327692,
+    0.027010422,
+    0.01847905,
+    0.025810398,
+    -0.0024083678,
 ];
-pub const BIAS: f32 = 0.050639074;
+pub const BIAS: f32 = 0.049048785;
 
 fn calculate_placement_fields(state: &GameState, occupied: &Bitboard) -> [Bitboard; 4] {
     // Calculate the corners at which each color can place new pieces
@@ -75,11 +76,25 @@ fn calculate_leaks(
     leaks
 }
 
+fn get_min_distance_to_center(piece: &mut Bitboard) -> f32 {
+    let mut min_distance_to_center = 100.;
+    while piece.not_empty() {
+        let bit = piece.trailing_zeros();
+        piece.flip_bit(bit);
+        let x = bit % 21;
+        let y = (bit - x) / 21;
+        let distance_to_center = sqrt(pow2(9.5 - x as f32) + pow2(9.5 - y as f32));
+        if distance_to_center < min_distance_to_center {
+            min_distance_to_center = distance_to_center;
+        }
+    }
+    min_distance_to_center
+}
+
 pub fn expand_node(
     node: &mut Node,
     state: &GameState,
     al: &mut ActionList, // Assumes that the ActionList already contains all legal actions
-    params: &[f32; N_PARAMS],
 ) {
     let current_color = state.get_current_color();
     let next_opponent_color = (current_color + 1) & 0b11;
@@ -111,28 +126,30 @@ pub fn expand_node(
             // Ignore small pieces in the first two rounds
             continue;
         }
-        let piece = Bitboard::with_piece(destination, shape);
-        let mut heuristic_value = piece_size as f32 * params[0];
+        let mut piece = Bitboard::with_piece(destination, shape);
+        let mut heuristic_value = piece_size as f32 * HEURISTIC_PARAMETERS[0];
         // Evaluate leaks
-        heuristic_value += (piece & leaks[current_color]).count_ones() as f32 * params[1];
+        heuristic_value +=
+            (piece & leaks[current_color]).count_ones() as f32 * HEURISTIC_PARAMETERS[1];
         heuristic_value += (piece
             & leaks[current_color].diagonal_neighbours()
             & !(opponent_reachable_fields | occupied))
             .count_ones() as f32
-            * params[2];
+            * HEURISTIC_PARAMETERS[2];
         heuristic_value += (piece & leaks[next_opponent_color])
             .diagonal_neighbours()
             .count_ones() as f32
-            * params[3];
+            * HEURISTIC_PARAMETERS[3];
         heuristic_value += (piece & leaks[last_opponent_color])
             .diagonal_neighbours()
             .count_ones() as f32
-            * params[4];
+            * HEURISTIC_PARAMETERS[4];
         // Evaluate blocks
-        heuristic_value += (piece & opponent_placement_fields).count_ones() as f32 * params[5];
+        heuristic_value +=
+            (piece & opponent_placement_fields).count_ones() as f32 * HEURISTIC_PARAMETERS[5];
         heuristic_value += (piece & opponent_placement_fields.diagonal_neighbours()).count_ones()
             as f32
-            * params[6];
+            * HEURISTIC_PARAMETERS[6];
         // Calculate all new placement fields the piece would create
         let new_placement_fields = piece.diagonal_neighbours()
             & !(piece | state.board[current_color]).neighbours()
@@ -140,14 +157,17 @@ pub fn expand_node(
         // Evaluate the new placement fields
         heuristic_value += (new_placement_fields & reachable_fields[next_opponent_color])
             .count_ones() as f32
-            * params[7];
+            * HEURISTIC_PARAMETERS[7];
         heuristic_value += (new_placement_fields & reachable_fields[last_opponent_color])
             .count_ones() as f32
-            * params[8];
-        heuristic_value += new_placement_fields.count_ones() as f32 * params[9];
+            * HEURISTIC_PARAMETERS[8];
+        heuristic_value += new_placement_fields.count_ones() as f32 * HEURISTIC_PARAMETERS[9];
         heuristic_value +=
-            (piece & placement_fields[second_color]).count_ones() as f32 * params[10];
-        heuristic_value += (piece & k).count_ones() as f32 * params[11];
+            (piece & placement_fields[second_color]).count_ones() as f32 * HEURISTIC_PARAMETERS[10];
+        heuristic_value += (piece & k).count_ones() as f32 * HEURISTIC_PARAMETERS[11];
+        if state.ply < 8 {
+            heuristic_value += get_min_distance_to_center(&mut piece) * HEURISTIC_PARAMETERS[12];
+        }
         node.children.push(Node {
             children: Vec::new(),
             action,
@@ -169,12 +189,7 @@ impl Player for HeuristicPlayer {
             return Action::SKIP;
         }
         node.children = Vec::with_capacity(self.al.size);
-        expand_node(
-            &mut node,
-            state,
-            &mut self.al,
-            &DEFAULT_HEURISTIC_PARAMETERS,
-        );
+        expand_node(&mut node, state, &mut self.al);
         let mut best_action = self.al[0];
         let mut best_value = std::f32::NEG_INFINITY;
         for child_node in node.children.iter() {
