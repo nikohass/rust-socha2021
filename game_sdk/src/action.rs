@@ -1,5 +1,10 @@
-use super::{Bitboard, PieceType, PIECE_ORIENTATIONS};
+use super::{Bitboard, PieceType};
 use std::fmt::{Display, Formatter, Result};
+
+// There are two types of actions: Set and Skip.
+// Set actions contain information about the destination and shape of the piece.
+// The action doesn't store the color of the piece because can be derived from the ply.
+// The destination refers to the top left corner of the piece.
 
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub struct Action(u16);
@@ -41,13 +46,15 @@ impl Action {
     }
 
     pub fn from_bitboard(board: Bitboard) -> Self {
-        if board.is_zero() {
+        // The bitboard has to contain exactly one piece. Otherwise this function will return SKIP
+        if board.is_empty() {
             return Self::SKIP;
         }
         let mut board_copy = board;
+        // Find the top left corner of the piece
         let mut left = 21;
         let mut top = 21;
-        while board_copy.not_zero() {
+        while board_copy.not_empty() {
             let field_index = board_copy.trailing_zeros();
             board_copy.flip_bit(field_index);
             let x = field_index % 21;
@@ -60,6 +67,7 @@ impl Action {
             }
         }
         let destination = left + top * 21;
+        // Determine the shape of the piece
         for shape in 0..91 {
             if Bitboard::with_piece(destination, shape) == board {
                 return Self::set(destination, shape as u16);
@@ -156,3 +164,99 @@ impl Display for Action {
         )
     }
 }
+
+// This array maps every shape to the orientation that is used by the Software-Challenge Server
+// rotation, flipped
+const PIECE_ORIENTATIONS: [(u8, bool); 91] = [
+    (0, false),
+    (0, false),
+    (1, false),
+    (1, false),
+    (0, false),
+    (1, false),
+    (0, false),
+    (1, false),
+    (0, false),
+    (0, false), // O-Tetromino
+    (0, false), // X-Pentomino
+    (0, false), // L-Tromino
+    (1, false),
+    (2, false),
+    (3, false),
+    (2, true), // L-Tetromino
+    (2, false),
+    (0, true),
+    (0, false),
+    (3, true),
+    (1, false),
+    (1, true),
+    (3, false),
+    (1, true), // L-Pentomino
+    (1, false),
+    (3, true),
+    (3, false),
+    (2, true),
+    (0, false),
+    (2, false),
+    (0, true),
+    (0, false), // T-Pentomino
+    (2, false),
+    (3, false),
+    (1, false),
+    (0, false), // T-Tetromino
+    (2, false),
+    (3, false),
+    (1, false),
+    (0, true), // Z-Tetromino
+    (0, false),
+    (3, false),
+    (1, true),
+    (3, true), // Z-Pentomino
+    (3, false),
+    (0, true),
+    (0, false),
+    (2, false), // U-Pentomino
+    (0, false),
+    (1, false),
+    (3, false),
+    (1, true), // F-Pentomino
+    (1, false),
+    (3, true),
+    (3, false),
+    (0, false),
+    (0, true),
+    (2, true),
+    (2, false),
+    (0, false), // W-Pentomino
+    (3, false),
+    (2, false),
+    (1, false),
+    (3, true), // N-Pentomino
+    (3, false),
+    (1, true),
+    (1, false),
+    (2, false),
+    (0, true),
+    (2, true),
+    (0, false),
+    (1, false), // V-Pentomino
+    (3, false),
+    (2, false),
+    (0, false),
+    (0, false), // P-Pentomino
+    (0, true),
+    (3, false),
+    (1, true),
+    (1, false),
+    (3, true),
+    (2, false),
+    (2, true),
+    (0, true), // Y-Pentomino
+    (2, false),
+    (2, true),
+    (0, false),
+    (3, true),
+    (3, false),
+    (1, false),
+    (1, true),
+];

@@ -93,7 +93,7 @@ impl XmlNode {
             .expect("Error while parsing turn");
 
         if new_ply == 0 {
-            // update start piece type
+            // update start_piece_type
             state.start_piece_type = match self
                 .get_attribute("startPiece")
                 .expect("Error while reading start piece")

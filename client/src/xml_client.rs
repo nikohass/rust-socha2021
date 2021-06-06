@@ -136,7 +136,7 @@ impl XmlClient {
         for color in 0..4 {
             let fields = self.state.board[color].count_ones() as i16;
             let all_placed = fields == 89;
-            let m_last = self.state.monomino_placed_last & 0b1 << color != 0;
+            let m_last = self.state.monomino_placed_last[color];
             let mut score = fields;
             if all_placed {
                 score += 15;

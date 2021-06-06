@@ -1,15 +1,13 @@
 pub mod action;
 pub mod actionlist;
 pub mod bitboard;
-pub mod constants;
 pub mod gamestate;
 pub mod hashing;
 pub mod piece_type;
 
 pub use action::Action;
 pub use actionlist::{ActionList, ActionListStack};
-pub use bitboard::Bitboard;
-pub use constants::*;
+pub use bitboard::{Bitboard, START_FIELDS, VALID_FIELDS};
 pub use gamestate::GameState;
 pub use piece_type::{PieceType, PIECE_TYPES, START_PIECE_TYPES};
 

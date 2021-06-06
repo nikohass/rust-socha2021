@@ -2,22 +2,24 @@ use super::node::Node;
 use game_sdk::{Action, ActionList, Bitboard, GameState, PieceType, Player};
 use game_sdk::{START_FIELDS, VALID_FIELDS};
 
-pub const SEARCH_SEEDING_VISITS: f32 = 18.;
-pub const N_PARAMS: usize = 11;
+pub const SEARCH_SEEDING_VISITS: f32 = 18.; // Number of visits that each child node is initialized with
+pub const N_PARAMS: usize = 12;
+// Tuned using python-socha2021/socha2021/tuning.py
 pub const DEFAULT_HEURISTIC_PARAMETERS: [f32; N_PARAMS] = [
-    0.06481217,
-    0.03788412,
-    0.0128481835,
-    0.034261946,
-    0.014906124,
-    0.03253359,
-    0.02333225,
-    0.027018376,
-    0.026275534,
-    0.01905919,
-    0.027598862,
+    0.065682136,
+    0.038310498,
+    0.01574417,
+    0.030436145,
+    0.01995041,
+    0.036473826,
+    -0.010762639,
+    0.024047518,
+    0.030282501,
+    0.023115464,
+    0.015850237,
+    0.037867717,
 ];
-pub const BIAS: f32 = 0.052122455;
+pub const BIAS: f32 = 0.050639074;
 
 fn calculate_placement_fields(state: &GameState, occupied: &Bitboard) -> [Bitboard; 4] {
     // Calculate the corners at which each color can place new pieces
@@ -76,15 +78,15 @@ fn calculate_leaks(
 pub fn expand_node(
     node: &mut Node,
     state: &GameState,
-    al: &mut ActionList,
+    al: &mut ActionList, // Assumes that the ActionList already contains all legal actions
     params: &[f32; N_PARAMS],
 ) {
     let current_color = state.get_current_color();
     let next_opponent_color = (current_color + 1) & 0b11;
     let second_color = (current_color + 2) & 0b11;
     let last_opponent_color = (current_color + 3) & 0b11;
-    let occupied = state.get_occupied_fields();
 
+    let occupied = state.get_occupied_fields();
     let placement_fields = calculate_placement_fields(state, &occupied);
     let reachable_fields = estimate_reachable_fields(state, &placement_fields, &occupied);
     let leaks = calculate_leaks(state, &placement_fields, &reachable_fields, &occupied);
@@ -94,7 +96,7 @@ pub fn expand_node(
     // All fields that the opponent can reach in the next round
     let opponent_reachable_fields =
         reachable_fields[next_opponent_color] | reachable_fields[last_opponent_color];
-
+    // No idea what this does, but it makes the client play better
     let k = reachable_fields[current_color]
         & (occupied & !state.board[current_color]).neighbours()
         & !(occupied & !state.board[current_color]).diagonal_neighbours();
@@ -128,6 +130,9 @@ pub fn expand_node(
             * params[4];
         // Evaluate blocks
         heuristic_value += (piece & opponent_placement_fields).count_ones() as f32 * params[5];
+        heuristic_value += (piece & opponent_placement_fields.diagonal_neighbours()).count_ones()
+            as f32
+            * params[6];
         // Calculate all new placement fields the piece would create
         let new_placement_fields = piece.diagonal_neighbours()
             & !(piece | state.board[current_color]).neighbours()
@@ -135,13 +140,14 @@ pub fn expand_node(
         // Evaluate the new placement fields
         heuristic_value += (new_placement_fields & reachable_fields[next_opponent_color])
             .count_ones() as f32
-            * params[6];
+            * params[7];
         heuristic_value += (new_placement_fields & reachable_fields[last_opponent_color])
             .count_ones() as f32
-            * params[7];
-        heuristic_value += new_placement_fields.count_ones() as f32 * params[8];
-        heuristic_value += (piece & placement_fields[second_color]).count_ones() as f32 * params[9];
-        heuristic_value += (piece & k).count_ones() as f32 * params[10];
+            * params[8];
+        heuristic_value += new_placement_fields.count_ones() as f32 * params[9];
+        heuristic_value +=
+            (piece & placement_fields[second_color]).count_ones() as f32 * params[10];
+        heuristic_value += (piece & k).count_ones() as f32 * params[11];
         node.children.push(Node {
             children: Vec::new(),
             action,

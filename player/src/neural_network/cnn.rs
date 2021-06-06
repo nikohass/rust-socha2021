@@ -20,7 +20,7 @@ pub fn state_to_vector(state: &GameState, al: &mut ActionList) -> Vec<Vec<Vec<f3
         let piece = Bitboard::with_piece(destination, shape);
         reachable_fields |= piece;
     }
-    while reachable_fields.not_zero() {
+    while reachable_fields.not_empty() {
         let field_index = reachable_fields.trailing_zeros();
         reachable_fields.flip_bit(field_index);
         let x = field_index % 21;
@@ -30,7 +30,7 @@ pub fn state_to_vector(state: &GameState, al: &mut ActionList) -> Vec<Vec<Vec<f3
     let mut current_ply = state.ply as usize;
     for i in 0..4 {
         let mut board = state.board[i];
-        while board.not_zero() {
+        while board.not_empty() {
             let field_index = board.trailing_zeros();
             board.flip_bit(field_index);
             let x = field_index % 21;
@@ -167,7 +167,7 @@ impl Player for NeuralNetwork {
             let shape = action.get_shape() as usize;
             let mut piece = Bitboard::with_piece(destination, shape);
             piece = r.rotate_bitboard(piece);
-            while piece.not_zero() {
+            while piece.not_empty() {
                 let field_index = piece.trailing_zeros();
                 piece.flip_bit(field_index);
                 let x = field_index % 21;

@@ -1,4 +1,4 @@
-use game_sdk::{Action, ActionList, GameState};
+/*use game_sdk::{Action, ActionList, GameState};
 use player::mcts::heuristics::*;
 use player::mcts::node::Node;
 use std::thread;
@@ -109,11 +109,12 @@ fn tune(params: [f32; N_PARAMS], mut delta: f32, games: usize) {
             }
         }
     }
-}
+}*/
 
 fn main() {
-    let initial_guess = [
+    /*let initial_guess = [
         0.35, 1.375, 2.375, 4.15, 2.15, 2.225, 1.325, 1.425, 1.425, 2.025, 2.20,
     ]; //[1.; N_PARAMS];
     tune(initial_guess, 0.1, 10_000);
+    */
 }

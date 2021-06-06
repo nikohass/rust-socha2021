@@ -68,7 +68,7 @@ impl Display for PieceType {
     }
 }
 
-// full name, xml name, short name
+// Full name, XML name, short name
 pub const NAMES: [(&str, &str, &str); 21] = [
     ("Monomino", "MONO", "M"),
     ("Domino", "DOMINO", "D"),
@@ -93,6 +93,7 @@ pub const NAMES: [(&str, &str, &str); 21] = [
     ("Z-Pentomino", "PENTO_Z", "Z5"),
 ];
 
+// Maps each shape to its piece type
 pub const FROM_SHAPE: [PieceType; 91] = [
     PieceType::Monomino,
     PieceType::Domino,
@@ -187,6 +188,7 @@ pub const FROM_SHAPE: [PieceType; 91] = [
     PieceType::YPentomino,
 ];
 
+// All piece types
 pub const PIECE_TYPES: [PieceType; 21] = [
     PieceType::Monomino,
     PieceType::Domino,
@@ -211,6 +213,7 @@ pub const PIECE_TYPES: [PieceType; 21] = [
     PieceType::ZPentomino,
 ];
 
+// All possible start piece types (All pentominoes except the X-Pentomino)
 pub const START_PIECE_TYPES: [PieceType; 11] = [
     PieceType::FPentomino,
     PieceType::IPentomino,

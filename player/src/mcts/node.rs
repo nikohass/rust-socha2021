@@ -12,10 +12,10 @@ const B_SQUARED: f32 = 0.8;
 const FPU_R: f32 = 0.1;
 
 pub struct Node {
-    pub children: Vec<Node>,
-    pub action: Action,
-    pub n: f32,
-    pub q: f32,
+    pub children: Vec<Node>, // Vector that contains all child nodes
+    pub action: Action,      // Action that leads to this node
+    pub n: f32,              // Visits
+    pub q: f32,              // Sum of all evaluations
 }
 
 impl Node {
@@ -96,8 +96,10 @@ impl Node {
         state.get_possible_actions(al);
         self.children = Vec::with_capacity(al.size);
         if state.ply < 32 && !al[0].is_skip() {
+            // Use heuristics to expand the node
             heuristics::expand_node(self, state, al, &heuristics::DEFAULT_HEURISTIC_PARAMETERS);
         } else {
+            // Expand the node without heuristics
             for i in 0..al.size {
                 self.children.push(Node {
                     children: Vec::new(),
@@ -121,7 +123,6 @@ impl Node {
         if self.children.is_empty() {
             if !state.is_game_over() {
                 #[allow(clippy::float_cmp)]
-                // There are no precision errors
                 if self.n == 1. {
                     self.expand(state, al);
                 }

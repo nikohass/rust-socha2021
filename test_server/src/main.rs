@@ -87,7 +87,7 @@ pub fn play_game(client_one: &mut Client, client_two: &mut Client, first: u8) {
         *score = state.board[color].count_ones();
         if *score == 89 {
             *score += 15;
-            if state.monomino_placed_last & 0b1 << color != 0 {
+            if state.monomino_placed_last[color] {
                 *score += 5;
             }
         }

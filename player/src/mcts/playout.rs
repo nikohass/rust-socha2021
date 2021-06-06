@@ -1,13 +1,14 @@
 use super::rave::RaveTable;
 use game_sdk::{Action, Bitboard, GameState, PieceType};
-use game_sdk::{PENTOMINO_SHAPES, START_FIELDS, VALID_FIELDS};
+use game_sdk::{START_FIELDS, VALID_FIELDS};
 use rand::{rngs::SmallRng, RngCore};
 
 type ShapeFunction = fn(Bitboard, Bitboard) -> Bitboard;
 const MOVEGEN_RETRIES: usize = 40;
 
 pub fn result_to_value(result: i16) -> f32 {
-    let abs = result.abs() as f32 / 100_000.;
+    // Returns 1 if team Blue/Red won, 0 if team Yellow/Green won, and 0.5 if the game ended in a draw
+    let abs = result.abs() as f32 / 100_000.; // Encourages the player to win with a large score difference
     match result {
         r if r > 0 => 0.999 + abs,
         r if r < 0 => 0.001 - abs,
@@ -16,6 +17,7 @@ pub fn result_to_value(result: i16) -> f32 {
 }
 
 pub fn playout(state: &mut GameState, rng: &mut SmallRng, rave_table: &mut RaveTable) -> f32 {
+    // Plays a game recursively to the end, returns the results and adds the values to the RaveTable
     if state.is_game_over() {
         let result = state.game_result();
         result_to_value(result)
@@ -34,38 +36,42 @@ pub fn random_action(state: &GameState, rng: &mut SmallRng, pentomino_only: bool
     if state.has_color_skipped(color) {
         return Action::SKIP;
     }
+    // Fields that are occupied by the current color
     let own_fields = state.board[color];
+    // All fields that are occupied by the other colors
     let other_fields = state.get_occupied_fields() & !own_fields;
+    // Fields that newly placed pieces can occupy
     let legal_fields = !(own_fields | other_fields | own_fields.neighbours()) & VALID_FIELDS;
+    // Calculate the corners of existing pieces at which new pieces can be placed
     let p = if state.ply > 3 {
         own_fields.diagonal_neighbours() & legal_fields
     } else {
         START_FIELDS & !other_fields
     };
-    if p.is_zero() {
+    if p.is_empty() {
         return Action::SKIP;
     }
     for _ in 0..MOVEGEN_RETRIES {
-        let mut shape = if pentomino_only {
+        // Select a random shape
+        let shape = if pentomino_only {
             PENTOMINO_SHAPES[(rng.next_u64() % 63) as usize]
         } else {
             (rng.next_u32() % 91) as usize
         };
-        if state.ply < 4 {
-            while PieceType::from_shape(shape as usize) != state.start_piece_type {
-                shape = PENTOMINO_SHAPES[(rng.next_u32() % 63) as usize]
+        if state.pieces_left[PieceType::from_shape(shape) as usize][color] {
+            // Generate all possible destination for this shape
+            let mut destinations = SHAPE_FUNCTIONS[shape](legal_fields, p);
+            if destinations.not_empty() {
+                // Return an Action with one of the possible destinations
+                return Action::set(destinations.random_field(rng), shape as u16);
             }
-        }
-        if !state.pieces_left[PieceType::from_shape(shape) as usize][color] {
-            continue;
-        }
-        let mut destinations = SHAPE_FUNCTIONS[shape](legal_fields, p);
-        if destinations.not_zero() {
-            return Action::set(destinations.random_field(rng), shape as u16);
         }
     }
     Action::SKIP
 }
+
+// All these functions take legal_fields and placement_fields as an argument and return a bitboard with all possible destinations for the shape
+// generated with rust-socha2021/helper_scripts/shapes.py
 
 fn shape_0(_l: Bitboard, p: Bitboard) -> Bitboard {
     p
@@ -442,6 +448,12 @@ const SHAPE_FUNCTIONS: [ShapeFunction; 91] = [
     shape_64, shape_65, shape_66, shape_67, shape_68, shape_69, shape_70, shape_71, shape_72,
     shape_73, shape_74, shape_75, shape_76, shape_77, shape_78, shape_79, shape_80, shape_81,
     shape_82, shape_83, shape_84, shape_85, shape_86, shape_87, shape_88, shape_89, shape_90,
+];
+
+const PENTOMINO_SHAPES: [usize; 63] = [
+    7, 8, 10, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 43, 44, 45, 46, 47, 48, 49, 50, 51,
+    52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75,
+    76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90,
 ];
 
 #[cfg(test)]

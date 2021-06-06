@@ -5,22 +5,23 @@ use std::fmt::{Display, Formatter, Result};
 
 #[derive(Clone, Eq, PartialEq)]
 pub struct GameState {
-    pub ply: u8,
-    pub board: [Bitboard; 4],
-    pub pieces_left: [[bool; 4]; 21],
-    pub monomino_placed_last: u8,
-    pub skipped: u64,
-    pub start_piece_type: PieceType,
-    pub hash: u64,
+    pub ply: u8,                         // Current turn of the GameState
+    pub board: [Bitboard; 4],            // 512-bit bitboards (indexed by color)
+    pub pieces_left: [[bool; 4]; 21], // Array that stores which player has which pieces left (indexed by piece_type, color)
+    pub monomino_placed_last: [bool; 4], // Saves whether a player's last action was a Monomino (indexed by color)
+    pub skipped: u64,                    // Keeps track of which player skipped
+    pub start_piece_type: PieceType, // The start piece type that each player has to place in the first round
+    pub hash: u64,                   // Hash of the current state. Only used in Minimax
 }
 
 impl GameState {
     pub fn random() -> GameState {
+        // Returns an empty GameState with a random start_piece_type
         GameState {
             ply: 0,
             board: [Bitboard::empty(); 4],
             pieces_left: [[true; 4]; 21],
-            monomino_placed_last: 0,
+            monomino_placed_last: [false; 4],
             skipped: 0,
             start_piece_type: PieceType::random_pentomino(),
             hash: 0,
@@ -29,11 +30,16 @@ impl GameState {
 
     #[inline(always)]
     pub fn get_current_color(&self) -> usize {
+        // Blue = 0
+        // Yellow = 1
+        // Red = 2
+        // Green = 3
         (self.ply & 0b11) as usize
     }
 
     #[inline(always)]
     pub fn get_team(&self) -> i16 {
+        // Returns -1 for team Blue/Red and +1 for team Yellow/Green
         ((self.ply as i16 & 0b1) << 1) - 1
     }
 
@@ -58,7 +64,7 @@ impl GameState {
         self.hash ^= PLY_HASH[self.ply as usize];
         let color = self.get_current_color();
         if action.is_skip() {
-            self.skipped = ((self.skipped & 0b1111) | self.skipped << 4) | (1 << color);
+            self.skipped = self.skipped << 4 | self.skipped & 0b1111 | 1 << color;
         } else {
             let destination = action.get_destination();
             let shape = action.get_shape() as usize;
@@ -66,11 +72,7 @@ impl GameState {
             self.pieces_left[piece_type as usize][color] = false;
             self.board[color] ^= Bitboard::with_piece(destination, shape);
             self.hash ^= PIECE_HASH[shape][color] ^ FIELD_HASH[destination as usize][color];
-            if piece_type == PieceType::Monomino {
-                self.monomino_placed_last |= 1 << color;
-            } else {
-                self.monomino_placed_last &= !(1 << color);
-            }
+            self.monomino_placed_last[color] = piece_type == PieceType::Monomino;
         };
         self.ply += 1;
         debug_assert!(self.check_integrity());
@@ -86,10 +88,6 @@ impl GameState {
             let destination = action.get_destination();
             let shape = action.get_shape() as usize;
             let piece_type = PieceType::from_shape(shape);
-            debug_assert!(
-                !self.pieces_left[piece_type as usize][color],
-                "Can't remove piece that has not been placed."
-            );
             self.pieces_left[piece_type as usize][color] = true;
             self.board[color] ^= Bitboard::with_piece(destination, shape);
             self.hash ^= PIECE_HASH[shape][color] ^ FIELD_HASH[destination as usize][color];
@@ -126,7 +124,7 @@ impl GameState {
         } else {
             START_FIELDS & !other_fields
         };
-        if (piece & p).is_zero() {
+        if (piece & p).is_empty() {
             println!("Piece does not touch a corner");
             is_valid = false;
         }
@@ -163,7 +161,6 @@ impl GameState {
                 }
             }
         }
-
         for color in 0..4 {
             let mut should_have: u32 = 0;
             for piece_type in PIECE_TYPES.iter() {
@@ -182,17 +179,23 @@ impl GameState {
         let color = self.get_current_color();
         al.clear();
         if self.has_color_skipped(color) {
+            // The color has no possible actions if it had to skip in a previous round
             al.push(Action::SKIP);
             return;
         }
+        // Fields that are occupied by the current color
         let own_fields = self.board[color];
+        // All fields that are occupied by the other colors
         let other_fields = self.get_occupied_fields() & !own_fields;
+        // Fields that newly placed pieces can occupy
         let legal_fields = !(own_fields | other_fields | own_fields.neighbours()) & VALID_FIELDS;
+        // Calculate the corners of existing pieces at which new pieces can be placed
         let p = if self.ply > 3 {
             own_fields.diagonal_neighbours() & legal_fields
         } else {
             START_FIELDS & !other_fields
         };
+        // Create a lot of shortcuts to speed up the action generation
         let mut shortcuts: [Bitboard; 13] = [Bitboard::empty(); 13];
         shortcuts[0] = legal_fields & (legal_fields >> 1 & VALID_FIELDS);
         shortcuts[1] = legal_fields & (legal_fields << 1 & VALID_FIELDS);
@@ -208,6 +211,7 @@ impl GameState {
         shortcuts[11] = shortcuts[0] & shortcuts[0] >> 21;
         shortcuts[12] = p;
 
+        // Add all legal actions for each piece type to the ActionList
         for (piece_type, generator) in ACTION_GENERATORS.iter().enumerate() {
             if self.pieces_left[piece_type + 1][color] {
                 generator(shortcuts, al);
@@ -217,6 +221,7 @@ impl GameState {
             al.append(p, 0);
         }
         if self.ply < 4 {
+            // Remove all piece types that are not the start piece type
             let mut idx = 0;
             for i in 0..al.size {
                 let shape = al[i].get_shape() as usize;
@@ -235,24 +240,24 @@ impl GameState {
 
     #[inline(always)]
     pub fn is_game_over(&self) -> bool {
-        self.skipped & 0b1111 == 0b1111 || self.ply > 100
+        self.skipped & 0b1111 == 0b1111 || self.ply > 100 // The game is over after all colors have skipped
     }
 
     pub fn game_result(&self) -> i16 {
+        // Only works when the game is over
+        // Returns a positive value if team Blue/Red won, a negative value if team Yellow/Green won, and 0 if the game ended in a draw
         let mut result: i16 = 0;
         for (color, board) in self.board.iter().enumerate() {
             let fields = board.count_ones() as i16;
             result -= (fields
-                + (fields == 89) as i16
-                    * (15 + 5 * (self.monomino_placed_last & 0b1 << color != 0) as i16))
+                + (fields == 89) as i16 * (15 + 5 * (self.monomino_placed_last[color]) as i16))
                 * (((color as i16 & 0b1) << 1) - 1);
         }
         result
     }
 
     pub fn to_fen(&self) -> String {
-        let mut data = self.monomino_placed_last as u128;
-        data |= (self.start_piece_type as u128) << 4;
+        let mut data = (self.start_piece_type as u128) << 4;
         data |= (self.ply as u128) << 9;
         data |= (self.skipped as u128) << 17;
         let mut pieces: u128 = 0;
@@ -262,6 +267,7 @@ impl GameState {
                     pieces |= 1 << (piece_type + color * 21);
                 }
             }
+            data |= (self.monomino_placed_last[color] as u128) << color
         }
         format!(
             "{} {} {} {} {} {}",
@@ -278,7 +284,6 @@ impl GameState {
         let mut entries: Vec<&str> = string.split(' ').collect();
         let mut state = GameState::default();
         let data = entries.remove(0).parse::<u128>().unwrap();
-        state.monomino_placed_last = (data & 0b1111) as u8;
         state.start_piece_type = PIECE_TYPES[(data >> 4 & 0b11111) as usize];
         state.ply = (data >> 9 & 0b11111111) as u8;
         state.skipped = (data >> 17) as u64;
@@ -289,6 +294,7 @@ impl GameState {
                     state.pieces_left[piece_type][color] = false;
                 }
             }
+            state.monomino_placed_last[color] = data & (1 << color) != 0;
         }
         for color in 0..4 {
             state.board[color].0 = entries.remove(0).parse::<u128>().unwrap();
@@ -367,7 +373,7 @@ impl Default for GameState {
             ply: 0,
             board: [Bitboard::empty(); 4],
             pieces_left: [[true; 4]; 21],
-            monomino_placed_last: 0,
+            monomino_placed_last: [false; 4],
             skipped: 0,
             start_piece_type: PieceType::LPentomino,
             hash: 0,

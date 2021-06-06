@@ -4,11 +4,11 @@ mod xml_client;
 mod xml_node;
 use game_sdk::Player;
 
-//use player::simple_client::SimpleClient as Algorithm;
-use player::mcts::search::Mcts as Algorithm;
-//use player::mcts::heuristics::HeuristicPlayer as Algorithm;
-//use player::neural_network::cnn::NeuralNetwork as Algorithm;
-//use player::minimax::search::Searcher as Algorithm;
+//use player::simple_client::SimpleClient as Algorithm; // Random player
+//use player::mcts::heuristics::HeuristicPlayer as Algorithm; // MCTS heuristics
+//use player::neural_network::cnn::NeuralNetwork as Algorithm; // Convolutional neural network
+//use player::minimax::search::Searcher as Algorithm; // Minimax
+use player::mcts::search::Mcts as Algorithm; // MCTS
 
 use test_client::run_test_client;
 use xml_client::XmlClient;
