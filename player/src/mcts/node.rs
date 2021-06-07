@@ -144,7 +144,7 @@ impl Node {
             return 1. - delta;
         }
         let next_child =
-            self.child_with_max_uct_value(state.get_current_color(), &rave_table, is_root);
+            self.child_with_max_uct_value(state.get_current_color(), rave_table, is_root);
         state.do_action(next_child.action);
         delta = next_child.iteration(al, state, rng, rave_table, false);
         self.backpropagate(delta);

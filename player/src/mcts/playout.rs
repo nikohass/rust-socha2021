@@ -23,7 +23,7 @@ pub fn playout(state: &mut GameState, rng: &mut SmallRng, rave_table: &mut RaveT
         result_to_value(result)
     } else {
         let color = state.get_current_color();
-        let action = random_action(&state, rng, state.ply < 12);
+        let action = random_action(state, rng, state.ply < 12);
         state.do_action(action);
         let result = playout(state, rng, rave_table);
         rave_table.add_value(action, color, result);
@@ -455,45 +455,3 @@ const PENTOMINO_SHAPES: [usize; 63] = [
     52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75,
     76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90,
 ];
-
-#[cfg(test)]
-mod test {
-    use super::random_action;
-    use game_sdk::{Action, ActionList, GameState};
-    use rand::{rngs::SmallRng, SeedableRng};
-
-    #[test]
-    fn test_random_actions() {
-        let mut al = ActionList::default();
-        let mut rng = SmallRng::from_entropy();
-        for _ in 0..300 {
-            let mut state = GameState::random();
-            let mut action = Action::SKIP;
-            state.get_possible_actions(&mut al);
-            for _ in 0..100 {
-                action = random_action(&state, &mut rng, false);
-                let mut is_legal = false;
-                for i in 0..al.size {
-                    if action == al[i] {
-                        is_legal = true;
-                        break;
-                    }
-                }
-                if !is_legal {
-                    panic!("Invalid action");
-                }
-            }
-            while al.size > 0 {
-                action = random_action(&state, &mut rng, false);
-                for i in 0..al.size {
-                    if al[i] == action {
-                        al.swap(i, al.size - 1);
-                        al.size -= 1;
-                        break;
-                    }
-                }
-            }
-            state.do_action(action);
-        }
-    }
-}

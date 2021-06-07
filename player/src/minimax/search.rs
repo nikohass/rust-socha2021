@@ -71,7 +71,6 @@ impl Searcher {
             best_score = current_score;
             self.principal_variation = self.pv_table[0].clone();
             best_action = self.principal_variation[0];
-
             if self.principal_variation.size == last_principal_variation_size {
                 println!("\nReached the end of the search tree.");
                 if best_score >= MATE_SCORE {
@@ -85,7 +84,6 @@ impl Searcher {
             }
             last_principal_variation_size = self.principal_variation.size;
             println!("{}", self.principal_variation);
-
             if depth_start_time.elapsed().as_millis() > (self.time_limit - time) / 2 {
                 break;
             }
@@ -204,7 +202,6 @@ pub fn principal_variation_search(
     for index in 0..searcher.als[depth_left].size {
         let action = searcher.als[depth_left][index];
         state.do_action(action);
-
         let score = if index == 0 {
             -principal_variation_search(
                 searcher,
@@ -236,7 +233,6 @@ pub fn principal_variation_search(
             score
         };
         state.undo_action(action);
-
         if score > best_score {
             best_action_index = index;
             best_score = score;

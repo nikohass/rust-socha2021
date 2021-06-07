@@ -56,6 +56,7 @@ impl ActionList {
 
 impl Default for ActionList {
     fn default() -> Self {
+        #[allow(clippy::uninit_assumed_init)]
         let actions = unsafe { std::mem::MaybeUninit::uninit().assume_init() };
         Self { actions, size: 0 }
     }

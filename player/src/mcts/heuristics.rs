@@ -4,6 +4,7 @@ use game_sdk::{Action, ActionList, Bitboard, GameState, PieceType, Player};
 use game_sdk::{START_FIELDS, VALID_FIELDS};
 
 pub const SEARCH_SEEDING_VISITS: f32 = 23.; // Number of visits that each child node is initialized with
+
 // Tuned using python-socha2021/socha2021/tuning.py
 pub const HEURISTIC_PARAMETERS: [f32; 13] = [
     0.06641941,

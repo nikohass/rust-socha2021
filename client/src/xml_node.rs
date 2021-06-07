@@ -180,7 +180,7 @@ impl XmlNode {
     pub fn get_child(&self, name: &str) -> Option<&XmlNode> {
         for child in &self.childs {
             if child.name.as_str() == name {
-                return Some(&child);
+                return Some(child);
             }
         }
         None

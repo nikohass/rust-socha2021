@@ -77,7 +77,7 @@ impl Mcts {
         println!("Searching action using MCTS. Fen: {}", state.to_fen());
         println!("    Left Depth Iterations Value PV");
         let start_time = Instant::now();
-        self.set_root(&state);
+        self.set_root(state);
         let mut rng = SmallRng::from_entropy();
         let mut pv = ActionList::default();
         let mut iterations_per_ms = 5.;
