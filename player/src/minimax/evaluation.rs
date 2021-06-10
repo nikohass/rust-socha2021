@@ -67,14 +67,14 @@ pub fn static_evaluation(state: &GameState) -> i16 {
     let placement_field_difference;
     let double_placement_field_difference;
     {
-        let blue_placement_fields = state.board[0].diagonal_neighbours()
-            & !(all_occupied_fields | state.board[0].neighbours());
-        let yellow_placement_fields = state.board[1].diagonal_neighbours()
-            & !(all_occupied_fields | state.board[1].neighbours());
-        let red_placement_fields = state.board[2].diagonal_neighbours()
-            & !(all_occupied_fields | state.board[2].neighbours());
-        let green_placement_fields = state.board[3].diagonal_neighbours()
-            & !(all_occupied_fields | state.board[3].neighbours());
+        let blue_placement_fields = state.board[0].diagonal_neighbors()
+            & !(all_occupied_fields | state.board[0].neighbors());
+        let yellow_placement_fields = state.board[1].diagonal_neighbors()
+            & !(all_occupied_fields | state.board[1].neighbors());
+        let red_placement_fields = state.board[2].diagonal_neighbors()
+            & !(all_occupied_fields | state.board[2].neighbors());
+        let green_placement_fields = state.board[3].diagonal_neighbors()
+            & !(all_occupied_fields | state.board[3].neighbors());
 
         let one_placement_fields = blue_placement_fields | red_placement_fields;
         let two_placement_fields = yellow_placement_fields | green_placement_fields;
@@ -87,18 +87,18 @@ pub fn static_evaluation(state: &GameState) -> i16 {
             - (yellow_placement_fields & green_placement_fields).count_ones() as f32;
     }
 
-    let blocked_placement_field_difference = ((state.board[0].diagonal_neighbours()
-        & !(state.board[0].neighbours())
+    let blocked_placement_field_difference = ((state.board[0].diagonal_neighbors()
+        & !(state.board[0].neighbors())
         & all_occupied_fields)
-        | (state.board[2].diagonal_neighbours()
-            & !(state.board[2].neighbours())
+        | (state.board[2].diagonal_neighbors()
+            & !(state.board[2].neighbors())
             & all_occupied_fields))
         .count_ones() as f32
-        - ((state.board[1].diagonal_neighbours()
-            & !(state.board[1].neighbours())
+        - ((state.board[1].diagonal_neighbors()
+            & !(state.board[1].neighbors())
             & all_occupied_fields)
-            | (state.board[3].diagonal_neighbours()
-                & !(state.board[3].neighbours())
+            | (state.board[3].diagonal_neighbors()
+                & !(state.board[3].neighbors())
                 & all_occupied_fields))
             .count_ones() as f32;
 
@@ -106,11 +106,11 @@ pub fn static_evaluation(state: &GameState) -> i16 {
         as f32
         - (two_fields & DEFAULT_PARAMS.valuable_fields).count_ones() as f32;
 
-    let proximity_difference = ((all_occupied_fields & state.board[0].neighbours())
-        | (all_occupied_fields & state.board[2].neighbours()))
+    let proximity_difference = ((all_occupied_fields & state.board[0].neighbors())
+        | (all_occupied_fields & state.board[2].neighbors()))
     .count_ones() as f32
-        - ((all_occupied_fields & state.board[1].neighbours())
-            | (all_occupied_fields & state.board[3].neighbours()))
+        - ((all_occupied_fields & state.board[1].neighbors())
+            | (all_occupied_fields & state.board[3].neighbors()))
         .count_ones() as f32;
 
     let score = field_difference * DEFAULT_PARAMS.occupied_field_factor

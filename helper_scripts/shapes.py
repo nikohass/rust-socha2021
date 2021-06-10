@@ -20,14 +20,14 @@ def get_p(shape):
         bit = 1 << bit_index
         if bit & shape_copy != 0:
             shape_copy ^= bit
-            diagonal_neighbours = bit << 20 | bit << 22 | bit >> 20 | bit >> 22
+            diagonal_neighbors = bit << 20 | bit << 22 | bit >> 20 | bit >> 22
             bit_idx = 1
-            while diagonal_neighbours != 0:
+            while diagonal_neighbors != 0:
                 bit = 1 << bit_idx
-                if bit & diagonal_neighbours != 0:
-                    diagonal_neighbours ^= bit
-                    neighbours = bit << 21 | bit >> 21 | bit << 1 | bit >> 1
-                    if neighbours & shape == 0:
+                if bit & diagonal_neighbors != 0:
+                    diagonal_neighbors ^= bit
+                    neighbors = bit << 21 | bit >> 21 | bit << 1 | bit >> 1
+                    if neighbors & shape == 0:
                         p.append(bit_index - 128)
                         break
                 bit_idx += 1

@@ -284,12 +284,12 @@ impl Bitboard {
     }
 
     #[inline(always)]
-    pub fn neighbours(&self) -> Bitboard {
+    pub fn neighbors(&self) -> Bitboard {
         ((*self << 1) | (*self >> 1) | (*self >> 21) | (*self << 21)) & VALID_FIELDS
     }
 
     #[inline(always)]
-    pub fn diagonal_neighbours(&self) -> Bitboard {
+    pub fn diagonal_neighbors(&self) -> Bitboard {
         ((*self << 22) | (*self >> 22) | (*self >> 20) | (*self << 20)) & VALID_FIELDS
     }
 
@@ -299,7 +299,7 @@ impl Bitboard {
         while board.not_empty() {
             let mut piece_board = Bitboard::bit(board.trailing_zeros());
             for _ in 0..5 {
-                piece_board |= piece_board.neighbours() & board;
+                piece_board |= piece_board.neighbors() & board;
             }
             board ^= piece_board;
             actions.push(Action::from_bitboard(piece_board));

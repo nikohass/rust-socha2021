@@ -1,4 +1,4 @@
-use super::hashing::{FIELD_HASH, PIECE_HASH, PLY_HASH};
+use super::hashing::{DESTINATION_HASH, PLY_HASH, SHAPE_HASH};
 use super::{Action, ActionList, Bitboard, PieceType};
 use super::{PIECE_TYPES, START_FIELDS, VALID_FIELDS};
 use std::fmt::{Display, Formatter, Result};
@@ -71,7 +71,7 @@ impl GameState {
             let piece_type = PieceType::from_shape(shape);
             self.pieces_left[piece_type as usize][color] = false;
             self.board[color] ^= Bitboard::with_piece(destination, shape);
-            self.hash ^= PIECE_HASH[shape][color] ^ FIELD_HASH[destination as usize][color];
+            self.hash ^= SHAPE_HASH[shape][color] ^ DESTINATION_HASH[destination as usize][color];
             self.monomino_placed_last[color] = piece_type == PieceType::Monomino;
         };
         self.ply += 1;
@@ -90,7 +90,7 @@ impl GameState {
             let piece_type = PieceType::from_shape(shape);
             self.pieces_left[piece_type as usize][color] = true;
             self.board[color] ^= Bitboard::with_piece(destination, shape);
-            self.hash ^= PIECE_HASH[shape][color] ^ FIELD_HASH[destination as usize][color];
+            self.hash ^= SHAPE_HASH[shape][color] ^ DESTINATION_HASH[destination as usize][color];
         }
         debug_assert!(self.check_integrity());
     }
@@ -118,9 +118,9 @@ impl GameState {
         let piece = Bitboard::with_piece(destination, shape);
         let own_fields = self.board[color];
         let other_fields = self.get_occupied_fields() & !own_fields;
-        let legal_fields = !(own_fields | other_fields | own_fields.neighbours()) & VALID_FIELDS;
+        let legal_fields = !(own_fields | other_fields | own_fields.neighbors()) & VALID_FIELDS;
         let p = if self.ply > 3 {
-            own_fields.diagonal_neighbours() & legal_fields
+            own_fields.diagonal_neighbors() & legal_fields
         } else {
             START_FIELDS & !other_fields
         };
@@ -188,10 +188,10 @@ impl GameState {
         // All fields that are occupied by the other colors
         let other_fields = self.get_occupied_fields() & !own_fields;
         // Fields that newly placed pieces can occupy
-        let legal_fields = !(own_fields | other_fields | own_fields.neighbours()) & VALID_FIELDS;
+        let legal_fields = !(own_fields | other_fields | own_fields.neighbors()) & VALID_FIELDS;
         // Calculate the corners of existing pieces at which new pieces can be placed
         let p = if self.ply > 3 {
-            own_fields.diagonal_neighbours() & legal_fields
+            own_fields.diagonal_neighbors() & legal_fields
         } else {
             START_FIELDS & !other_fields
         };

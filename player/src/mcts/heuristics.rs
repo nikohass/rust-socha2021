@@ -30,9 +30,9 @@ fn calculate_placement_fields(state: &GameState, occupied: &Bitboard) -> [Bitboa
     for color in 0..4 {
         let current_color_fields = state.board[color];
         let other_colors_fields = *occupied & !current_color_fields;
-        let legal_fields = !(*occupied | current_color_fields.neighbours()) & VALID_FIELDS;
+        let legal_fields = !(*occupied | current_color_fields.neighbors()) & VALID_FIELDS;
         placement_fields[color] = if state.ply > 3 {
-            current_color_fields.diagonal_neighbours() & legal_fields
+            current_color_fields.diagonal_neighbors() & legal_fields
         } else {
             START_FIELDS & !other_colors_fields
         };
@@ -49,9 +49,9 @@ fn estimate_reachable_fields(
     let mut reachable_fields: [Bitboard; 4] = [Bitboard::empty(); 4];
     for color in 0..4 {
         let mut reachable = placement_fields[color];
-        let unreachable = state.board[color].neighbours() | *occupied;
+        let unreachable = state.board[color].neighbors() | *occupied;
         for _ in 0..4 {
-            reachable |= reachable.neighbours() & !unreachable;
+            reachable |= reachable.neighbors() & !unreachable;
         }
         reachable_fields[color] = reachable;
     }
@@ -69,10 +69,10 @@ fn calculate_leaks(
     for color in 0..4 {
         leaks[color] = reachable_fields[color]
             & (placement_fields[color]
-                & (*occupied).neighbours()
-                & !(*occupied | state.board[color].neighbours()))
-            .diagonal_neighbours()
-            & (*occupied).neighbours();
+                & (*occupied).neighbors()
+                & !(*occupied | state.board[color].neighbors()))
+            .diagonal_neighbors()
+            & (*occupied).neighbors();
     }
     leaks
 }
@@ -114,8 +114,8 @@ pub fn expand_node(
         reachable_fields[next_opponent_color] | reachable_fields[last_opponent_color];
     // No idea what this does, but it makes the client play better
     let k = reachable_fields[current_color]
-        & (occupied & !state.board[current_color]).neighbours()
-        & !(occupied & !state.board[current_color]).diagonal_neighbours();
+        & (occupied & !state.board[current_color]).neighbors()
+        & !(occupied & !state.board[current_color]).diagonal_neighbors();
 
     for i in 0..al.size {
         let action = al[i];
@@ -133,27 +133,27 @@ pub fn expand_node(
         heuristic_value +=
             (piece & leaks[current_color]).count_ones() as f32 * HEURISTIC_PARAMETERS[1];
         heuristic_value += (piece
-            & leaks[current_color].diagonal_neighbours()
+            & leaks[current_color].diagonal_neighbors()
             & !(opponent_reachable_fields | occupied))
             .count_ones() as f32
             * HEURISTIC_PARAMETERS[2];
         heuristic_value += (piece & leaks[next_opponent_color])
-            .diagonal_neighbours()
+            .diagonal_neighbors()
             .count_ones() as f32
             * HEURISTIC_PARAMETERS[3];
         heuristic_value += (piece & leaks[last_opponent_color])
-            .diagonal_neighbours()
+            .diagonal_neighbors()
             .count_ones() as f32
             * HEURISTIC_PARAMETERS[4];
         // Evaluate blocks
         heuristic_value +=
             (piece & opponent_placement_fields).count_ones() as f32 * HEURISTIC_PARAMETERS[5];
-        heuristic_value += (piece & opponent_placement_fields.diagonal_neighbours()).count_ones()
+        heuristic_value += (piece & opponent_placement_fields.diagonal_neighbors()).count_ones()
             as f32
             * HEURISTIC_PARAMETERS[6];
         // Calculate all new placement fields the piece would create
-        let new_placement_fields = piece.diagonal_neighbours()
-            & !(piece | state.board[current_color]).neighbours()
+        let new_placement_fields = piece.diagonal_neighbors()
+            & !(piece | state.board[current_color]).neighbors()
             & !occupied;
         // Evaluate the new placement fields
         heuristic_value += (new_placement_fields & reachable_fields[next_opponent_color])

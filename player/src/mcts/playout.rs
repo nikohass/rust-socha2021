@@ -41,10 +41,10 @@ pub fn random_action(state: &GameState, rng: &mut SmallRng, pentomino_only: bool
     // All fields that are occupied by the other colors
     let other_fields = state.get_occupied_fields() & !own_fields;
     // Fields that newly placed pieces can occupy
-    let legal_fields = !(own_fields | other_fields | own_fields.neighbours()) & VALID_FIELDS;
+    let legal_fields = !(own_fields | other_fields | own_fields.neighbors()) & VALID_FIELDS;
     // Calculate the corners of existing pieces at which new pieces can be placed
     let p = if state.ply > 3 {
-        own_fields.diagonal_neighbours() & legal_fields
+        own_fields.diagonal_neighbors() & legal_fields
     } else {
         START_FIELDS & !other_fields
     };
